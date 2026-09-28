@@ -31,17 +31,36 @@ Strona nie wymaga instalowania zależności ani budowania. Wystarczy przeglądar
 
 > Otwarcie `index.html` podwójnym kliknięciem **nie zadziała**. Przeglądarka blokuje wczytywanie modelu z plików lokalnych (`file://`), dlatego potrzebny jest serwer.
 
-### Python (najprościej)
+### Docker
 
-W folderze projektu uruchom:
+Wymaga [Docker Desktop](https://www.docker.com/products/docker-desktop/). W folderze projektu uruchom:
+
+```
+docker compose up
+```
+
+i otwórz http://localhost:8080. Folder jest podpięty „na żywo”: po zapisaniu zmian w plikach (np. `content.js`) wystarczy odświeżyć stronę. Zatrzymanie: `Ctrl+C`.
+
+Można też zbudować samodzielny obraz:
+
+```
+docker build -t anatomia .
+docker run --rm -p 8080:80 anatomia
+```
+
+### Python
+
+Wymaga zainstalowanego [Pythona 3](https://www.python.org/downloads/). W folderze projektu uruchom:
 
 ```
 python -m http.server 8000
 ```
 
-Na Windowsie, jeśli `python` nie działa, spróbuj `py -m http.server 8000`. Potem otwórz w przeglądarce http://localhost:8000.
+Na Windowsie, jeśli `python` nie działa, spróbuj `py -m http.server 8000`. Potem otwórz http://localhost:8000.
 
 ### Node.js
+
+Wymaga zainstalowanego [Node.js](https://nodejs.org/). Bez niego polecenie `npx` nie będzie rozpoznawane.
 
 ```
 npx serve .
@@ -62,6 +81,10 @@ Aktualna przeglądarka z obsługą WebGL: Chrome, Edge, Firefox lub Safari. Przy
 3. Po chwili strona będzie dostępna pod adresem `https://<nazwa-użytkownika>.github.io/<nazwa-repozytorium>/`.
 
 Nie wgrywaj do repozytorium archiwów `.zip` z danymi źródłowymi. Są wykluczone w `.gitignore`.
+
+## Jak pomóc
+
+Chcesz poprawić opis albo położenie etykiety? Do większości poprawek nie trzeba niczego instalować. Wszystko jest opisane krok po kroku w pliku [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Poprawianie punktów etykiet
 
@@ -90,6 +113,8 @@ Wszystkie teksty, czyli nazwy kręgów, cechy, uwagi dla masażysty, przyczepy m
 | `vendor/three/` | Biblioteka three.js r170 |
 | `tools/build_glb.py` | Zamienia pliki STL z BodyParts3D na `models/kregoslup.glb` |
 | `tools/landmarks.py` | Wyznacza z geometrii kości punkty do `landmarks.js` |
+| `Dockerfile`, `compose.yaml`, `docker/` | Uruchomienie strony w kontenerze (nginx) |
+| `CONTRIBUTING.md` | Jak zgłaszać i wprowadzać poprawki |
 
 ## Odtworzenie modelu z danych źródłowych
 

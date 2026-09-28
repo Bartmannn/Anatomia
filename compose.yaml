@@ -1,0 +1,11 @@
+# Uruchomienie:  docker compose up
+# Strona:        http://localhost:8080
+# Folder projektu jest podpięty „na żywo” — po zapisaniu zmian w plikach wystarczy odświeżyć stronę.
+services:
+  atlas:
+    image: nginx:1.27-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./:/usr/share/nginx/html:ro
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
