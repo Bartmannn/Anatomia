@@ -3,7 +3,7 @@ MIT License
 Copyright (c) 2026 SKK Anatomia contributors
 
 Dotyczy kodu strony (index.html, styles.css, app.js) i skryptów w folderze tools/.
-Nie dotyczy modeli 3D (models/, licencja CC BY-SA 2.1 JP), opisów (content.js,
+Nie dotyczy modeli 3D (models/ i landmarks.js, licencja CC BY-SA 2.1 JP), opisów (content.js,
 licencja CC BY-SA 4.0) ani biblioteki three.js (vendor/three/, własna licencja MIT).
 
 Permission is hereby granted, free of charge, to any person obtaining a copy

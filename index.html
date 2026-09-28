@@ -33,14 +33,18 @@
     <section class="stage" id="stage" aria-label="Model 3D kręgosłupa">
       <div class="bigcode" id="bigcode" aria-hidden="true">C7</div>
       <div class="hint">Przeciągnij, aby obrócić · kółko lub dwa palce, aby przybliżyć<br>Kliknij kość, aby ją wybrać · strzałki ↑ ↓</div>
+      <div class="labels" id="labels" aria-hidden="true"></div>
+      <div class="zoomhint" id="zoomhint" hidden>Czarne kropki: punkty wyczuwalne pod palcami. Wybierz kręg lub przybliż, aby zobaczyć nazwy jego części.</div>
       <div class="loader" id="loader"><div>Wczytywanie modelu…<div class="bar"><i id="loadbar"></i></div></div></div>
       <div class="toolbar">
         <div class="seg" role="group" aria-label="Widok">
           <button type="button" data-view="front">Przód</button>
           <button type="button" data-view="side">Bok</button>
           <button type="button" data-view="back">Tył</button>
+          <button type="button" data-view="top">Góra</button>
           <button type="button" data-view="all">Cały</button>
         </div>
+        <button type="button" class="chip" id="names" aria-pressed="true"><span class="box"></span>Nazwy</button>
         <button type="button" class="chip" id="discs" aria-pressed="true"><span class="box"></span>Krążki</button>
         <button type="button" class="chip" id="tint" aria-pressed="false"><span class="box"></span>Kolory odcinków</button>
         <button type="button" class="chip" id="isolate" aria-pressed="false"><span class="box"></span>Tylko wybrany</button>

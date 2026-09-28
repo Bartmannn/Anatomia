@@ -233,3 +233,85 @@ export const PARTS = {
     muscles: 'Pośladkowy wielki, prostownik grzbietu, wielodzielny, gruszkowaty (powierzchnia miedniczna), najszerszy grzbietu (przez powięź).',
   },
 };
+
+// Nazwy części kości pokazywane jako etykiety na modelu.
+// palp: true = część wyczuwalna pod palcami (czarna kropka), false = niewyczuwalna (pusta kropka).
+export const PART_LABELS = {
+  body:       { name: 'Trzon', latin: 'corpus vertebrae', palp: false,
+                def: 'Przednia, najmasywniejsza część kręgu. Przenosi ciężar ciała; między trzonami leżą krążki międzykręgowe.' },
+  foramen:    { name: 'Otwór kręgowy', latin: 'foramen vertebrale', palp: false,
+                def: 'Otwory wszystkich kręgów ułożone jeden nad drugim tworzą kanał kręgowy, w którym leży rdzeń kręgowy.' },
+  pedicle:    { name: 'Nasada łuku', latin: 'pediculus arcus vertebrae', palp: false,
+                def: 'Łączy łuk z trzonem. Między nasadami sąsiednich kręgów są otwory międzykręgowe, przez które wychodzą nerwy rdzeniowe.' },
+  lamina:     { name: 'Blaszka łuku', latin: 'lamina arcus vertebrae', palp: false,
+                def: 'Tylna część łuku kręgu, między wyrostkiem kolczystym a wyrostkami stawowymi. Nasady i blaszki razem tworzą łuk kręgu.' },
+  spinous:    { name: 'Wyrostek kolczysty', latin: 'processus spinosus', palp: true,
+                def: 'Skierowany do tyłu. Jego wierzchołki wyczuwamy pod palcami wzdłuż linii środkowej pleców. Przyczep mięśni i więzadeł.' },
+  transverse: { name: 'Wyrostek poprzeczny', latin: 'processus transversus', palp: false,
+                def: 'Odchodzi na boki. Przyczep mięśni; w odcinku piersiowym łączy się z guzkiem żebra.' },
+  art_sup:    { name: 'Wyrostek stawowy górny', latin: 'processus articularis superior', palp: false,
+                def: 'Tworzy staw międzywyrostkowy z wyrostkiem stawowym dolnym kręgu leżącego powyżej.' },
+  art_inf:    { name: 'Wyrostek stawowy dolny', latin: 'processus articularis inferior', palp: false,
+                def: 'Tworzy staw międzywyrostkowy z wyrostkiem stawowym górnym kręgu leżącego poniżej.' },
+};
+
+// Nadpisania dla kręgów o nietypowej budowie
+export const PART_LABELS_SPECIAL = {
+  C1: {
+    arcus_ant:    { name: 'Łuk przedni', latin: 'arcus anterior atlantis', palp: false,
+                    def: 'Przednia część pierścienia kręgu szczytowego. Z przodu ma guzek przedni.' },
+    arcus_post:   { name: 'Łuk tylny', latin: 'arcus posterior atlantis', palp: false,
+                    def: 'Tylna część pierścienia. Zamiast wyrostka kolczystego ma guzek tylny, leżący głęboko pod mięśniami.' },
+    massa_lat:    { name: 'Masa boczna', latin: 'massa lateralis atlantis', palp: false,
+                    def: 'Najgrubsza część kręgu szczytowego. U góry ma powierzchnię stawową dla kłykcia kości potylicznej (ruch „tak”).' },
+    fovea_dentis: { name: 'Dołek zęba', latin: 'fovea dentis', palp: false,
+                    def: 'Powierzchnia stawowa na tylnej stronie łuku przedniego. Obraca się w niej ząb kręgu C2.' },
+    transverse:   { name: 'Wyrostek poprzeczny', latin: 'processus transversus', palp: true,
+                    def: 'Najdłuższy w odcinku szyjnym. Można go delikatnie wyczuć między wyrostkiem sutkowatym a kątem żuchwy.' },
+  },
+  C2: {
+    dens:    { name: 'Ząb', latin: 'dens axis', palp: false,
+               def: 'Wystaje z trzonu ku górze. Wokół niego kręg szczytowy razem z głową obraca się w stawie szczytowo-obrotowym (ruch „nie”).' },
+    art_sup: { name: 'Powierzchnia stawowa górna', latin: 'facies articularis superior', palp: false,
+               def: 'Łączy się z masą boczną kręgu szczytowego.' },
+  },
+  C3: { spinous: { palp: false, note: 'Głęboko w lordozie — trudno wyczuwalny.' } },
+  C4: { spinous: { palp: false, note: 'Głęboko w lordozie — trudno wyczuwalny.' } },
+  C5: { spinous: { palp: false, note: 'Głęboko w lordozie — trudno wyczuwalny.' } },
+  L: {
+    transverse: { name: 'Wyrostek żebrowy', latin: 'processus costalis', palp: false,
+                  def: 'W kręgach lędźwiowych odpowiednik wyrostka poprzecznego — pozostałość żebra. Przyczep mięśnia czworobocznego lędźwi.' },
+  },
+  S: {
+    promontorium:  { name: 'Wzgórek', latin: 'promontorium', palp: false,
+                     def: 'Wystający do przodu brzeg podstawy kości krzyżowej, na granicy z L5.' },
+    art_sup:       { name: 'Wyrostek stawowy górny', latin: 'processus articularis superior', palp: false,
+                     def: 'Tworzy staw z wyrostkiem stawowym dolnym kręgu L5.' },
+    canal:         { name: 'Kanał krzyżowy', latin: 'canalis sacralis', palp: false,
+                     def: 'Przedłużenie kanału kręgowego. Biegną w nim korzenie nerwów krzyżowych.' },
+    ala:           { name: 'Część boczna', latin: 'pars lateralis (ala)', palp: false,
+                     def: 'Boczne „skrzydła” kości krzyżowej, powstałe ze zrośnięcia wyrostków poprzecznych i żeber.' },
+    auricular:     { name: 'Powierzchnia uchowata', latin: 'facies auricularis', palp: false,
+                     def: 'Łączy się z kością biodrową w stawie krzyżowo-biodrowym.' },
+    crista_mediana:{ name: 'Grzebień krzyżowy pośrodkowy', latin: 'crista sacralis mediana', palp: true,
+                     def: 'Pozostałość zrośniętych wyrostków kolczystych. Dobrze wyczuwalny w linii środkowej.' },
+    apex:          { name: 'Wierzchołek', latin: 'apex ossis sacri', palp: false,
+                     def: 'Dolny koniec kości krzyżowej, łączy się z kością guziczną (brak w modelu).' },
+  },
+  D: {
+    anulus:  { name: 'Pierścień włóknisty', latin: 'anulus fibrosus', palp: false,
+               def: 'Zewnętrzna część krążka z koncentrycznych warstw włókien. Twarda i wytrzymała.' },
+    nucleus: { name: 'Jądro miażdżyste', latin: 'nucleus pulposus', palp: false,
+               def: 'Galaretowaty środek krążka, leży nieco bliżej tyłu. Rozkłada nacisk jak poduszka wodna.' },
+  },
+};
+
+// Punkty orientacyjne pokazywane na całym kręgosłupie (widok z daleka)
+export const PALPATION = [
+  { key: 'C2',  part: 'spinous', label: 'C2',  note: 'pierwszy wyczuwalny wyrostek pod potylicą' },
+  { key: 'C7',  part: 'spinous', label: 'C7',  note: 'kręg wystający, podstawa szyi' },
+  { key: 'Th3', part: 'spinous', label: 'Th3', note: 'wysokość grzebieni łopatek' },
+  { key: 'Th7', part: 'spinous', label: 'Th7', note: 'dolne kąty łopatek' },
+  { key: 'L4',  part: 'spinous', label: 'L4',  note: 'linia grzebieni biodrowych' },
+  { key: 'S',   part: 'crista_mediana', label: 'S2', note: 'kolce biodrowe tylne górne (dołeczki)' },
+];

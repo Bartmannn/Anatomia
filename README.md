@@ -9,12 +9,16 @@ Interaktywny atlas kręgosłupa dla uczniów kierunku technik masażysta. W prze
 | Plik / folder | Co to jest |
 |---|---|
 | `index.html`, `styles.css`, `app.js` | Strona (Three.js, bez frameworków i bez budowania) |
-| `content.js` | Wszystkie opisy — można je edytować w zwykłym edytorze tekstu |
+| `content.js` | Wszystkie opisy i nazwy części kości — można je edytować w zwykłym edytorze tekstu |
+| `landmarks.js` | Położenie etykiet (trzon, wyrostki, otwór kręgowy…) na każdym kręgu |
 | `models/kregoslup.glb` | 24 kręgi (C1–L5), kość krzyżowa i 23 krążki międzykręgowe w jednym pliku (~5,4 MB) |
 | `vendor/three/` | Biblioteka three.js r170 (licencja MIT) |
 | `tools/build_glb.py` | Skrypt, który zamienia pliki STL z BodyParts3D na `kregoslup.glb` |
+| `tools/landmarks.py` | Skrypt, który wyznacza z geometrii kości punkty do `landmarks.js` |
 
 W modelu nie ma kości guzicznej (brak w zbiorze danych).
+
+Etykiety części kręgów są wyznaczane automatycznie z kształtu kości (skrajne punkty, promienie przez otwór kręgowy). Działa to dobrze dla typowych kręgów, ale warto je przejrzeć — pojedyncze punkty można poprawić ręcznie w `landmarks.js`.
 
 ## Uruchomienie na komputerze
 
@@ -37,7 +41,7 @@ Potem otwórz http://localhost:8000.
 
 **Modele 3D** — BodyParts3D, © The Database Center for Life Science (DBCLS), licencja [CC BY-SA 2.1 JP](https://creativecommons.org/licenses/by-sa/2.1/jp/deed.en).
 Dane pobrane z repozytorium [Kevin-Mattheus-Moerman/BodyParts3D](https://github.com/Kevin-Mattheus-Moerman/BodyParts3D) (wersja 3.0 / 20110915, pliki STL przekonwertowane z oryginalnych OBJ).
-Wprowadzone zmiany: wybór części kręgosłupa, zmiana układu osi i skali, scalenie wierzchołków, obliczenie normalnych, kwantyzacja i zapis do formatu glTF (GLB). Plik `models/kregoslup.glb` jest udostępniany na tej samej licencji CC BY-SA 2.1 JP.
+Wprowadzone zmiany: wybór części kręgosłupa, zmiana układu osi i skali, scalenie wierzchołków, obliczenie normalnych, kwantyzacja i zapis do formatu glTF (GLB). Pliki `models/kregoslup.glb` i `landmarks.js` (współrzędne wyznaczone z tych samych danych) są udostępniane na tej samej licencji CC BY-SA 2.1 JP.
 
 Publikacja źródłowa:
 > Mitsuhashi N, Fujieda K, Tamura T, Kawamoto S, Takagi T, Okubo K. *BodyParts3D: 3D structure database for anatomical concepts.* Nucleic Acids Res. 2009;37(Database issue):D782–5. https://doi.org/10.1093/nar/gkn613
@@ -45,7 +49,7 @@ Publikacja źródłowa:
 
 **three.js** — © three.js authors, licencja MIT (`vendor/three/LICENSE`).
 
-**Kod strony i skrypt** (`index.html`, `styles.css`, `app.js`, `tools/`) — licencja MIT (`LICENSE`).
+**Kod strony i skrypty** (`index.html`, `styles.css`, `app.js`, `tools/`) — licencja MIT (`LICENSE`).
 
 **Opisy** (`content.js`) — licencja CC BY-SA 4.0.
 

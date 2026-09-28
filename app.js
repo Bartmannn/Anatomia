@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { REGIONS, PARTS, DISC } from './content.js';
+import { REGIONS, PARTS, DISC, PART_LABELS, PART_LABELS_SPECIAL, PALPATION } from './content.js';
+import { LANDMARKS } from './landmarks.js';
 
 const ORDER = ['C1','C2','C3','C4','C5','C6','C7',
   'Th1','Th2','Th3','Th4','Th5','Th6','Th7','Th8','Th9','Th10','Th11','Th12',
@@ -49,7 +50,9 @@ const state = {
   showDiscs: true,
   tint: false,
   isolate: false,
+  labels: true,
   quiz: null,
+  focusPart: null,
 };
 
 /* ---------- Ruler ---------- */
@@ -114,12 +117,12 @@ const root = new THREE.Group();
 scene.add(root);
 
 function resize() {
-  const r = stageEl.getBoundingClientRect();
+  const r = renderer.domElement.getBoundingClientRect();
   renderer.setSize(r.width, r.height, false);
   camera.aspect = r.width / Math.max(r.height, 1);
   camera.updateProjectionMatrix();
 }
-new ResizeObserver(resize).observe(stageEl);
+new ResizeObserver(resize).observe(renderer.domElement);
 
 /* ---------- Camera framing ---------- */
 const VIEWS = {
@@ -127,6 +130,7 @@ const VIEWS = {
   front: new THREE.Vector3(0, 0.08, 1),
   back:  new THREE.Vector3(0, 0.08, -1),
   three: new THREE.Vector3(0.85, 0.12, -0.55),
+  top:   new THREE.Vector3(0.0001, 1, -0.45),
 };
 let tween = null;
 function boxOf(keys) {
@@ -134,7 +138,8 @@ function boxOf(keys) {
   keys.forEach((k) => parts[k] && box.expandByObject(parts[k]));
   return box;
 }
-function frame(keys, dir) {
+const isoPad = () => (renderer.domElement.clientWidth < 520 ? 2.4 : 1.9);
+function frame(keys, dir, pad = 1.1) {
   const box = boxOf(keys);
   if (box.isEmpty()) return;
   const size = box.getSize(new THREE.Vector3());
@@ -142,7 +147,7 @@ function frame(keys, dir) {
   const fov = THREE.MathUtils.degToRad(camera.fov);
   const fitH = size.y / (2 * Math.tan(fov / 2));
   const fitW = Math.max(size.x, size.z) / (2 * Math.tan(fov / 2) * camera.aspect);
-  const dist = Math.max(fitH, fitW) * 1.1 + Math.max(size.x, size.z) * 0.35;
+  const dist = Math.max(fitH, fitW) * pad + Math.max(size.x, size.z) * 0.35;
   const d = (dir || camera.position.clone().sub(controls.target)).clone().normalize();
   const toPos = center.clone().add(d.multiplyScalar(dist));
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -178,10 +183,185 @@ function paint() {
     m.material.emissiveIntensity = 0.18;
     m.visible = !isDisc || state.showDiscs;
     const faded = state.isolate && state.mode === 'atlas' && !isSel;
+    if (m.material.transparent !== faded) m.material.needsUpdate = true;
     m.material.transparent = faded;
     m.material.opacity = faded ? 0.09 : 1;
     m.material.depthWrite = !faded;
   }
+}
+
+
+/* ---------- Labels (names of bone parts, palpable landmarks) ---------- */
+const labelsEl = $('#labels');
+const svgNS = 'http://www.w3.org/2000/svg';
+const svg = document.createElementNS(svgNS, 'svg');
+labelsEl.appendChild(svg);
+const nodes = new Map();   // id -> {el, dot, line}
+
+function partDef(k, part) {
+  const S = PART_LABELS_SPECIAL;
+  const reg = regionOf(k);
+  const group = k.startsWith('D_') ? S.D : k === 'S' ? S.S : null;
+  const base = group ? group[part] : PART_LABELS[part];
+  const over = (!group && S[k]?.[part]) || (!group && reg === 'L' && S.L[part]) || null;
+  return base || over ? { ...(base || {}), ...(over || {}) } : null;
+}
+
+const PART_ORDER = ['dens', 'body', 'arcus_ant', 'fovea_dentis', 'massa_lat', 'arcus_post', 'pedicle', 'lamina', 'foramen',
+  'spinous', 'transverse', 'art_sup', 'art_inf', 'promontorium', 'canal', 'ala', 'auricular', 'crista_mediana', 'apex', 'anulus', 'nucleus'];
+function partList(k) {
+  const L = LANDMARKS[k] || {};
+  return Object.keys(L)
+    .sort((a, b) => PART_ORDER.indexOf(a) - PART_ORDER.indexOf(b))
+    .map((p) => ({ part: p, def: partDef(k, p) })).filter((x) => x.def?.name);
+}
+
+const _v = new THREE.Vector3();
+function project(p) {
+  _v.set(p[0], p[1], p[2]).project(camera);
+  const r = renderer.domElement.getBoundingClientRect();
+  return { x: (_v.x + 1) / 2 * r.width, y: (1 - _v.y) / 2 * r.height, behind: _v.z > 1 };
+}
+function projectedRect(keys) {
+  const box = boxOf(keys);
+  if (box.isEmpty()) return null;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (let i = 0; i < 8; i++) {
+    const q = project([i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z]);
+    x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y);
+  }
+  return { x0, y0, x1, y1, cx: (x0 + x1) / 2 };
+}
+
+// occlusion is recomputed at most ~8x per second
+const occl = new Map();
+let occlAt = 0;
+const occRay = new THREE.Raycaster();
+function occluded(id, p) {
+  const now = performance.now();
+  if (occl.has(id) && now - occlAt < 120) return occl.get(id);
+  const target = new THREE.Vector3(...p);
+  const dir = target.clone().sub(camera.position);
+  const dist = dir.length();
+  occRay.set(camera.position, dir.normalize());
+  occRay.far = dist;
+  const meshes = Object.values(parts).filter((m) => m.visible && m.material.opacity > 0.5);
+  const hit = occRay.intersectObjects(meshes, false)[0];
+  const res = !!hit && hit.distance < dist - 0.03;
+  occl.set(id, res);
+  return res;
+}
+
+function labelItems() {
+  if (!state.labels || state.mode !== 'atlas' || !Object.keys(parts).length) return { items: [], ref: null };
+  const k = state.selected;
+  const rect = projectedRect([k]);
+  const big = rect && (state.isolate || (rect.y1 - rect.y0) > (renderer.domElement.clientWidth < 520 ? 70 : 95));
+  if (big) {
+    const items = [];
+    for (const { part, def } of partList(k)) {
+      const pts = LANDMARKS[k][part];
+      // paired structures: label the one nearer to the camera
+      const p = pts.length > 1
+        ? pts.reduce((a, b) => (camera.position.distanceTo(new THREE.Vector3(...a)) <= camera.position.distanceTo(new THREE.Vector3(...b)) ? a : b))
+        : pts[0];
+      items.push({ id: `${k}:${part}`, p, title: def.name, sub: def.latin, palp: !!def.palp, part });
+    }
+    return { items, ref: rect, kind: 'parts' };
+  }
+  if (state.isolate) return { items: [], ref: null };
+  const items = PALPATION.filter((l) => parts[l.key]?.visible !== false).map((l) => ({
+    id: `palp:${l.key}`, p: LANDMARKS[l.key][l.part][0], title: l.label, sub: l.note, palp: true, key: l.key,
+  }));
+  return { items, ref: projectedRect(ORDER), kind: 'palp' };
+}
+
+function layoutLabels() {
+  const { items, ref, kind } = labelItems();
+  const W = renderer.domElement.clientWidth, H = renderer.domElement.clientHeight;
+  const bottomLimit = H - (window.innerWidth <= 640 ? 14 : 64);
+  const used = new Set();
+  const cols = { left: [], right: [] };
+  if (!ref) items.length = 0;
+  for (const it of items) {
+    const q = project(it.p);
+    if (q.behind) continue;
+    it.q = q;
+    it.hidden = occluded(it.id, it.p);
+    (q.x >= ref.cx ? cols.right : cols.left).push(it);
+  }
+  const narrow = W < 520;
+  const lineH = narrow ? 30 : 36;
+  const getNode = (it) => {
+    let n = nodes.get(it.id);
+    if (!n) {
+      const el = document.createElement('div');
+      el.className = 'lbl';
+      el.innerHTML = `<b></b><span></span>`;
+      labelsEl.appendChild(el);
+      const line = document.createElementNS(svgNS, 'polyline');
+      const dot = document.createElementNS(svgNS, 'circle');
+      dot.setAttribute('r', '4');
+      svg.append(line, dot);
+      n = { el, line, dot };
+      nodes.set(it.id, n);
+    }
+    return n;
+  };
+  const gap = narrow ? 14 : 28;
+  const lw = narrow ? 128 : 190;
+  for (const [side, list] of Object.entries(cols)) {
+    if (!list.length) continue;
+    list.sort((a, b) => a.q.y - b.q.y);
+    for (const it of list) {
+      const n = getNode(it);
+      n.el.hidden = false;
+      n.el.style.maxWidth = `${lw}px`;
+      if (n.el.dataset.t !== it.title + it.sub) {
+        n.el.querySelector('b').textContent = it.title;
+        n.el.querySelector('span').textContent = it.sub || '';
+        n.el.dataset.t = it.title + it.sub;
+      }
+      it.h = n.el.offsetHeight || lineH;
+    }
+    let y = 40;
+    for (const it of list) { it.ly = Math.max(it.q.y, y + it.h / 2); y = it.ly + it.h / 2 + 4; }
+    const last = list.at(-1);
+    let over = last.ly + last.h / 2 - bottomLimit;
+    if (over > 0) {
+      for (let i = list.length - 1; i >= 0; i--) {
+        const it = list[i];
+        const maxY = i === list.length - 1 ? bottomLimit - it.h / 2 : list[i + 1].ly - list[i + 1].h / 2 - 4 - it.h / 2;
+        if (it.ly > maxY) it.ly = maxY; else break;
+      }
+    }
+    const x = side === 'right' ? Math.min(ref.x1 + gap, W - lw - 8) : Math.max(ref.x0 - gap, lw + 8);
+    for (const it of list) {
+      used.add(it.id);
+      const n = nodes.get(it.id);
+      n.el.classList.toggle('left', side === 'left');
+      n.el.classList.toggle('behind', it.hidden);
+      n.el.classList.toggle('focus', state.focusPart === it.part);
+      n.el.classList.toggle('palp-kind', kind === 'palp');
+      n.el.style.transform = side === 'right'
+        ? `translate(${x}px, ${it.ly}px) translateY(-50%)`
+        : `translate(${x}px, ${it.ly}px) translate(-100%, -50%)`;
+      const ex = side === 'right' ? x - 4 : x + 4;
+      const knee = side === 'right' ? ex - 10 : ex + 10;
+      n.line.setAttribute('points', `${it.q.x},${it.q.y} ${knee},${it.ly} ${ex},${it.ly}`);
+      n.line.setAttribute('class', `ll${it.hidden ? ' behind' : ''}${state.focusPart === it.part ? ' focus' : ''}`);
+      n.dot.setAttribute('cx', it.q.x);
+      n.dot.setAttribute('cy', it.q.y);
+      n.dot.setAttribute('class', `ld${it.palp ? ' palp' : ''}${it.hidden ? ' behind' : ''}`);
+      n.line.style.display = ''; n.dot.style.display = '';
+    }
+  }
+  for (const [id, n] of nodes) {
+    if (!used.has(id)) { n.el.hidden = true; n.line.style.display = 'none'; n.dot.style.display = 'none'; }
+  }
+  if (performance.now() - occlAt >= 120) occlAt = performance.now();
+  const hint = $('#zoomhint');
+  if (hint) hint.hidden = !(state.labels && state.mode === 'atlas' && kind === 'palp');
 }
 
 /* ---------- Panel rendering ---------- */
@@ -193,6 +373,24 @@ function metaBlock(fma) {
     <div>Opisy: wersja robocza do weryfikacji przez nauczyciela.</div>
   </div>`;
 }
+function partsBlock(k) {
+  const list = partList(k);
+  if (!list.length) return '';
+  return `<div><h3>Części · najedź, aby wskazać na modelu</h3><dl class="parts">${list.map(({ part, def }) => `
+    <div class="prow" data-part="${part}" tabindex="0">
+      <dt><i class="pd${def.palp ? ' palp' : ''}" aria-hidden="true"></i>${esc(def.name)}${def.palp ? ' <em>wyczuwalny</em>' : ''}</dt>
+      <dd>${esc(def.def || '')}${def.note ? ' ' + esc(def.note) : ''}</dd>
+    </div>`).join('')}</dl></div>`;
+}
+function bindParts() {
+  panelEl.querySelectorAll('.prow').forEach((r) => {
+    const on = () => { state.focusPart = r.dataset.part; };
+    const off = () => { state.focusPart = null; };
+    r.addEventListener('mouseenter', on); r.addEventListener('focus', on);
+    r.addEventListener('mouseleave', off); r.addEventListener('blur', off);
+  });
+}
+
 function renderPart(k) {
   const reg = regionOf(k);
   const R = REGIONS[reg];
@@ -210,8 +408,10 @@ function renderPart(k) {
         <p class="latin">${DISC.latin}</p>
       </div>
       <div><h3>Budowa</h3><p>${esc(DISC.text)}</p></div>
+      ${partsBlock(k)}
       ${note ? `<div class="note"><h3>Warto wiedzieć</h3><p>${esc(note)}</p></div>` : ''}
       ${metaBlock(fma)}`;
+    bindParts();
     return;
   }
   const P = PARTS[k];
@@ -223,10 +423,12 @@ function renderPart(k) {
       <p class="latin">${esc(P.latin)} · ${esc(P.short)}</p>
     </div>
     <div><h3>Cechy</h3><ul>${P.features.map((f) => `<li>${esc(f)}</li>`).join('')}</ul></div>
+    ${partsBlock(k)}
     <div class="note"><h3>Dla masażysty</h3><p>${esc(P.massage)}</p></div>
     <div><h3>Przyczepy mięśni (wybrane)</h3><p>${esc(P.muscles)}</p></div>
     <div><h3>${esc(R.name)} · ${esc(R.count)}</h3><p class="region-text">${esc(R.text)}</p></div>
     ${metaBlock(fma)}`;
+  bindParts();
 }
 
 function select(k, doFrame) {
@@ -237,7 +439,8 @@ function select(k, doFrame) {
   paint();
   if (doFrame) {
     const keys = k.startsWith('D_') ? [k.slice(2)] : [k];
-    frame(state.isolate ? keys : neighbors(keys[0], 3));
+    if (state.isolate) frame([k], null, isoPad());
+    else frame(neighbors(keys[0], 3));
   }
   try { history.replaceState(null, '', `#${k}`); } catch (e) { /* ignore */ }
 }
@@ -335,7 +538,8 @@ renderer.domElement.addEventListener('pointermove', (e) => {
 document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => {
   const v = b.dataset.view;
   if (v === 'all') frame(ORDER, VIEWS.side);
-  else frame(state.isolate && state.mode === 'atlas' ? [state.selected.replace('D_', '')] : ORDER, VIEWS[v]);
+  else if (state.isolate && state.mode === 'atlas') frame([state.selected], VIEWS[v], isoPad());
+  else frame(ORDER, VIEWS[v]);
 }));
 function toggle(id, prop) {
   const b = $(id);
@@ -349,6 +553,7 @@ function toggle(id, prop) {
 toggle('#discs', 'showDiscs');
 toggle('#tint', 'tint');
 toggle('#isolate', 'isolate');
+toggle('#names', 'labels');
 document.querySelectorAll('.modes button').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
 
 window.addEventListener('keydown', (e) => {
@@ -357,6 +562,11 @@ window.addEventListener('keydown', (e) => {
   const i = ORDER.indexOf(k);
   if (e.key === 'ArrowDown' && i < ORDER.length - 1) { e.preventDefault(); select(ORDER[i + 1], true); }
   if (e.key === 'ArrowUp' && i > 0) { e.preventDefault(); select(ORDER[i - 1], true); }
+});
+
+window.addEventListener('hashchange', () => {
+  const k = decodeURIComponent(location.hash.slice(1));
+  if (parts[k] && k !== state.selected && state.mode === 'atlas') select(k, true);
 });
 
 /* ---------- Theme reactivity ---------- */
@@ -415,4 +625,5 @@ renderer.setAnimationLoop(() => {
   stepTween(clock.getDelta());
   controls.update();
   renderer.render(scene, camera);
+  layoutLabels();
 });
