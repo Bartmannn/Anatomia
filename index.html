@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Atlas kręgosłupa 3D</title>
+<meta name="description" content="Interaktywny atlas kręgosłupa 3D dla uczniów technikum masażu. Modele: BodyParts3D (CC BY-SA 2.1 JP).">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..800&family=Hanken+Grotesk:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="styles.css">
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }
+</script>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <h1>Kręgosłup</h1>
+      <span class="sub">Atlas 3D · 25 kości · 23 krążki</span>
+    </div>
+    <span class="draft">Wersja robocza · opisy do weryfikacji</span>
+    <div class="modes" role="group" aria-label="Tryb">
+      <button type="button" data-mode="atlas" aria-pressed="true">Atlas</button>
+      <button type="button" data-mode="quiz" aria-pressed="false">Quiz</button>
+    </div>
+  </header>
+
+  <main class="main">
+    <nav class="ruler" id="ruler" aria-label="Kręgi"></nav>
+
+    <section class="stage" id="stage" aria-label="Model 3D kręgosłupa">
+      <div class="bigcode" id="bigcode" aria-hidden="true">C7</div>
+      <div class="hint">Przeciągnij, aby obrócić · kółko lub dwa palce, aby przybliżyć<br>Kliknij kość, aby ją wybrać · strzałki ↑ ↓</div>
+      <div class="loader" id="loader"><div>Wczytywanie modelu…<div class="bar"><i id="loadbar"></i></div></div></div>
+      <div class="toolbar">
+        <div class="seg" role="group" aria-label="Widok">
+          <button type="button" data-view="front">Przód</button>
+          <button type="button" data-view="side">Bok</button>
+          <button type="button" data-view="back">Tył</button>
+          <button type="button" data-view="all">Cały</button>
+        </div>
+        <button type="button" class="chip" id="discs" aria-pressed="true"><span class="box"></span>Krążki</button>
+        <button type="button" class="chip" id="tint" aria-pressed="false"><span class="box"></span>Kolory odcinków</button>
+        <button type="button" class="chip" id="isolate" aria-pressed="false"><span class="box"></span>Tylko wybrany</button>
+      </div>
+    </section>
+
+    <aside class="panel" id="panel" aria-live="polite"></aside>
+  </main>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
