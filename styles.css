@@ -287,6 +287,48 @@ button { font: inherit; color: inherit; }
 .pd { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--ink); flex: none; }
 .pd.palp { background: var(--ink); }
 
+/* Label status + edit mode */
+.lmstatus { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; font-size: 12.5px; color: var(--muted); margin: 0 0 8px; padding: 8px 10px; border: 1px dashed var(--line); }
+.lmstatus.ok { border-style: solid; }
+.linkbtn { border: 0; background: none; padding: 0; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font-size: 13px; }
+.linkbtn:hover { color: var(--rc, var(--ink)); }
+.check { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); background: var(--ground); cursor: pointer; }
+.check input { width: 18px; height: 18px; accent-color: var(--rc, var(--ink)); }
+.check small { color: var(--muted); }
+.steps { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13.5px; color: var(--muted); }
+.elist { display: grid; gap: 2px; }
+.erow { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 8px; margin-inline: -8px; }
+.erow.active { background: var(--ground); }
+.erow b { display: block; font-weight: 600; font-size: 14px; }
+.erow small { font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.erow small.fx { color: var(--rc, var(--ink)); }
+.slots { display: flex; gap: 4px; flex: none; }
+.slot { border: 1px solid var(--line); background: var(--surface); padding: 4px 8px; font-size: 12px; cursor: pointer; }
+.slot:hover { border-color: var(--ink); }
+.slot.empty { border-style: dashed; color: var(--muted); }
+.slot.on { background: var(--rc, var(--ink)); border-color: var(--rc, var(--ink)); color: var(--surface); }
+.ectl { border: 1px solid var(--rc, var(--ink)); padding: 10px 12px; display: grid; gap: 10px; margin: 2px 0 8px; }
+.ectl .feedback { font-size: 13px; margin: 0; }
+.nudge { display: grid; grid-template-columns: repeat(4, auto) 1fr; gap: 6px; justify-content: start; }
+.nudge button { border: 1px solid var(--line); background: var(--ground); padding: 6px 10px; cursor: pointer; font-size: 13px; }
+.nudge button:hover { border-color: var(--ink); }
+.erow-actions { display: flex; flex-wrap: wrap; gap: 14px; }
+.export { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.export p { font-size: 13.5px; }
+.export .small { font-size: 12px; color: var(--muted); }
+.ebtns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.export textarea { width: 100%; min-height: 140px; font-family: var(--font-mono); font-size: 11px; background: var(--ground); color: var(--ink); border: 1px solid var(--line); padding: 8px; }
+.btn.ghost { background: transparent; color: var(--ink); }
+.ld.focus { stroke: var(--rc, var(--ink)); stroke-width: 3; r: 6; }
+body.editing .stage { outline: 2px dashed var(--rc, var(--ink)); outline-offset: -2px; }
+body.editing .stage::after {
+  content: "Tryb edycji punktów";
+  position: absolute; right: 12px; top: 10px;
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--rc, var(--ink)); pointer-events: none;
+}
+body.editing .hint { display: none; }
+
 /* Panel */
 .panel {
   min-height: 0;

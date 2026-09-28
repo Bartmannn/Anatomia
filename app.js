@@ -4,6 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { REGIONS, PARTS, DISC, PART_LABELS, PART_LABELS_SPECIAL, PALPATION } from './content.js';
 import { LANDMARKS } from './landmarks.js';
+import { FIXES, REVIEWED } from './landmarks-fix.js';
 
 const ORDER = ['C1','C2','C3','C4','C5','C6','C7',
   'Th1','Th2','Th3','Th4','Th5','Th6','Th7','Th8','Th9','Th10','Th11','Th12',
@@ -53,6 +54,7 @@ const state = {
   labels: true,
   quiz: null,
   focusPart: null,
+  edit: { part: null, slot: 0 },
 };
 
 /* ---------- Ruler ---------- */
@@ -80,7 +82,7 @@ function buildRuler() {
 function syncRuler() {
   rulerEl.querySelectorAll('button').forEach((b) => {
     const k = b.id.slice(2);
-    b.setAttribute('aria-current', String(state.mode === 'atlas' && k === state.selected));
+    b.setAttribute('aria-current', String(state.mode !== 'quiz' && k === state.selected));
   });
   const cur = rulerEl.querySelector('[aria-current="true"]');
   if (cur) cur.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -182,7 +184,7 @@ function paint() {
     m.material.emissive.copy(k === state.hovered && !isSel ? COLORS[reg] : new THREE.Color(0));
     m.material.emissiveIntensity = 0.18;
     m.visible = !isDisc || state.showDiscs;
-    const faded = state.isolate && state.mode === 'atlas' && !isSel;
+    const faded = !isSel && ((state.isolate && state.mode === 'atlas') || state.mode === 'edit');
     if (m.material.transparent !== faded) m.material.needsUpdate = true;
     m.material.transparent = faded;
     m.material.opacity = faded ? 0.09 : 1;
@@ -190,6 +192,34 @@ function paint() {
   }
 }
 
+
+/* ---------- Landmarks: automatic points + fixes from file + local edits ---------- */
+const LS_KEY = 'atlas-landmark-edits-v1';
+let local = { fixes: {}, reviewed: {} };
+try { local = { fixes: {}, reviewed: {}, ...(JSON.parse(localStorage.getItem(LS_KEY)) || {}) }; } catch (e) { /* no storage */ }
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+// drop local edits that are already saved in landmarks-fix.js
+for (const [k, fx] of Object.entries(local.fixes)) {
+  for (const p of Object.keys(fx)) if (FIXES[k] && p in FIXES[k] && same(FIXES[k][p], fx[p])) delete fx[p];
+  if (!Object.keys(fx).length) delete local.fixes[k];
+}
+for (const k of Object.keys(local.reviewed)) if ((REVIEWED[k] || false) === local.reviewed[k]) delete local.reviewed[k];
+function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify(local)); } catch (e) { /* no storage */ } }
+function lm(k) {
+  const out = { ...(LANDMARKS[k] || {}) };
+  for (const src of [FIXES[k], local.fixes[k]]) {
+    if (!src) continue;
+    for (const [p, v] of Object.entries(src)) { if (v === null) delete out[p]; else out[p] = v; }
+  }
+  for (const p of Object.keys(out)) { out[p] = (out[p] || []).filter(Boolean); if (!out[p].length) delete out[p]; }
+  return out;
+}
+const slotChanged = (k, part, i) => {
+  const a = LANDMARKS[k]?.[part]?.[i], b = lm(k)[part]?.[i];
+  return !a || !b || a.some((v, j) => Math.abs(v - b[j]) > 1e-4);
+};
+const reviewedOf = (k) => (k in local.reviewed ? local.reviewed[k] : REVIEWED[k]) || null;
+const fixedIn = (k, p) => (local.fixes[k] && p in local.fixes[k]) ? 'local' : (FIXES[k] && p in FIXES[k]) ? 'file' : null;
 
 /* ---------- Labels (names of bone parts, palpable landmarks) ---------- */
 const labelsEl = $('#labels');
@@ -210,7 +240,7 @@ function partDef(k, part) {
 const PART_ORDER = ['dens', 'body', 'arcus_ant', 'fovea_dentis', 'massa_lat', 'arcus_post', 'pedicle', 'lamina', 'foramen',
   'spinous', 'transverse', 'art_sup', 'art_inf', 'promontorium', 'canal', 'ala', 'auricular', 'crista_mediana', 'apex', 'anulus', 'nucleus'];
 function partList(k) {
-  const L = LANDMARKS[k] || {};
+  const L = lm(k);
   return Object.keys(L)
     .sort((a, b) => PART_ORDER.indexOf(a) - PART_ORDER.indexOf(b))
     .map((p) => ({ part: p, def: partDef(k, p) })).filter((x) => x.def?.name);
@@ -253,14 +283,29 @@ function occluded(id, p) {
 }
 
 function labelItems() {
-  if (!state.labels || state.mode !== 'atlas' || !Object.keys(parts).length) return { items: [], ref: null };
+  if (!Object.keys(parts).length) return { items: [], ref: null };
   const k = state.selected;
+  if (state.mode === 'edit') {
+    const L = lm(k);
+    const items = [];
+    for (const part of editableParts(k)) {
+      const def = partDef(k, part);
+      (L[part] || []).forEach((p, i) => {
+        const pair = PAIRED.has(part);
+        items.push({ id: `e:${k}:${part}:${i}`, p, title: `${def?.name || part}${pair ? ` (${i + 1})` : ''}`, sub: slotChanged(k, part, i) ? 'poprawiony' : 'automatyczny',
+          palp: !!def?.palp, part, focus: state.edit.part === part && (!pair || state.edit.slot === i) });
+      });
+    }
+    return { items, ref: projectedRect([k]), kind: 'parts' };
+  }
+  if (!state.labels || state.mode !== 'atlas') return { items: [], ref: null };
   const rect = projectedRect([k]);
   const big = rect && (state.isolate || (rect.y1 - rect.y0) > (renderer.domElement.clientWidth < 520 ? 70 : 95));
   if (big) {
     const items = [];
+    const L = lm(k);
     for (const { part, def } of partList(k)) {
-      const pts = LANDMARKS[k][part];
+      const pts = L[part];
       // paired structures: label the one nearer to the camera
       const p = pts.length > 1
         ? pts.reduce((a, b) => (camera.position.distanceTo(new THREE.Vector3(...a)) <= camera.position.distanceTo(new THREE.Vector3(...b)) ? a : b))
@@ -270,8 +315,8 @@ function labelItems() {
     return { items, ref: rect, kind: 'parts' };
   }
   if (state.isolate) return { items: [], ref: null };
-  const items = PALPATION.filter((l) => parts[l.key]?.visible !== false).map((l) => ({
-    id: `palp:${l.key}`, p: LANDMARKS[l.key][l.part][0], title: l.label, sub: l.note, palp: true, key: l.key,
+  const items = PALPATION.filter((l) => parts[l.key]?.visible !== false && lm(l.key)[l.part]).map((l) => ({
+    id: `palp:${l.key}`, p: lm(l.key)[l.part][0], title: l.label, sub: l.note, palp: true, key: l.key,
   }));
   return { items, ref: projectedRect(ORDER), kind: 'palp' };
 }
@@ -341,7 +386,8 @@ function layoutLabels() {
       const n = nodes.get(it.id);
       n.el.classList.toggle('left', side === 'left');
       n.el.classList.toggle('behind', it.hidden);
-      n.el.classList.toggle('focus', state.focusPart === it.part);
+      const foc = it.focus ?? (state.focusPart === it.part);
+      n.el.classList.toggle('focus', foc);
       n.el.classList.toggle('palp-kind', kind === 'palp');
       n.el.style.transform = side === 'right'
         ? `translate(${x}px, ${it.ly}px) translateY(-50%)`
@@ -349,10 +395,10 @@ function layoutLabels() {
       const ex = side === 'right' ? x - 4 : x + 4;
       const knee = side === 'right' ? ex - 10 : ex + 10;
       n.line.setAttribute('points', `${it.q.x},${it.q.y} ${knee},${it.ly} ${ex},${it.ly}`);
-      n.line.setAttribute('class', `ll${it.hidden ? ' behind' : ''}${state.focusPart === it.part ? ' focus' : ''}`);
+      n.line.setAttribute('class', `ll${it.hidden ? ' behind' : ''}${foc ? ' focus' : ''}`);
       n.dot.setAttribute('cx', it.q.x);
       n.dot.setAttribute('cy', it.q.y);
-      n.dot.setAttribute('class', `ld${it.palp ? ' palp' : ''}${it.hidden ? ' behind' : ''}`);
+      n.dot.setAttribute('class', `ld${it.palp ? ' palp' : ''}${it.hidden ? ' behind' : ''}${foc ? ' focus' : ''}`);
       n.line.style.display = ''; n.dot.style.display = '';
     }
   }
@@ -376,13 +422,17 @@ function metaBlock(fma) {
 function partsBlock(k) {
   const list = partList(k);
   if (!list.length) return '';
-  return `<div><h3>Części · najedź, aby wskazać na modelu</h3><dl class="parts">${list.map(({ part, def }) => `
+  const rv = reviewedOf(k);
+  const status = `<div class="lmstatus${rv ? ' ok' : ''}"><span>${rv ? `Położenie etykiet sprawdzone ręcznie (${esc(rv)}).` : 'Położenie etykiet wyznaczone automatycznie, jeszcze niesprawdzone.'}</span>
+    <button type="button" class="linkbtn" data-action="edit">Popraw punkty</button></div>`;
+  return `<div><h3>Części · najedź, aby wskazać na modelu</h3>${status}<dl class="parts">${list.map(({ part, def }) => `
     <div class="prow" data-part="${part}" tabindex="0">
       <dt><i class="pd${def.palp ? ' palp' : ''}" aria-hidden="true"></i>${esc(def.name)}${def.palp ? ' <em>wyczuwalny</em>' : ''}</dt>
       <dd>${esc(def.def || '')}${def.note ? ' ' + esc(def.note) : ''}</dd>
     </div>`).join('')}</dl></div>`;
 }
 function bindParts() {
+  panelEl.querySelector('[data-action=edit]')?.addEventListener('click', () => setMode('edit'));
   panelEl.querySelectorAll('.prow').forEach((r) => {
     const on = () => { state.focusPart = r.dataset.part; };
     const off = () => { state.focusPart = null; };
@@ -432,14 +482,14 @@ function renderPart(k) {
 }
 
 function select(k, doFrame) {
-  if (state.mode !== 'atlas') return;
+  if (state.mode === 'quiz') return;
   state.selected = k;
-  renderPart(k);
+  if (state.mode === 'edit') { state.edit = { part: null, slot: 0 }; renderEditor(); } else renderPart(k);
   syncRuler();
   paint();
   if (doFrame) {
     const keys = k.startsWith('D_') ? [k.slice(2)] : [k];
-    if (state.isolate) frame([k], null, isoPad());
+    if (state.isolate || state.mode === 'edit') frame([k], null, isoPad());
     else frame(neighbors(keys[0], 3));
   }
   try { history.replaceState(null, '', `#${k}`); } catch (e) { /* ignore */ }
@@ -497,14 +547,195 @@ function setMode(mode) {
   rulerEl.style.opacity = mode === 'quiz' ? '.35' : '';
   rulerEl.style.pointerEvents = mode === 'quiz' ? 'none' : '';
   rulerEl.toggleAttribute('inert', mode === 'quiz');
-  $('#isolate').disabled = mode === 'quiz';
+  $('#isolate').disabled = mode !== 'atlas';
+  document.body.classList.toggle('editing', mode === 'edit');
   if (mode === 'quiz') {
     state.quiz = state.quiz || { good: 0, total: 0 };
     newQuestion();
   } else {
     select(state.selected, true);
   }
+  if (mode === 'edit') frame([state.selected], VIEWS.side, isoPad());
   syncRuler();
+}
+
+
+/* ---------- Edit mode: fix label points by hand ---------- */
+const PAIRED = new Set(['pedicle', 'lamina', 'transverse', 'art_sup', 'art_inf', 'massa_lat', 'ala', 'auricular']);
+function editableParts(k) {
+  if (k.startsWith('D_')) return ['anulus', 'nucleus'];
+  if (k === 'S') return ['promontorium', 'canal', 'art_sup', 'ala', 'auricular', 'crista_mediana', 'apex'];
+  if (k === 'C1') return ['arcus_ant', 'fovea_dentis', 'massa_lat', 'arcus_post', 'foramen', 'transverse'];
+  const base = ['body', 'pedicle', 'lamina', 'foramen', 'spinous', 'transverse', 'art_sup', 'art_inf'];
+  return k === 'C2' ? ['dens', ...base] : base;
+}
+const r4 = (v) => Math.round(v * 1e4) / 1e4;
+function setPoint(k, part, slot, p) {
+  const arr = (lm(k)[part] || []).slice();
+  while (arr.length < slot) arr.push(arr[0] || p);
+  arr[slot] = p.map(r4);
+  (local.fixes[k] ||= {})[part] = arr;
+  saveLocal();
+}
+function placePoint(ev) {
+  const r = renderer.domElement.getBoundingClientRect();
+  ptr.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ptr, camera);
+  const hit = ray.intersectObject(parts[state.selected], false)[0];
+  if (!hit) { editMsg('Kliknij na podświetloną kość — punkt musi leżeć na jej powierzchni.'); return; }
+  setPoint(state.selected, state.edit.part, state.edit.slot, hit.point.toArray());
+  occl.clear();
+  renderEditor();
+}
+function nudge(dx, dy, dz) {
+  const { part, slot } = state.edit;
+  const cur = lm(state.selected)[part]?.[slot];
+  if (!cur) { editMsg('Najpierw kliknij na modelu, żeby ustawić punkt.'); return; }
+  const m = camera.matrixWorld;
+  const right = new THREE.Vector3().setFromMatrixColumn(m, 0);
+  const up = new THREE.Vector3().setFromMatrixColumn(m, 1);
+  const back = new THREE.Vector3().setFromMatrixColumn(m, 2);   // towards the viewer
+  const mm = 0.01; // 1 jednostka = 10 cm
+  const p = new THREE.Vector3(...cur).addScaledVector(right, dx * mm).addScaledVector(up, dy * mm).addScaledVector(back, -dz * mm);
+  setPoint(state.selected, part, slot, p.toArray());
+  occl.clear();
+  renderEditor();
+}
+function editMsg(t) { const el = $('#editmsg'); if (el) el.textContent = t; }
+
+function mergedFixes() {
+  const out = JSON.parse(JSON.stringify(FIXES));
+  for (const [k, fx] of Object.entries(local.fixes)) out[k] = { ...(out[k] || {}), ...fx };
+  return out;
+}
+function exportText() {
+  const rev = { ...REVIEWED, ...local.reviewed };
+  for (const k of Object.keys(rev)) if (!rev[k]) delete rev[k];
+  const order = (o) => Object.fromEntries(Object.entries(o).sort((a, b) => [...ORDER, ...ORDER.map((x) => 'D_' + x)].indexOf(a[0]) - [...ORDER, ...ORDER.map((x) => 'D_' + x)].indexOf(b[0])));
+  const fx = order(mergedFixes());
+  const lines = Object.entries(fx).map(([k, v]) => `  ${JSON.stringify(k)}: ${JSON.stringify(v)},`).join('\n');
+  return `// Ręczne poprawki punktów etykiet. Plik tworzy tryb „Popraw punkty” na stronie (przycisk „Pobierz landmarks-fix.js”).
+// Współrzędne w układzie models/kregoslup.glb (1 jednostka = 10 cm). null = punkt usunięty.
+// REVIEWED: data sprawdzenia punktów danego kręgu.
+export const FIXES = {${lines ? '\n' + lines + '\n' : ''}};
+export const REVIEWED = ${JSON.stringify(order(rev), null, 2)};
+`;
+}
+const localCount = () => new Set([...Object.keys(local.fixes), ...Object.keys(local.reviewed)]).size;
+
+function renderEditor() {
+  const k = state.selected;
+  const reg = regionOf(k);
+  panelEl.style.setProperty('--rc', `var(--${reg.toLowerCase()})`);
+  document.documentElement.style.setProperty('--rc', `var(--${reg.toLowerCase()})`);
+  const title = k.startsWith('D_') ? `Krążek ${discLabel(k)}` : `${PARTS[k].name} · ${PARTS[k].short}`;
+  bigcodeEl.textContent = k.startsWith('D_') ? discLabel(k) : (k === 'S' ? 'S' : k);
+  const L = lm(k);
+  const rv = reviewedOf(k);
+  const { part: ap, slot: as } = state.edit;
+  const activeDef = ap ? partDef(k, ap) : null;
+  const ctl = ap ? `<div class="ectl">
+      <p id="editmsg" class="feedback" aria-live="polite">${lm(k)[ap]?.[as] ? 'Kliknij na kości, aby przenieść punkt, albo przesuń go przyciskami.' : 'Kliknij na kości, aby ustawić punkt.'}</p>
+      <div class="nudge" role="group" aria-label="Przesuń punkt">
+        <button type="button" data-n="0,1,0" title="W górę ekranu">↑</button>
+        <button type="button" data-n="-1,0,0" title="W lewo">←</button>
+        <button type="button" data-n="1,0,0" title="W prawo">→</button>
+        <button type="button" data-n="0,-1,0" title="W dół ekranu">↓</button>
+        <button type="button" data-n="0,0,-1" title="Bliżej mnie">do mnie</button>
+        <button type="button" data-n="0,0,1" title="W głąb">w głąb</button>
+      </div>
+      <div class="erow-actions">
+        <button type="button" class="linkbtn" id="del">Usuń punkt</button>
+        ${fixedIn(k, ap) ? '<button type="button" class="linkbtn" id="reset">Przywróć automatyczny</button>' : ''}
+        <button type="button" class="linkbtn" id="stop">Gotowe</button>
+      </div>
+    </div>` : '';
+  const rows = editableParts(k).map((part) => {
+    const def = partDef(k, part);
+    const pts = L[part] || [];
+    const n = PAIRED.has(part) ? 2 : 1;
+    const changed = Array.from({ length: n }, (_, i) => pts[i] && slotChanged(k, part, i)).some(Boolean);
+    const unsaved = local.fixes[k] && part in local.fixes[k];
+    const tag = !pts.length ? 'brak punktu' : changed ? (unsaved ? 'poprawiony · niezapisany w pliku' : 'poprawiony') : 'automatyczny';
+    const slots = Array.from({ length: n }, (_, i) => `<button type="button" class="slot${ap === part && as === i ? ' on' : ''}${pts[i] ? '' : ' empty'}" data-part="${part}" data-slot="${i}" aria-pressed="${ap === part && as === i}">${n > 1 ? `strona ${i + 1}` : 'wybierz'}</button>`).join('');
+    return `<div class="erow${ap === part ? ' active' : ''}"><div><b>${esc(def?.name || part)}</b><small class="${changed ? 'fx' : ''}">${tag}</small></div><div class="slots">${slots}</div></div>${ap === part ? ctl : ''}`;
+  }).join('');
+  const n = localCount();
+  panelEl.innerHTML = `
+    <div>
+      <div class="eyebrow"><span>Popraw punkty</span><span>·</span><span>${esc(REGIONS[reg].name)}</span></div>
+      <h2>${esc(title)}</h2>
+      <p class="latin">Zmiany zapisują się w tej przeglądarce. Na koniec pobierz plik i podmień go w repozytorium.</p>
+    </div>
+    <label class="check"><input type="checkbox" id="rev" ${rv ? 'checked' : ''}> <span>Sprawdziłem punkty tego ${k.startsWith('D_') ? 'krążka' : 'kręgu'}${rv ? ` <small>(${esc(rv)})</small>` : ''}</span></label>
+    <div><h3>Jak poprawić punkt</h3><ol class="steps">
+      <li>Wybierz część (przy parzystych — stronę). Na modelu jej etykieta zostanie obwiedziona.</li>
+      <li>Obróć model tak, żeby widzieć to miejsce, i kliknij na kości w miejscu, gdzie powinien być punkt.</li>
+      <li>Dopracuj strzałkami na klawiaturze lub przyciskami: 1 mm, z Shift 5 mm. PgUp / PgDn przesuwa w głąb (np. do środka otworu kręgowego).</li>
+    </ol></div>
+    <div class="elist">${rows}</div>
+    <div class="export">
+      <h3>Zapis do projektu</h3>
+      <p>${n ? `Niezapisane w pliku zmiany: <b>${n}</b> ${n === 1 ? 'kręg' : 'kręgi/krążki'}.` : 'Wszystkie poprawki są już w pliku landmarks-fix.js.'}</p>
+      <div class="ebtns">
+        <button type="button" class="btn" id="dl">Pobierz landmarks-fix.js</button>
+        <button type="button" class="chip" id="copy">Kopiuj zawartość</button>
+        ${n ? '<button type="button" class="linkbtn" id="discard">Odrzuć moje zmiany</button>' : ''}
+      </div>
+      <p class="small">Pobrany plik wstaw do folderu projektu w miejsce istniejącego <code>landmarks-fix.js</code>, a potem zrób commit.</p>
+      <textarea id="exportText" readonly hidden></textarea>
+    </div>
+    <button type="button" class="btn ghost" id="done">Zakończ edycję</button>`;
+
+  panelEl.querySelectorAll('.slot').forEach((b) => b.addEventListener('click', () => {
+    state.edit = { part: b.dataset.part, slot: +b.dataset.slot };
+    renderEditor();
+  }));
+  panelEl.querySelectorAll('[data-n]').forEach((b) => b.addEventListener('click', () => nudge(...b.dataset.n.split(',').map(Number))));
+  $('#rev').addEventListener('change', (e) => {
+    const d = new Date();
+    local.reviewed[k] = e.target.checked ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : false;
+    if ((REVIEWED[k] || false) === local.reviewed[k]) delete local.reviewed[k];
+    saveLocal(); renderEditor();
+  });
+  $('#del')?.addEventListener('click', () => {
+    const arr = (lm(k)[ap] || []).slice();
+    arr[as] = null;
+    (local.fixes[k] ||= {})[ap] = arr.some(Boolean) ? arr : null;
+    saveLocal(); renderEditor();
+  });
+  $('#reset')?.addEventListener('click', () => {
+    if (local.fixes[k]) delete local.fixes[k][ap];
+    if (local.fixes[k] && !Object.keys(local.fixes[k]).length) delete local.fixes[k];
+    if (FIXES[k] && ap in FIXES[k]) (local.fixes[k] ||= {})[ap] = LANDMARKS[k]?.[ap] || null;
+    saveLocal(); renderEditor();
+  });
+  $('#stop')?.addEventListener('click', () => { state.edit.part = null; renderEditor(); });
+  $('#done').addEventListener('click', () => setMode('atlas'));
+  $('#dl').addEventListener('click', () => {
+    try {
+      const url = URL.createObjectURL(new Blob([exportText()], { type: 'text/javascript' }));
+      const a = Object.assign(document.createElement('a'), { href: url, download: 'landmarks-fix.js' });
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (e) { /* fall through */ }
+    const ta = $('#exportText');
+    ta.value = exportText(); ta.hidden = false;
+    $('#dl').textContent = 'Pobrano? Jeśli nie — skopiuj tekst poniżej';
+  });
+  $('#copy').addEventListener('click', async () => {
+    const ta = $('#exportText');
+    ta.value = exportText(); ta.hidden = false;
+    try { await navigator.clipboard.writeText(ta.value); $('#copy').textContent = 'Skopiowano'; }
+    catch (e) { ta.focus(); ta.select(); $('#copy').textContent = 'Zaznaczono — Ctrl+C'; }
+  });
+  const disc = $('#discard');
+  disc?.addEventListener('click', () => {
+    if (disc.dataset.sure) { local = { fixes: {}, reviewed: {} }; saveLocal(); state.edit.part = null; renderEditor(); return; }
+    disc.dataset.sure = '1'; disc.textContent = 'Na pewno? Kliknij jeszcze raz';
+  });
+  syncRuler();
+  paint();
 }
 
 /* ---------- Picking ---------- */
@@ -521,15 +752,16 @@ function pick(ev) {
 renderer.domElement.addEventListener('pointerdown', (e) => { downAt = [e.clientX, e.clientY]; });
 renderer.domElement.addEventListener('pointerup', (e) => {
   if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 6) return;
+  if (state.mode === 'edit' && state.edit.part) { placePoint(e); return; }
   const k = pick(e);
-  if (k && state.mode === 'atlas') select(k, false);
+  if (k && state.mode !== 'quiz') select(k, false);
 });
 renderer.domElement.addEventListener('pointermove', (e) => {
   if (e.pointerType !== 'mouse' || e.buttons) return;
-  const k = state.mode === 'atlas' ? pick(e) : null;
+  const k = state.mode !== 'quiz' ? pick(e) : null;
+  renderer.domElement.style.cursor = state.mode === 'edit' && state.edit.part ? 'crosshair' : (k ? 'pointer' : '');
   if (k !== state.hovered) {
     state.hovered = k;
-    renderer.domElement.style.cursor = k ? 'pointer' : '';
     paint();
   }
 });
@@ -538,7 +770,7 @@ renderer.domElement.addEventListener('pointermove', (e) => {
 document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => {
   const v = b.dataset.view;
   if (v === 'all') frame(ORDER, VIEWS.side);
-  else if (state.isolate && state.mode === 'atlas') frame([state.selected], VIEWS[v], isoPad());
+  else if ((state.isolate && state.mode === 'atlas') || state.mode === 'edit') frame([state.selected], VIEWS[v], isoPad());
   else frame(ORDER, VIEWS[v]);
 }));
 function toggle(id, prop) {
@@ -557,7 +789,14 @@ toggle('#names', 'labels');
 document.querySelectorAll('.modes button').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
 
 window.addEventListener('keydown', (e) => {
-  if (state.mode !== 'atlas' || e.target.closest('input, textarea')) return;
+  if (e.target.closest('input, textarea')) return;
+  if (state.mode === 'edit' && state.edit.part) {
+    const st = e.shiftKey ? 5 : 1;
+    const m = { ArrowLeft: [-st, 0, 0], ArrowRight: [st, 0, 0], ArrowUp: [0, st, 0], ArrowDown: [0, -st, 0], PageUp: [0, 0, -st], PageDown: [0, 0, st] }[e.key];
+    if (m) { e.preventDefault(); nudge(...m); return; }
+    if (e.key === 'Escape') { state.edit.part = null; renderEditor(); return; }
+  }
+  if (state.mode === 'quiz') return;
   const k = state.selected.replace('D_', '');
   const i = ORDER.indexOf(k);
   if (e.key === 'ArrowDown' && i < ORDER.length - 1) { e.preventDefault(); select(ORDER[i + 1], true); }
@@ -566,7 +805,7 @@ window.addEventListener('keydown', (e) => {
 
 window.addEventListener('hashchange', () => {
   const k = decodeURIComponent(location.hash.slice(1));
-  if (parts[k] && k !== state.selected && state.mode === 'atlas') select(k, true);
+  if (parts[k] && k !== state.selected && state.mode !== 'quiz') select(k, true);
 });
 
 /* ---------- Theme reactivity ---------- */
