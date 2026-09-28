@@ -5,6 +5,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { REGIONS, PARTS, DISC, PART_LABELS, PART_LABELS_SPECIAL, PALPATION } from './content.js';
 import { LANDMARKS } from './landmarks.js';
 import { FIXES, REVIEWED } from './landmarks-fix.js';
+import { RIB_LANDMARKS, RIB_LINKS } from './landmarks-ribs.js';
 
 const ORDER = ['C1','C2','C3','C4','C5','C6','C7',
   'Th1','Th2','Th3','Th4','Th5','Th6','Th7','Th8','Th9','Th10','Th11','Th12',
@@ -39,6 +40,7 @@ function readColors() {
     focus: new THREE.Color(cs.getPropertyValue('--focus').trim()),
     bone: new THREE.Color(dark ? '#d9d2c4' : '#ebe5d8'),
     disc: new THREE.Color(dark ? '#7f99ad' : '#a8bccb'),
+    facet: new THREE.Color(cs.getPropertyValue('--facet').trim() || '#0f7f8a'),
   };
   for (const r of REGION_KEYS) document.documentElement.style.setProperty(`--rc-${r}`, cs.getPropertyValue(`--${r.toLowerCase()}`));
 }
@@ -55,6 +57,7 @@ const state = {
   quiz: null,
   focusPart: null,
   edit: { part: null, slot: 0 },
+  ribs: false,
 };
 
 /* ---------- Ruler ---------- */
@@ -141,6 +144,7 @@ function boxOf(keys) {
   return box;
 }
 const isoPad = () => (renderer.domElement.clientWidth < 520 ? 2.4 : 1.9);
+const closeFrame = (k, dir = null) => frame([k], dir, isoPad() * (state.ribs && k.startsWith('Th') ? 2.1 : 1));
 function frame(keys, dir, pad = 1.1) {
   const box = boxOf(keys);
   if (box.isEmpty()) return;
@@ -190,6 +194,81 @@ function paint() {
     m.material.opacity = faded ? 0.09 : 1;
     m.material.depthWrite = !faded;
   }
+  paintRibs();
+}
+
+/* ---------- Ribs (models/zebra.glb, loaded in the background) ---------- */
+const ribMeshes = [];
+let ribsReady = false, ribsLoading = false;
+renderer.localClippingEnabled = true;
+const clipPlanes = [new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0), new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)];
+const ribMat = new THREE.MeshStandardMaterial({ roughness: 0.82, metalness: 0, side: THREE.DoubleSide });
+const ribMatHi = new THREE.MeshStandardMaterial({ roughness: 0.82, metalness: 0, side: THREE.DoubleSide });
+const facetMat = new THREE.MeshStandardMaterial({ roughness: 0.45, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+function paintRibs() {
+  if (!ribsReady) return;
+  const k = state.selected;
+  const isTh = k.startsWith('Th') && state.mode !== 'quiz';
+  const related = new Set(Object.values(RIB_LINKS[k] || {}));
+  const closeUp = (state.isolate && state.mode === 'atlas') || state.mode === 'edit';
+  const box = parts[k] ? new THREE.Box3().setFromObject(parts[k]) : null;
+  const xc = box ? (box.min.x + box.max.x) / 2 : 0;
+  clipPlanes[0].constant = xc + 0.9;
+  clipPlanes[1].constant = -(xc - 0.9);
+  for (const mat of [ribMat, ribMatHi]) {
+    const want = closeUp ? clipPlanes : null;
+    if ((mat.clippingPlanes?.length || 0) !== (want?.length || 0)) { mat.clippingPlanes = want; mat.needsUpdate = true; }
+  }
+  ribMat.color.copy(COLORS.bone);
+  ribMatHi.color.copy(COLORS.bone).lerp(COLORS.Th, 0.35);
+  facetMat.color.copy(COLORS.facet);
+  for (const m of ribMeshes) {
+    const e = m.userData;
+    if (e.kind === 'rib') {
+      const rel = isTh && related.has(e.rib);
+      m.visible = state.ribs && state.mode !== 'quiz' && (!closeUp || rel);
+      m.material = rel ? ribMatHi : ribMat;
+    } else if (e.kind === 'facet') {
+      m.visible = isTh && e.vertebra === k;
+    } else {
+      m.visible = state.ribs && isTh && e.vertebra === k;
+    }
+  }
+}
+function onRibs(gltf) {
+  gltf.scene.traverse((o) => {
+    if (!o.isMesh) return;
+    o.material = o.userData.kind === 'rib' ? ribMat : facetMat;
+    o.renderOrder = o.userData.kind === 'rib' ? 0 : 1;
+    ribMeshes.push(o);
+  });
+  root.add(gltf.scene);
+  ribsReady = true;
+  occl.clear();
+  paint();
+  if (state.mode === 'atlas') renderPart(state.selected); else if (state.mode === 'edit') renderEditor();
+}
+function loadRibs() {
+  if (ribsReady || ribsLoading) return;
+  ribsLoading = true;
+  const fail = () => { ribsLoading = false; };
+  if (window.ATLAS_RIBS_B64) {
+    fetch(window.ATLAS_RIBS_B64).then((r) => r.text()).then((t) => {
+      const bin = Uint8Array.from(atob(t.trim()), (c) => c.charCodeAt(0));
+      new GLTFLoader().parse(bin.buffer, '', onRibs, fail);
+    }).catch(fail);
+  } else {
+    new GLTFLoader().load('models/zebra.glb', onRibs, undefined, fail);
+  }
+}
+function toggleRibs() {
+  state.ribs = !state.ribs;
+  $('#ribs').setAttribute('aria-pressed', String(state.ribs));
+  loadRibs();
+  occl.clear();
+  paint();
+  if (state.mode === 'atlas') renderPart(state.selected); else if (state.mode === 'edit') renderEditor();
+  if (((state.isolate && state.mode === 'atlas') || state.mode === 'edit') && state.selected.startsWith('Th')) closeFrame(state.selected);
 }
 
 
@@ -205,17 +284,18 @@ for (const [k, fx] of Object.entries(local.fixes)) {
 }
 for (const k of Object.keys(local.reviewed)) if ((REVIEWED[k] || false) === local.reviewed[k]) delete local.reviewed[k];
 function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify(local)); } catch (e) { /* no storage */ } }
+const autoLm = (k) => ({ ...(LANDMARKS[k] || {}), ...(RIB_LANDMARKS[k] || {}) });
 function lm(k) {
-  const out = { ...(LANDMARKS[k] || {}) };
+  const out = autoLm(k);
   for (const src of [FIXES[k], local.fixes[k]]) {
     if (!src) continue;
     for (const [p, v] of Object.entries(src)) { if (v === null) delete out[p]; else out[p] = v; }
   }
-  for (const p of Object.keys(out)) { out[p] = (out[p] || []).filter(Boolean); if (!out[p].length) delete out[p]; }
+  for (const p of Object.keys(out)) { out[p] = (out[p] || []).map((x) => x || null); if (!out[p].some(Boolean)) delete out[p]; }
   return out;
 }
 const slotChanged = (k, part, i) => {
-  const a = LANDMARKS[k]?.[part]?.[i], b = lm(k)[part]?.[i];
+  const a = autoLm(k)[part]?.[i], b = lm(k)[part]?.[i];
   return !a || !b || a.some((v, j) => Math.abs(v - b[j]) > 1e-4);
 };
 const reviewedOf = (k) => (k in local.reviewed ? local.reviewed[k] : REVIEWED[k]) || null;
@@ -234,14 +314,27 @@ function partDef(k, part) {
   const group = k.startsWith('D_') ? S.D : k === 'S' ? S.S : null;
   const base = group ? group[part] : PART_LABELS[part];
   const over = (!group && S[k]?.[part]) || (!group && reg === 'L' && S.L[part]) || null;
-  return base || over ? { ...(base || {}), ...(over || {}) } : null;
+  if (!base && !over) return null;
+  const d = { ...(base || {}), ...(over || {}) };
+  if (d.ribs) {
+    const lk = RIB_LINKS[k] || {};
+    const num = +k.slice(2);
+    const rib = { fov_sup: lk.fov_sup, fov_inf: lk.fov_inf, fov_tp: lk.fov_tp, rib_head: lk.fov_sup, rib_neck: lk.fov_tp ?? lk.fov_sup, rib_tub: lk.fov_tp, rib_head_next: lk.fov_inf }[part] ?? '';
+    const fill = (t) => t && t.replaceAll('{rib}', rib).replaceAll('{prev}', `Th${num - 1}`).replaceAll('{next}', `Th${num + 1}`);
+    d.name = fill(d.name); d.def = fill(d.def);
+  }
+  return d;
 }
 
 const PART_ORDER = ['dens', 'body', 'arcus_ant', 'fovea_dentis', 'massa_lat', 'arcus_post', 'pedicle', 'lamina', 'foramen',
-  'spinous', 'transverse', 'art_sup', 'art_inf', 'promontorium', 'canal', 'ala', 'auricular', 'crista_mediana', 'apex', 'anulus', 'nucleus'];
-function partList(k) {
+  'spinous', 'transverse', 'art_sup', 'art_inf', 'fov_sup', 'fov_inf', 'fov_tp', 'rib_head', 'rib_neck', 'rib_tub', 'rib_head_next', 'promontorium', 'canal', 'ala', 'auricular', 'crista_mediana', 'apex', 'anulus', 'nucleus'];
+const RIB_VIEW_PARTS = new Set(['body', 'transverse', 'fov_sup', 'fov_inf', 'fov_tp', 'rib_head', 'rib_neck', 'rib_tub', 'rib_head_next']);
+function partList(k, forLabels = false) {
   const L = lm(k);
+  const ribsOn = state.ribs && ribsReady && k.startsWith('Th');
   return Object.keys(L)
+    .filter((p) => !forLabels || (ribsOn ? RIB_VIEW_PARTS.has(p) : !p.startsWith('rib_')))
+    .filter((p) => forLabels || !p.startsWith('rib_') || ribsOn)
     .sort((a, b) => PART_ORDER.indexOf(a) - PART_ORDER.indexOf(b))
     .map((p) => ({ part: p, def: partDef(k, p) })).filter((x) => x.def?.name);
 }
@@ -275,7 +368,7 @@ function occluded(id, p) {
   const dist = dir.length();
   occRay.set(camera.position, dir.normalize());
   occRay.far = dist;
-  const meshes = Object.values(parts).filter((m) => m.visible && m.material.opacity > 0.5);
+  const meshes = [...Object.values(parts), ...ribMeshes].filter((m) => m.visible && m.material.opacity > 0.5);
   const hit = occRay.intersectObjects(meshes, false)[0];
   const res = !!hit && hit.distance < dist - 0.03;
   occl.set(id, res);
@@ -291,9 +384,12 @@ function labelItems() {
     for (const part of editableParts(k)) {
       const def = partDef(k, part);
       (L[part] || []).forEach((p, i) => {
+        if (!p) return;
         const pair = PAIRED.has(part);
-        items.push({ id: `e:${k}:${part}:${i}`, p, title: `${def?.name || part}${pair ? ` (${i + 1})` : ''}`, sub: slotChanged(k, part, i) ? 'poprawiony' : 'automatyczny',
-          palp: !!def?.palp, part, focus: state.edit.part === part && (!pair || state.edit.slot === i) });
+        items.push({ id: `e:${k}:${part}:${i}`, p, title: `${def?.name || part}${pair ? ` (${SIDE_SHORT[i]})` : ''}`, sub: slotChanged(k, part, i) ? 'poprawiony' : 'automatyczny',
+          palp: !!def?.palp, part, focus: state.edit.part === part && (!pair || state.edit.slot === i),
+          // with a part selected, only its points get labels; the rest stay as dots
+          dotOnly: !!state.edit.part && state.edit.part !== part });
       });
     }
     return { items, ref: projectedRect([k]), kind: 'parts' };
@@ -304,8 +400,8 @@ function labelItems() {
   if (big) {
     const items = [];
     const L = lm(k);
-    for (const { part, def } of partList(k)) {
-      const pts = L[part];
+    for (const { part, def } of partList(k, true)) {
+      const pts = L[part].filter(Boolean);
       // paired structures: label the one nearer to the camera
       const p = pts.length > 1
         ? pts.reduce((a, b) => (camera.position.distanceTo(new THREE.Vector3(...a)) <= camera.position.distanceTo(new THREE.Vector3(...b)) ? a : b))
@@ -316,7 +412,7 @@ function labelItems() {
   }
   if (state.isolate) return { items: [], ref: null };
   const items = PALPATION.filter((l) => parts[l.key]?.visible !== false && lm(l.key)[l.part]).map((l) => ({
-    id: `palp:${l.key}`, p: lm(l.key)[l.part][0], title: l.label, sub: l.note, palp: true, key: l.key,
+    id: `palp:${l.key}`, p: lm(l.key)[l.part].find(Boolean), title: l.label, sub: l.note, palp: true, key: l.key,
   }));
   return { items, ref: projectedRect(ORDER), kind: 'palp' };
 }
@@ -328,11 +424,13 @@ function layoutLabels() {
   const used = new Set();
   const cols = { left: [], right: [] };
   if (!ref) items.length = 0;
+  const dots = [];
   for (const it of items) {
     const q = project(it.p);
     if (q.behind) continue;
     it.q = q;
     it.hidden = occluded(it.id, it.p);
+    if (it.dotOnly) { dots.push(it); continue; }
     (q.x >= ref.cx ? cols.right : cols.left).push(it);
   }
   const narrow = W < 520;
@@ -402,6 +500,18 @@ function layoutLabels() {
       n.line.style.display = ''; n.dot.style.display = '';
     }
   }
+  for (const it of dots) {
+    used.add(it.id);
+    let n = nodes.get(it.id);
+    if (!n) {
+      const el = document.createElement('div'); el.className = 'lbl'; el.innerHTML = '<b></b><span></span>'; labelsEl.appendChild(el);
+      const line = document.createElementNS(svgNS, 'polyline'); const dot = document.createElementNS(svgNS, 'circle'); dot.setAttribute('r', '4');
+      svg.append(line, dot); n = { el, line, dot }; nodes.set(it.id, n);
+    }
+    n.el.hidden = true; n.line.style.display = 'none'; n.dot.style.display = '';
+    n.dot.setAttribute('cx', it.q.x); n.dot.setAttribute('cy', it.q.y);
+    n.dot.setAttribute('class', `ld mini${it.hidden ? ' behind' : ''}`);
+  }
   for (const [id, n] of nodes) {
     if (!used.has(id)) { n.el.hidden = true; n.line.style.display = 'none'; n.dot.style.display = 'none'; }
   }
@@ -419,6 +529,25 @@ function metaBlock(fma) {
     <div>Opisy: wersja robocza do weryfikacji przez nauczyciela.</div>
   </div>`;
 }
+function ribBlock(k) {
+  if (!k.startsWith('Th')) return '';
+  const n = +k.slice(2);
+  const lk = RIB_LINKS[k] || {};
+  const prev = RIB_LINKS[`Th${n - 1}`] || {};
+  const items = [];
+  if (lk.fov_sup) {
+    const r = lk.fov_sup;
+    const where = prev.fov_inf === r ? `dołek żebrowy górny ${k} i dołek żebrowy dolny Th${n - 1}` : `dołek żebrowy ${k}${[1, 11, 12].includes(n) ? ' (pełny)' : ''}`;
+    items.push(`<li><b>Głowa żebra ${r}</b> → ${where} · <i>staw głowy żebra</i></li>`);
+  }
+  if (lk.fov_inf) items.push(`<li><b>Głowa żebra ${lk.fov_inf}</b> → dołek żebrowy dolny ${k} i dołek żebrowy górny Th${n + 1} · <i>staw głowy żebra</i></li>`);
+  if (lk.fov_tp) items.push(`<li><b>Guzek żebra ${lk.fov_tp}</b> → dołek żebrowy wyrostka poprzecznego ${k} · <i>staw żebrowo-poprzeczny</i></li>`);
+  else if (n >= 11) items.push(`<li>Wyrostek poprzeczny ${k} nie ma dołka żebrowego — żebro ${n} nie tworzy stawu żebrowo-poprzecznego (żebra 11 i 12 to żebra wolne).</li>`);
+  return `<div class="ribs-block"><h3>Połączenia z żebrami</h3><ul>${items.join('')}</ul>
+    <p class="small"><i class="swatch" aria-hidden="true"></i>Dołki żebrowe są zaznaczone kolorem na kręgu.
+    <button type="button" class="linkbtn" data-action="ribs">${state.ribs ? 'Ukryj żebra' : 'Pokaż żebra przy kręgu'}</button></p></div>`;
+}
+
 function partsBlock(k) {
   const list = partList(k);
   if (!list.length) return '';
@@ -433,6 +562,7 @@ function partsBlock(k) {
 }
 function bindParts() {
   panelEl.querySelector('[data-action=edit]')?.addEventListener('click', () => setMode('edit'));
+  panelEl.querySelector('[data-action=ribs]')?.addEventListener('click', toggleRibs);
   panelEl.querySelectorAll('.prow').forEach((r) => {
     const on = () => { state.focusPart = r.dataset.part; };
     const off = () => { state.focusPart = null; };
@@ -473,6 +603,7 @@ function renderPart(k) {
       <p class="latin">${esc(P.latin)} · ${esc(P.short)}</p>
     </div>
     <div><h3>Cechy</h3><ul>${P.features.map((f) => `<li>${esc(f)}</li>`).join('')}</ul></div>
+    ${ribBlock(k)}
     ${partsBlock(k)}
     <div class="note"><h3>Dla masażysty</h3><p>${esc(P.massage)}</p></div>
     <div><h3>Przyczepy mięśni (wybrane)</h3><p>${esc(P.muscles)}</p></div>
@@ -489,7 +620,7 @@ function select(k, doFrame) {
   paint();
   if (doFrame) {
     const keys = k.startsWith('D_') ? [k.slice(2)] : [k];
-    if (state.isolate || state.mode === 'edit') frame([k], null, isoPad());
+    if (state.isolate || state.mode === 'edit') closeFrame(k);
     else frame(neighbors(keys[0], 3));
   }
   try { history.replaceState(null, '', `#${k}`); } catch (e) { /* ignore */ }
@@ -555,24 +686,34 @@ function setMode(mode) {
   } else {
     select(state.selected, true);
   }
-  if (mode === 'edit') frame([state.selected], VIEWS.side, isoPad());
+  if (mode === 'edit') closeFrame(state.selected, VIEWS.side);
   syncRuler();
 }
 
 
 /* ---------- Edit mode: fix label points by hand ---------- */
-const PAIRED = new Set(['pedicle', 'lamina', 'transverse', 'art_sup', 'art_inf', 'massa_lat', 'ala', 'auricular']);
+const PAIRED = new Set(['pedicle', 'lamina', 'transverse', 'art_sup', 'art_inf', 'massa_lat', 'ala', 'auricular',
+  'fov_sup', 'fov_inf', 'fov_tp', 'rib_head', 'rib_neck', 'rib_tub', 'rib_head_next']);
+// kolejność punktów w parach: [lewa, prawa] (strona ciała, nie ekranu)
+const SIDE_NAMES = ['lewa', 'prawa'];
+const SIDE_SHORT = ['L', 'P'];
 function editableParts(k) {
   if (k.startsWith('D_')) return ['anulus', 'nucleus'];
   if (k === 'S') return ['promontorium', 'canal', 'art_sup', 'ala', 'auricular', 'crista_mediana', 'apex'];
   if (k === 'C1') return ['arcus_ant', 'fovea_dentis', 'massa_lat', 'arcus_post', 'foramen', 'transverse'];
   const base = ['body', 'pedicle', 'lamina', 'foramen', 'spinous', 'transverse', 'art_sup', 'art_inf'];
+  if (k.startsWith('Th')) {
+    const n = +k.slice(2);
+    const extra = ['fov_sup', ...(n <= 9 ? ['fov_inf'] : []), ...(n <= 10 ? ['fov_tp'] : [])];
+    if (state.ribs && ribsReady) extra.push('rib_head', ...(n <= 10 ? ['rib_neck', 'rib_tub'] : []), ...(n <= 9 ? ['rib_head_next'] : []));
+    return [...base, ...extra];
+  }
   return k === 'C2' ? ['dens', ...base] : base;
 }
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 function setPoint(k, part, slot, p) {
   const arr = (lm(k)[part] || []).slice();
-  while (arr.length < slot) arr.push(arr[0] || p);
+  while (arr.length < slot) arr.push(null);
   arr[slot] = p.map(r4);
   (local.fixes[k] ||= {})[part] = arr;
   saveLocal();
@@ -581,7 +722,8 @@ function placePoint(ev) {
   const r = renderer.domElement.getBoundingClientRect();
   ptr.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
   ray.setFromCamera(ptr, camera);
-  const hit = ray.intersectObject(parts[state.selected], false)[0];
+  const targets = [parts[state.selected], ...ribMeshes.filter((m) => m.visible)];
+  const hit = ray.intersectObjects(targets, false)[0];
   if (!hit) { editMsg('Kliknij na podświetloną kość — punkt musi leżeć na jej powierzchni.'); return; }
   setPoint(state.selected, state.edit.part, state.edit.slot, hit.point.toArray());
   occl.clear();
@@ -657,7 +799,7 @@ function renderEditor() {
     const changed = Array.from({ length: n }, (_, i) => pts[i] && slotChanged(k, part, i)).some(Boolean);
     const unsaved = local.fixes[k] && part in local.fixes[k];
     const tag = !pts.length ? 'brak punktu' : changed ? (unsaved ? 'poprawiony · niezapisany w pliku' : 'poprawiony') : 'automatyczny';
-    const slots = Array.from({ length: n }, (_, i) => `<button type="button" class="slot${ap === part && as === i ? ' on' : ''}${pts[i] ? '' : ' empty'}" data-part="${part}" data-slot="${i}" aria-pressed="${ap === part && as === i}">${n > 1 ? `strona ${i + 1}` : 'wybierz'}</button>`).join('');
+    const slots = Array.from({ length: n }, (_, i) => `<button type="button" class="slot${ap === part && as === i ? ' on' : ''}${pts[i] ? '' : ' empty'}" data-part="${part}" data-slot="${i}" aria-pressed="${ap === part && as === i}">${n > 1 ? SIDE_NAMES[i] : 'wybierz'}</button>`).join('');
     return `<div class="erow${ap === part ? ' active' : ''}"><div><b>${esc(def?.name || part)}</b><small class="${changed ? 'fx' : ''}">${tag}</small></div><div class="slots">${slots}</div></div>${ap === part ? ctl : ''}`;
   }).join('');
   const n = localCount();
@@ -669,7 +811,7 @@ function renderEditor() {
     </div>
     <label class="check"><input type="checkbox" id="rev" ${rv ? 'checked' : ''}> <span>Sprawdziłem punkty tego ${k.startsWith('D_') ? 'krążka' : 'kręgu'}${rv ? ` <small>(${esc(rv)})</small>` : ''}</span></label>
     <div><h3>Jak poprawić punkt</h3><ol class="steps">
-      <li>Wybierz część (przy parzystych — stronę). Na modelu jej etykieta zostanie obwiedziona.</li>
+      <li>Wybierz część (przy parzystych — stronę lewą lub prawą, czyli stronę ciała). Na modelu jej etykieta zostanie obwiedziona.</li>
       <li>Obróć model tak, żeby widzieć to miejsce, i kliknij na kości w miejscu, gdzie powinien być punkt.</li>
       <li>Dopracuj strzałkami na klawiaturze lub przyciskami: 1 mm, z Shift 5 mm. PgUp / PgDn przesuwa w głąb (np. do środka otworu kręgowego).</li>
     </ol></div>
@@ -707,7 +849,7 @@ function renderEditor() {
   $('#reset')?.addEventListener('click', () => {
     if (local.fixes[k]) delete local.fixes[k][ap];
     if (local.fixes[k] && !Object.keys(local.fixes[k]).length) delete local.fixes[k];
-    if (FIXES[k] && ap in FIXES[k]) (local.fixes[k] ||= {})[ap] = LANDMARKS[k]?.[ap] || null;
+    if (FIXES[k] && ap in FIXES[k]) (local.fixes[k] ||= {})[ap] = autoLm(k)[ap] || null;
     saveLocal(); renderEditor();
   });
   $('#stop')?.addEventListener('click', () => { state.edit.part = null; renderEditor(); });
@@ -770,7 +912,7 @@ renderer.domElement.addEventListener('pointermove', (e) => {
 document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => {
   const v = b.dataset.view;
   if (v === 'all') frame(ORDER, VIEWS.side);
-  else if ((state.isolate && state.mode === 'atlas') || state.mode === 'edit') frame([state.selected], VIEWS[v], isoPad());
+  else if ((state.isolate && state.mode === 'atlas') || state.mode === 'edit') closeFrame(state.selected, VIEWS[v]);
   else frame(ORDER, VIEWS[v]);
 }));
 function toggle(id, prop) {
@@ -786,6 +928,7 @@ toggle('#discs', 'showDiscs');
 toggle('#tint', 'tint');
 toggle('#isolate', 'isolate');
 toggle('#names', 'labels');
+$('#ribs').addEventListener('click', toggleRibs);
 document.querySelectorAll('.modes button').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
 
 window.addEventListener('keydown', (e) => {
@@ -841,6 +984,7 @@ function onModel(gltf) {
   frame(ORDER, VIEWS.three);
   tween.t = 1;
   stepTween(0);
+  setTimeout(loadRibs, 400);   // żebra i dołki żebrowe doczytują się w tle
 }
 function onError(err) {
   $('#loader').innerHTML = `<div>Nie udało się wczytać modelu. Odśwież stronę.<br><small>${esc(err?.message || err)}</small></div>`;

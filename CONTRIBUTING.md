@@ -40,7 +40,7 @@ Etykiety (trzon, wyrostki, otwór kręgowy…) zostały rozmieszczone automatycz
 1. Otwórz stronę i **odśwież ją** (`Ctrl+F5`), żeby mieć najnowsze poprawki innych osób.
 2. Wybierz kręg i w panelu po prawej kliknij **Popraw punkty**.
 3. Obejrzyj kręg z kilku stron (przyciski *Przód*, *Bok*, *Tył*, *Góra*).
-4. Jeśli punkt jest w złym miejscu, wybierz część (przy parzystych także stronę 1 lub 2), kliknij na kości w poprawnym miejscu i ewentualnie dopracuj strzałkami. Strzałka przesuwa o 1 mm, z Shiftem o 5 mm, a PgUp/PgDn przesuwa punkt w głąb.
+4. Jeśli punkt jest w złym miejscu, wybierz część (przy parzystych także stronę: lewą lub prawą — chodzi o stronę ciała, nie ekranu), kliknij na kości w poprawnym miejscu i ewentualnie dopracuj strzałkami. Strzałka przesuwa o 1 mm, z Shiftem o 5 mm, a PgUp/PgDn przesuwa punkt w głąb.
 5. Gdy **wszystkie** punkty kręgu są dobre, zaznacz **Sprawdziłem punkty tego kręgu**.
 6. Po skończonej pracy kliknij **Pobierz landmarks-fix.js** i:
    - wyślij mi ten plik,
@@ -63,6 +63,7 @@ Porównuj z ryciną z podręcznika lub atlasu. Kilka wskazówek:
 
 - **wyrostek stawowy górny** wystaje ku górze za trzonem, a **dolny** ku dołowi,
 - **wyrostek kolczysty** jest skierowany do tyłu, w odcinku piersiowym mocno w dół,
+- **dołki żebrowe** (kręgi piersiowe) są zaznaczone kolorem; po włączeniu *Żebra* widać, gdzie opiera się głowa i guzek żebra,
 - **otwór kręgowy** leży w środku, między trzonem a łukiem; punkt można wsunąć do środka klawiszami PgUp/PgDn,
 - przy wątpliwościach nie zaznaczaj „Sprawdziłem”, tylko opisz problem w zgłoszeniu.
 

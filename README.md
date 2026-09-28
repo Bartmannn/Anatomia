@@ -16,6 +16,7 @@ Atlas mogą swobodnie wykorzystywać uczniowie i nauczyciele. Uwagi i poprawki s
 
 - **Model 3D kręgosłupa:** 24 kręgi (C1–L5), kość krzyżowa i 23 krążki międzykręgowe.
 - **Nazwy części kości** z liniami odniesienia, np. trzon, łuk, otwór kręgowy, wyrostki kolczysty, poprzeczne i stawowe. Kręgi C1 i C2, kość krzyżowa i krążki mają własne nazwy.
+- **Żebra i ich połączenia z kręgami piersiowymi**: dołki żebrowe trzonu (górny i dolny) i wyrostka poprzecznego są zaznaczone kolorem, a po włączeniu przycisku *Żebra* widać, jak układają się w nich głowa i guzek żebra (staw głowy żebra, staw żebrowo-poprzeczny).
 - **Punkty wyczuwalne pod palcami** w widoku całego kręgosłupa: C2, C7, Th3, Th7, L4, S2.
 - **Opisy każdego kręgu:** cechy budowy, wskazówki dla masażysty (palpacja, na co uważać), przyczepy mięśni.
 - **Widoki** przód, bok, tył i góra. Można też pokazać tylko wybrany kręg, pokolorować odcinki albo ukryć krążki.
@@ -72,7 +73,7 @@ Zainstaluj rozszerzenie **Live Server**, otwórz folder projektu, kliknij prawym
 
 ### Wymagania
 
-Aktualna przeglądarka z obsługą WebGL: Chrome, Edge, Firefox lub Safari. Przy pierwszym wejściu strona pobiera ok. 6 MB (głównie model 3D).
+Aktualna przeglądarka z obsługą WebGL: Chrome, Edge, Firefox lub Safari. Przy pierwszym wejściu strona pobiera ok. 6 MB (głównie model 3D), a potem w tle ok. 3 MB modelu żeber.
 
 ## Publikacja na GitHub Pages
 
@@ -91,7 +92,7 @@ Chcesz poprawić opis albo położenie etykiety? Do większości poprawek nie tr
 Etykiety części kręgów są wyznaczane automatycznie z kształtu kości (skrajne punkty, promienie przez otwór kręgowy), więc każdy kręg warto sprawdzić:
 
 1. Wybierz kręg i w panelu kliknij **Popraw punkty**.
-2. Wybierz część (przy parzystych także stronę 1 lub 2) i kliknij na kości w miejscu, gdzie powinien być punkt. Dopracuj położenie strzałkami (1 mm, z Shift 5 mm). PgUp/PgDn przesuwa punkt w głąb.
+2. Wybierz część (przy parzystych także stronę: lewą lub prawą — to strona ciała, nie ekranu) i kliknij na kości w miejscu, gdzie powinien być punkt. Dopracuj położenie strzałkami (1 mm, z Shift 5 mm). PgUp/PgDn przesuwa punkt w głąb.
 3. Gdy wszystkie punkty kręgu są dobre, zaznacz **Sprawdziłem punkty tego kręgu**. Uczniowie zobaczą przy nim informację, że etykiety sprawdzono ręcznie.
 4. Kliknij **Pobierz landmarks-fix.js**, podmień plik w folderze projektu i zrób commit.
 
@@ -110,27 +111,31 @@ Wszystkie teksty, czyli nazwy kręgów, cechy, uwagi dla masażysty, przyczepy m
 | `landmarks.js` | Położenie etykiet wyznaczone automatycznie |
 | `landmarks-fix.js` | Ręczne poprawki etykiet i lista sprawdzonych kręgów (tworzy go tryb „Popraw punkty”) |
 | `models/kregoslup.glb` | Model 3D: kręgi, kość krzyżowa i krążki w jednym pliku (~5,4 MB) |
+| `models/zebra.glb` | 24 żebra i powierzchnie dołków żebrowych (~2,8 MB, doczytywane w tle) |
+| `landmarks-ribs.js` | Punkty połączeń żeber z kręgami (dołki, głowa, szyjka i guzek żebra) |
 | `vendor/three/` | Biblioteka three.js r170 |
 | `tools/build_glb.py` | Zamienia pliki STL z BodyParts3D na `models/kregoslup.glb` |
 | `tools/landmarks.py` | Wyznacza z geometrii kości punkty do `landmarks.js` |
+| `tools/ribs.py` | Buduje `models/zebra.glb` i wyznacza stawy żebrowo-kręgowe do `landmarks-ribs.js` |
 | `Dockerfile`, `compose.yaml`, `docker/` | Uruchomienie strony w kontenerze (nginx) |
 | `CONTRIBUTING.md` | Jak zgłaszać i wprowadzać poprawki |
 
 ## Odtworzenie modelu z danych źródłowych
 
-Potrzebne są Python 3 z biblioteką `numpy` oraz pliki STL kręgów z repozytorium [BodyParts3D](https://github.com/Kevin-Mattheus-Moerman/BodyParts3D) (folder `assets/BodyParts3D_data/stl`). Listę użytych plików (identyfikatory FMA) znajdziesz na początku skryptów.
+Potrzebne są Python 3 z bibliotekami `numpy` i `scipy` oraz pliki STL kręgów i żeber z repozytorium [BodyParts3D](https://github.com/Kevin-Mattheus-Moerman/BodyParts3D) (folder `assets/BodyParts3D_data/stl`). Listę użytych plików (identyfikatory FMA) znajdziesz na początku skryptów.
 
 ```
-pip install numpy
+pip install numpy scipy
 python tools/build_glb.py <folder_z_plikami_stl> models/kregoslup.glb
 python tools/landmarks.py <folder_z_plikami_stl> landmarks.js
+python tools/ribs.py <folder_z_plikami_stl>
 ```
 
 ## Licencje i autorzy
 
 **Modele 3D** — BodyParts3D, © The Database Center for Life Science (DBCLS), licencja [CC BY-SA 2.1 JP](https://creativecommons.org/licenses/by-sa/2.1/jp/deed.en).
 Dane pobrane z repozytorium [Kevin-Mattheus-Moerman/BodyParts3D](https://github.com/Kevin-Mattheus-Moerman/BodyParts3D) (wersja 3.0 / 20110915, pliki STL przekonwertowane z oryginalnych OBJ).
-Wprowadzone zmiany: wybór części kręgosłupa, zmiana układu osi i skali, scalenie wierzchołków, obliczenie normalnych, kwantyzacja i zapis do formatu glTF (GLB). Pliki `models/kregoslup.glb`, `landmarks.js` i `landmarks-fix.js` (współrzędne na tych samych modelach) są udostępniane na tej samej licencji CC BY-SA 2.1 JP.
+Wprowadzone zmiany: wybór kręgów, krążków i żeber, uproszczenie siatek żeber, zmiana układu osi i skali, scalenie wierzchołków, obliczenie normalnych, kwantyzacja i zapis do formatu glTF (GLB). Pliki `models/kregoslup.glb`, `models/zebra.glb`, `landmarks.js`, `landmarks-ribs.js` i `landmarks-fix.js` (współrzędne na tych samych modelach) są udostępniane na tej samej licencji CC BY-SA 2.1 JP.
 
 Publikacja źródłowa:
 > Mitsuhashi N, Fujieda K, Tamura T, Kawamoto S, Takagi T, Okubo K. *BodyParts3D: 3D structure database for anatomical concepts.* Nucleic Acids Res. 2009;37(Database issue):D782–5. https://doi.org/10.1093/nar/gkn613

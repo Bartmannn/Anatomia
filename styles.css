@@ -9,6 +9,7 @@
   --l: #c43d2a;
   --s: #2f7d63;
   --focus: #2e5bba;
+  --facet: #0f7f8a;
   --shadow: 0 1px 0 rgba(27, 31, 30, .06);
   --font-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
   --font-body: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -27,6 +28,7 @@
     --l: #e6705c;
     --s: #5fb495;
     --focus: #8fb0f0;
+    --facet: #4cc4cf;
     --shadow: none;
   }
 }
@@ -42,6 +44,7 @@
   --l: #e6705c;
   --s: #5fb495;
   --focus: #8fb0f0;
+  --facet: #4cc4cf;
   --shadow: none;
 }
 
@@ -249,6 +252,7 @@ button { font: inherit; color: inherit; }
 .ld { fill: var(--surface); stroke: var(--ink); stroke-width: 1.5; }
 .ld.palp { fill: var(--ink); }
 .ld.behind { opacity: .45; }
+.ld.mini { r: 2.5; opacity: .6; }
 .lbl {
   position: absolute;
   left: 0;
@@ -328,6 +332,11 @@ body.editing .stage::after {
   color: var(--rc, var(--ink)); pointer-events: none;
 }
 body.editing .hint { display: none; }
+
+/* Ribs block */
+.ribs-block ul { margin: 0 0 6px; padding-left: 18px; display: grid; gap: 6px; font-size: 14px; }
+.ribs-block .small { font-size: 12.5px; color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0; }
+.swatch { display: inline-block; width: 12px; height: 12px; background: var(--facet); flex: none; }
 
 /* Panel */
 .panel {

@@ -253,6 +253,22 @@ export const PART_LABELS = {
                 def: 'Tworzy staw międzywyrostkowy z wyrostkiem stawowym dolnym kręgu leżącego powyżej.' },
   art_inf:    { name: 'Wyrostek stawowy dolny', latin: 'processus articularis inferior', palp: false,
                 def: 'Tworzy staw międzywyrostkowy z wyrostkiem stawowym górnym kręgu leżącego poniżej.' },
+
+  // Połączenia z żebrami (tylko kręgi piersiowe). {rib} = numer żebra, {prev}/{next} = sąsiedni kręg.
+  fov_sup:       { name: 'Dołek żebrowy górny', latin: 'fovea costalis superior', palp: false, ribs: true,
+                   def: 'Półdołek na górnym brzegu trzonu, przy nasadzie łuku. Przyjmuje dolną połowę głowy żebra {rib}; górną połowę przyjmuje dołek żebrowy dolny kręgu {prev}.' },
+  fov_inf:       { name: 'Dołek żebrowy dolny', latin: 'fovea costalis inferior', palp: false, ribs: true,
+                   def: 'Półdołek na dolnym brzegu trzonu. Przyjmuje górną połowę głowy żebra {rib}; razem z dołkiem żebrowym górnym kręgu {next} tworzy panewkę stawu głowy żebra.' },
+  fov_tp:        { name: 'Dołek żebrowy wyrostka poprzecznego', latin: 'fovea costalis processus transversi', palp: false, ribs: true,
+                   def: 'Na przedniej stronie końca wyrostka poprzecznego. Łączy się z guzkiem żebra {rib} w stawie żebrowo-poprzecznym.' },
+  rib_head:      { name: 'Głowa żebra {rib}', latin: 'caput costae', palp: false, ribs: true, rib: true,
+                   def: 'Tylny koniec żebra. Łączy się z trzonami kręgów w stawie głowy żebra (articulatio capitis costae).' },
+  rib_neck:      { name: 'Szyjka żebra {rib}', latin: 'collum costae', palp: false, ribs: true, rib: true,
+                   def: 'Zwężony odcinek między głową a guzkiem żebra, leży przed wyrostkiem poprzecznym.' },
+  rib_tub:       { name: 'Guzek żebra {rib}', latin: 'tuberculum costae', palp: false, ribs: true, rib: true,
+                   def: 'Wyniosłość na tylnej powierzchni żebra. Jego powierzchnia stawowa łączy się z dołkiem żebrowym wyrostka poprzecznego (staw żebrowo-poprzeczny).' },
+  rib_head_next: { name: 'Głowa żebra {rib}', latin: 'caput costae', palp: false, ribs: true, rib: true,
+                   def: 'Głowa żebra leżącego niżej. Opiera się o dołek żebrowy dolny tego kręgu i dołek żebrowy górny kręgu poniżej.' },
 };
 
 // Nadpisania dla kręgów o nietypowej budowie
@@ -274,6 +290,18 @@ export const PART_LABELS_SPECIAL = {
                def: 'Wystaje z trzonu ku górze. Wokół niego kręg szczytowy razem z głową obraca się w stawie szczytowo-obrotowym (ruch „nie”).' },
     art_sup: { name: 'Powierzchnia stawowa górna', latin: 'facies articularis superior', palp: false,
                def: 'Łączy się z masą boczną kręgu szczytowego.' },
+  },
+  Th1: {
+    fov_sup: { name: 'Dołek żebrowy górny (pełny)', def: 'Pełny, okrągły dołek dla całej głowy żebra 1 — pierwsze żebro łączy się tylko z kręgiem Th1.' },
+  },
+  Th10: {
+    fov_sup: { def: 'Dołek dla głowy żebra 10. Często jest to pojedynczy dołek, bo żebro 10 łączy się głównie z trzonem Th10.' },
+  },
+  Th11: {
+    fov_sup: { name: 'Dołek żebrowy (pełny)', def: 'Pełny dołek dla głowy żebra 11 — żebro łączy się tylko z tym kręgiem. Wyrostek poprzeczny Th11 nie ma dołka żebrowego.' },
+  },
+  Th12: {
+    fov_sup: { name: 'Dołek żebrowy (pełny)', def: 'Pełny dołek dla głowy żebra 12. Wyrostek poprzeczny Th12 nie ma dołka żebrowego.' },
   },
   C3: { spinous: { palp: false, note: 'Głęboko w lordozie — trudno wyczuwalny.' } },
   C4: { spinous: { palp: false, note: 'Głęboko w lordozie — trudno wyczuwalny.' } },

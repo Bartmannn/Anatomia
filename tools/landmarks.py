@@ -101,7 +101,7 @@ def vertebra(k, u, f):
 
     def pair(mask, fn):
         out = []
-        for side in (right, ~right):
+        for side in (right, ~right):   # x > xc to lewa strona ciała → kolejność [lewa, prawa]
             m = mask & side
             if m.any(): out.append(P(u[np.where(m)[0][fn(u[m])]]))
         return out
