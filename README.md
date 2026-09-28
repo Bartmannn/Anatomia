@@ -1,51 +1,105 @@
-# SKK Anatomia — atlas kręgosłupa 3D
+# Anatomia — atlas kręgosłupa 3D
 
-Interaktywny atlas kręgosłupa dla uczniów kierunku technik masażysta. W przeglądarce można obracać model, wybierać kręgi i krążki, czytać opisy z uwagami dla masażysty i rozwiązywać quiz.
+Interaktywny, trójwymiarowy atlas kręgosłupa, który działa w przeglądarce. Model można obracać, przybliżać i klikać. Każdy kręg ma nazwy swoich części, opis budowy, uwagi „dla masażysty” i wybrane przyczepy mięśni.
 
-> **Wersja robocza.** Opisy w `content.js` wymagają weryfikacji przez nauczyciela anatomii.
+**Strona:** https://bartmannn.github.io/Anatomia/
 
-## Co jest w środku
+> **Wersja robocza.** Opisy i położenie etykiet wymagają weryfikacji przez nauczyciela anatomii. Atlas jest pomocą do nauki, a nie źródłem wiedzy medycznej.
 
-| Plik / folder | Co to jest |
-|---|---|
-| `index.html`, `styles.css`, `app.js` | Strona (Three.js, bez frameworków i bez budowania) |
-| `content.js` | Wszystkie opisy i nazwy części kości — można je edytować w zwykłym edytorze tekstu |
-| `landmarks.js` | Położenie etykiet (trzon, wyrostki, otwór kręgowy…) wyznaczone automatycznie |
-| `landmarks-fix.js` | Ręczne poprawki tych punktów i lista sprawdzonych kręgów (tworzy go tryb „Popraw punkty”) |
-| `models/kregoslup.glb` | 24 kręgi (C1–L5), kość krzyżowa i 23 krążki międzykręgowe w jednym pliku (~5,4 MB) |
-| `vendor/three/` | Biblioteka three.js r170 (licencja MIT) |
-| `tools/build_glb.py` | Skrypt, który zamienia pliki STL z BodyParts3D na `kregoslup.glb` |
-| `tools/landmarks.py` | Skrypt, który wyznacza z geometrii kości punkty do `landmarks.js` |
+## Po co to powstaje
 
-W modelu nie ma kości guzicznej (brak w zbiorze danych).
+To projekt hobbystyczny i niekomercyjny. Powstaje jako pomoc do nauki anatomii dla uczniów szkoły policealnej na kierunku **technik masażysta**. Podręcznikowe ryciny pokazują kość z jednej strony. Tutaj można ją obejrzeć ze wszystkich stron, zobaczyć, gdzie leży względem sąsiednich kręgów, i sprawdzić, które miejsca da się wyczuć pod palcami.
+
+Atlas mogą swobodnie wykorzystywać uczniowie i nauczyciele. Uwagi i poprawki są mile widziane.
+
+## Co potrafi
+
+- **Model 3D kręgosłupa:** 24 kręgi (C1–L5), kość krzyżowa i 23 krążki międzykręgowe.
+- **Nazwy części kości** z liniami odniesienia, np. trzon, łuk, otwór kręgowy, wyrostki kolczysty, poprzeczne i stawowe. Kręgi C1 i C2, kość krzyżowa i krążki mają własne nazwy.
+- **Punkty wyczuwalne pod palcami** w widoku całego kręgosłupa: C2, C7, Th3, Th7, L4, S2.
+- **Opisy każdego kręgu:** cechy budowy, wskazówki dla masażysty (palpacja, na co uważać), przyczepy mięśni.
+- **Widoki** przód, bok, tył i góra. Można też pokazać tylko wybrany kręg, pokolorować odcinki albo ukryć krążki.
+- **Quiz** — rozpoznawanie podświetlonego kręgu.
+- **Tryb „Popraw punkty”** do ręcznego poprawiania położenia etykiet (opis niżej).
+- Działa na komputerze i na telefonie, w jasnym i ciemnym motywie.
+
+W modelu nie ma kości guzicznej, bo nie ma jej w użytym zbiorze danych.
+
+## Uruchomienie
+
+Strona nie wymaga instalowania zależności ani budowania. Wystarczy przeglądarka i dowolny prosty serwer HTTP.
+
+> Otwarcie `index.html` podwójnym kliknięciem **nie zadziała**. Przeglądarka blokuje wczytywanie modelu z plików lokalnych (`file://`), dlatego potrzebny jest serwer.
+
+### Python (najprościej)
+
+W folderze projektu uruchom:
+
+```
+python -m http.server 8000
+```
+
+Na Windowsie, jeśli `python` nie działa, spróbuj `py -m http.server 8000`. Potem otwórz w przeglądarce http://localhost:8000.
+
+### Node.js
+
+```
+npx serve .
+```
+
+### Visual Studio Code
+
+Zainstaluj rozszerzenie **Live Server**, otwórz folder projektu, kliknij prawym przyciskiem na `index.html` i wybierz *Open with Live Server*.
+
+### Wymagania
+
+Aktualna przeglądarka z obsługą WebGL: Chrome, Edge, Firefox lub Safari. Przy pierwszym wejściu strona pobiera ok. 6 MB (głównie model 3D).
+
+## Publikacja na GitHub Pages
+
+1. W repozytorium na GitHubie wejdź w *Settings → Pages*.
+2. W *Build and deployment* wybierz *Source: Deploy from a branch*, gałąź `main`, folder `/ (root)`.
+3. Po chwili strona będzie dostępna pod adresem `https://<nazwa-użytkownika>.github.io/<nazwa-repozytorium>/`.
+
+Nie wgrywaj do repozytorium archiwów `.zip` z danymi źródłowymi. Są wykluczone w `.gitignore`.
 
 ## Poprawianie punktów etykiet
 
 Etykiety części kręgów są wyznaczane automatycznie z kształtu kości (skrajne punkty, promienie przez otwór kręgowy), więc każdy kręg warto sprawdzić:
 
 1. Wybierz kręg i w panelu kliknij **Popraw punkty**.
-2. Wybierz część (przy parzystych — stronę 1 lub 2) i kliknij na kości w miejscu, gdzie powinien być punkt. Dopracuj strzałkami (1 mm, z Shift 5 mm), PgUp/PgDn przesuwa w głąb.
+2. Wybierz część (przy parzystych także stronę 1 lub 2) i kliknij na kości w miejscu, gdzie powinien być punkt. Dopracuj położenie strzałkami (1 mm, z Shift 5 mm). PgUp/PgDn przesuwa punkt w głąb.
 3. Gdy wszystkie punkty kręgu są dobre, zaznacz **Sprawdziłem punkty tego kręgu**. Uczniowie zobaczą przy nim informację, że etykiety sprawdzono ręcznie.
 4. Kliknij **Pobierz landmarks-fix.js**, podmień plik w folderze projektu i zrób commit.
 
-Poprawki zapisują się w przeglądarce do czasu pobrania pliku. `landmarks.js` można w każdej chwili wygenerować od nowa skryptem — poprawki z `landmarks-fix.js` nie zginą.
+Poprawki zapisują się w przeglądarce do czasu pobrania pliku. `landmarks.js` można w każdej chwili wygenerować od nowa skryptem, a poprawki z `landmarks-fix.js` nie zginą.
 
-## Uruchomienie na komputerze
+## Edycja opisów
 
-Przeglądarka nie wczyta modelu z pliku otwartego podwójnym kliknięciem, potrzebny jest prosty serwer:
+Wszystkie teksty, czyli nazwy kręgów, cechy, uwagi dla masażysty, przyczepy mięśni, nazwy części kości i punkty wyczuwalne, są w pliku `content.js`. Można go edytować w zwykłym edytorze tekstu, bez znajomości reszty kodu. Po zapisaniu wystarczy odświeżyć stronę.
+
+## Struktura projektu
+
+| Plik / folder | Co to jest |
+|---|---|
+| `index.html`, `styles.css`, `app.js` | Strona (three.js, bez frameworków i bez budowania) |
+| `content.js` | Wszystkie opisy i nazwy części kości |
+| `landmarks.js` | Położenie etykiet wyznaczone automatycznie |
+| `landmarks-fix.js` | Ręczne poprawki etykiet i lista sprawdzonych kręgów (tworzy go tryb „Popraw punkty”) |
+| `models/kregoslup.glb` | Model 3D: kręgi, kość krzyżowa i krążki w jednym pliku (~5,4 MB) |
+| `vendor/three/` | Biblioteka three.js r170 |
+| `tools/build_glb.py` | Zamienia pliki STL z BodyParts3D na `models/kregoslup.glb` |
+| `tools/landmarks.py` | Wyznacza z geometrii kości punkty do `landmarks.js` |
+
+## Odtworzenie modelu z danych źródłowych
+
+Potrzebne są Python 3 z biblioteką `numpy` oraz pliki STL kręgów z repozytorium [BodyParts3D](https://github.com/Kevin-Mattheus-Moerman/BodyParts3D) (folder `assets/BodyParts3D_data/stl`). Listę użytych plików (identyfikatory FMA) znajdziesz na początku skryptów.
 
 ```
-python -m http.server 8000
+pip install numpy
+python tools/build_glb.py <folder_z_plikami_stl> models/kregoslup.glb
+python tools/landmarks.py <folder_z_plikami_stl> landmarks.js
 ```
-
-Potem otwórz http://localhost:8000.
-
-## Publikacja na GitHub Pages
-
-1. Załóż publiczne repozytorium na GitHubie (np. `skk-anatomia`).
-2. Wgraj zawartość tego folderu (przycisk *Add file → Upload files* albo `git push`). Nie wgrywaj pliku `skk-kregoslup-zrodla.zip` — to tylko surowe dane źródłowe.
-3. W repozytorium: *Settings → Pages → Build and deployment → Source: Deploy from a branch*, gałąź `main`, folder `/ (root)`.
-4. Po minucie strona będzie pod adresem `https://<twoja-nazwa>.github.io/skk-anatomia/`.
 
 ## Licencje i autorzy
 

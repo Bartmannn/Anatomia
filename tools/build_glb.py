@@ -57,7 +57,7 @@ for k,fid,kind,u,f,n in data:
     nodes.append({'name':k,'mesh':len(meshes)-1,'translation':[float(x) for x in mid],'scale':[float(x) for x in half],'extras':{'fma':fid,'kind':kind}})
     tris+=len(f)
 while len(buf)%4: buf.append(0)
-gltf={'asset':{'version':'2.0','generator':'SKK Anatomia build_glb.py','copyright':'BodyParts3D, (c) The Database Center for Life Science, CC BY-SA 2.1 JP. Converted/processed by SKK Anatomia (CC BY-SA 2.1 JP).'},
+gltf={'asset':{'version':'2.0','generator':'Anatomia build_glb.py','copyright':'BodyParts3D, (c) The Database Center for Life Science, CC BY-SA 2.1 JP. Converted/processed by Anatomia (CC BY-SA 2.1 JP).'},
 'extensionsUsed':['KHR_mesh_quantization'],'extensionsRequired':['KHR_mesh_quantization'],
 'scene':0,'scenes':[{'nodes':list(range(len(nodes)))}],'nodes':nodes,'meshes':meshes,'accessors':accs,'bufferViews':views,'buffers':[{'byteLength':len(buf)}]}
 j=json.dumps(gltf,separators=(',',':')).encode(); j+=b' '*((4-len(j)%4)%4)
