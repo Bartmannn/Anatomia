@@ -20,6 +20,7 @@
       <h1>Kręgosłup</h1>
       <span class="sub">Atlas 3D · 25 kości · 23 krążki</span>
     </div>
+    <button type="button" class="modbtn" id="modbtn" aria-haspopup="dialog"><span class="modk">Moduł</span><span id="modname">wybierz</span><span class="caret" aria-hidden="true"></span></button>
     <span class="draft">Wersja robocza · opisy do weryfikacji</span>
     <div class="modes" role="group" aria-label="Tryb">
       <button type="button" data-mode="atlas" aria-pressed="true">Atlas</button>
@@ -35,7 +36,9 @@
       <div class="hint">Przeciągnij, aby obrócić · kółko lub dwa palce, aby przybliżyć<br>Kliknij kość, aby ją wybrać · strzałki ↑ ↓</div>
       <div class="labels" id="labels" aria-hidden="true"></div>
       <div class="zoomhint" id="zoomhint" hidden>Czarne kropki: punkty wyczuwalne pod palcami. Wybierz kręg lub przybliż, aby zobaczyć nazwy jego części.</div>
-      <div class="loader" id="loader"><div>Wczytywanie modelu…<div class="bar"><i id="loadbar"></i></div></div></div>
+      <div class="loader" id="loader" hidden><div><span class="ltext">Wczytywanie modelu…</span><div class="bar"><i id="loadbar"></i></div></div></div>
+      <div class="net" id="net" hidden aria-live="polite"></div>
+      <div class="picker" id="picker" hidden></div>
       <div class="toolbar">
         <div class="seg" role="group" aria-label="Widok">
           <button type="button" data-view="front">Przód</button>

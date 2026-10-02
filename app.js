@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { PACKS } from './models/pakiety/spis.js';
 import { REGIONS, PARTS, DISC, PART_LABELS, PART_LABELS_SPECIAL, PALPATION } from './content.js';
 import { LANDMARKS } from './landmarks.js';
 import { FIXES, REVIEWED } from './landmarks-fix.js';
@@ -58,7 +58,24 @@ const state = {
   focusPart: null,
   edit: { part: null, slot: 0 },
   ribs: false,
+  module: null,           // 'kregoslup' | 'kregi' | 'zebra' (null = jeszcze nie wybrano)
 };
+
+/* ---------- Moduły: co oglądamy i co trzeba pobrać ---------- */
+const TH_KEYS = ORDER.filter((k) => k.startsWith('Th'));
+const MODULES = {
+  kregoslup: { name: 'Cały kręgosłup', desc: 'Wszystkie kręgi i krążki. Szczegóły kręgu pobierają się po wybraniu go albo przybliżeniu.',
+    base: ['przeglad-C', 'przeglad-Th', 'przeglad-L', 'przeglad-S'], keys: ORDER },
+  kregi: { name: 'Pojedyncze kręgi', desc: 'Jeden kręg naraz, w pełnej szczegółowości. Pobiera tylko oglądany kręg.',
+    base: [], keys: ORDER },
+  zebra: { name: 'Kręgi piersiowe i żebra', desc: 'Th1–Th12 z żebrami, dołki żebrowe i stawy żebrowo-kręgowe.',
+    base: ['przeglad-Th', 'zebra-przeglad'], keys: TH_KEYS },
+};
+const modKeys = () => MODULES[state.module]?.keys || ORDER;
+const single = () => state.module === 'kregi';
+// widok z bliska jednego kręgu (pozostałe przezroczyste albo ukryte)
+const closeUp = () => (state.isolate && state.mode === 'atlas') || state.mode === 'edit' || single();
+const currentKey = () => (state.mode === 'quiz' ? state.quiz?.target : state.selected) || state.selected;
 
 /* ---------- Ruler ---------- */
 function buildRuler() {
@@ -68,6 +85,7 @@ function buildRuler() {
   for (const r of REGION_KEYS) {
     const g = document.createElement('div');
     g.className = 'group';
+    g.dataset.region = r;
     g.style.setProperty('--rc', `var(--${r.toLowerCase()})`);
     g.innerHTML = `<span class="glabel">${r === 'S' ? 'Krzyż' : r === 'Th' ? 'Pierś' : r === 'C' ? 'Szyja' : 'Lędźwie'}</span>`;
     for (const k of groups[r]) {
@@ -83,6 +101,8 @@ function buildRuler() {
   }
 }
 function syncRuler() {
+  const keys = new Set(modKeys());
+  rulerEl.querySelectorAll('.group').forEach((g) => { g.hidden = !ORDER.some((k) => regionOf(k) === g.dataset.region && keys.has(k)); });
   rulerEl.querySelectorAll('button').forEach((b) => {
     const k = b.id.slice(2);
     b.setAttribute('aria-current', String(state.mode !== 'quiz' && k === state.selected));
@@ -198,14 +218,23 @@ let tween = null;
 let zoomTarget = null;   // płynne przybliżanie kółkiem myszy
 function boxOf(keys) {
   const box = new THREE.Box3();
-  keys.forEach((k) => parts[k] && box.expandByObject(parts[k]));
+  // ukryte części (inny moduł, wyłączone krążki) nie wpływają na kadr
+  keys.forEach((k) => parts[k] && (parts[k].visible || keys.length === 1) && box.expandByObject(parts[k]));
   return box;
 }
 const isoPad = () => (renderer.domElement.clientWidth < 520 ? 2.4 : 1.9);
 const closeFrame = (k, dir = null) => frame([k], dir, isoPad() * (state.ribs && k.startsWith('Th') ? 2.1 : 1));
+// kadr po wczytaniu części (moduł „Pojedyncze kręgi” pobiera kręg dopiero po wybraniu)
+let pendingFrame = null;
+function frameWhenReady(key, fn) {
+  pendingFrame = null;
+  if (parts[key]) fn(); else pendingFrame = { key, fn };
+}
 function frame(keys, dir, pad = 1.1) {
   zoomTarget = null;
   const box = boxOf(keys);
+  // moduł żeber: przegląd obejmuje całą klatkę
+  if (state.module === 'zebra' && keys.length > 1) for (const m of ribMeshes) if (m.visible && m.userData.kind === 'rib') box.union(m.geometry.boundingBox);
   if (box.isEmpty()) return;
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
@@ -227,13 +256,19 @@ function stepTween(dt) {
   if (tween.t >= 1) tween = null;
 }
 const neighbors = (k, n) => {
-  const i = ORDER.indexOf(k);
-  return ORDER.slice(Math.max(0, i - n), i + n + 1);
+  const keys = modKeys();
+  const i = keys.indexOf(k);
+  return keys.slice(Math.max(0, i - n), i + n + 1);
 };
 
 /* ---------- Materials ---------- */
 const tmp = new THREE.Color();
 const BLACK = new THREE.Color(0);
+function moduleVisible(k) {
+  if (single()) return k === currentKey();
+  if (state.module === 'zebra') return regionOf(k) === 'Th';
+  return true;
+}
 function paint() {
   const sel = state.mode === 'quiz' ? state.quiz?.target : state.selected;
   for (const [k, m] of Object.entries(parts)) {
@@ -250,8 +285,8 @@ function paint() {
       m.material.emissiveIntensity = 0.18;
     } else if (hov) tmp.lerp(COLORS[reg], 0.3);
     m.material.color.copy(tmp);
-    m.visible = !isDisc || state.showDiscs;
-    const faded = !isSel && ((state.isolate && state.mode === 'atlas') || state.mode === 'edit');
+    m.visible = moduleVisible(k) && (!isDisc || state.showDiscs);
+    const faded = !isSel && closeUp();
     if (m.material.transparent !== faded) m.material.needsUpdate = true;
     m.material.transparent = faded;
     m.material.opacity = faded ? 0.09 : 1;
@@ -261,81 +296,271 @@ function paint() {
   invalidate();
 }
 
-/* ---------- Ribs (models/zebra.glb, loaded in the background) ---------- */
-const ribMeshes = [];
-let ribsReady = false, ribsLoading = false;
+/* ---------- Żebra i dołki żebrowe ---------- */
+const ribMeshes = [];      // żebra (rib), dołki na kręgach (facet) i powierzchnie stawowe żeber (ribfacet)
+const ribByName = {};
 renderer.localClippingEnabled = true;
 const clipPlanes = [new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0), new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)];
 let ribMat = newMat('rib');
 let ribMatHi = newMat('rib');
 let facetMat = newMat('facet');
+const relatedRibs = (k) => [...new Set(Object.values(RIB_LINKS[k] || {}))];
+const ribsLoadedFor = (k) => { const r = relatedRibs(k); return r.length > 0 && r.every((n) => ribByName[`rib_L${n}`] && ribByName[`rib_R${n}`]); };
+// żebra przy kręgu k są włączone i już wczytane (etykiety głowy i guzka żebra, edytor)
+const ribsOn = (k) => state.ribs && state.mode !== 'quiz' && k.startsWith('Th') && ribsLoadedFor(k);
 function paintRibs() {
-  if (!ribsReady) return;
   const k = state.selected;
   const isTh = k.startsWith('Th') && state.mode !== 'quiz';
-  const related = new Set(Object.values(RIB_LINKS[k] || {}));
-  const closeUp = (state.isolate && state.mode === 'atlas') || state.mode === 'edit';
+  const related = new Set(relatedRibs(k));
+  const close = closeUp();
   const box = parts[k] ? new THREE.Box3().setFromObject(parts[k]) : null;
   const xc = box ? (box.min.x + box.max.x) / 2 : 0;
   clipPlanes[0].constant = xc + 0.9;
   clipPlanes[1].constant = -(xc - 0.9);
   for (const mat of [ribMat, ribMatHi]) {
-    const want = closeUp ? clipPlanes : null;
+    const want = close ? clipPlanes : null;
     if ((mat.clippingPlanes?.length || 0) !== (want?.length || 0)) { mat.clippingPlanes = want; mat.needsUpdate = true; }
   }
   ribMat.color.copy(COLORS.bone);
   ribMatHi.color.copy(COLORS.bone).lerp(COLORS.Th, 0.35);
   facetMat.color.copy(COLORS.facet);
+  const vis = moduleVisible(k);
   for (const m of ribMeshes) {
     const e = m.userData;
     if (e.kind === 'rib') {
       const rel = isTh && related.has(e.rib);
-      m.visible = state.ribs && state.mode !== 'quiz' && (!closeUp || rel);
+      m.visible = state.ribs && state.mode !== 'quiz' && (!close || rel);
       m.material = rel ? ribMatHi : ribMat;
     } else if (e.kind === 'facet') {
-      m.visible = isTh && e.vertebra === k;
+      m.visible = vis && isTh && e.vertebra === k;
     } else {
-      m.visible = state.ribs && isTh && e.vertebra === k;
+      m.visible = vis && state.ribs && isTh && e.vertebra === k;
     }
   }
 }
-function onRibs(gltf) {
-  gltf.scene.traverse((o) => {
-    if (!o.isMesh) return;
-    o.material = o.userData.kind === 'rib' ? ribMat : facetMat;
-    o.renderOrder = o.userData.kind === 'rib' ? 0 : 1;
-    ribMeshes.push(o);
-    if (o.userData.kind === 'rib') o.userData.proxy = buildProxy(o);
-  });
-  root.add(gltf.scene);
-  ribsReady = true;
+function toggleRibs() { setRibs(!state.ribs); }
+function setRibs(on, reframe = true) {
+  state.ribs = on;
+  $('#ribs').setAttribute('aria-pressed', String(on));
   occl.clear();
+  updateLod();
   paint();
-  if (state.mode === 'atlas') renderPart(state.selected); else if (state.mode === 'edit') renderEditor();
-}
-function loadRibs() {
-  if (ribsReady || ribsLoading) return;
-  ribsLoading = true;
-  const fail = () => { ribsLoading = false; };
-  if (window.ATLAS_RIBS_B64) {
-    fetch(window.ATLAS_RIBS_B64).then((r) => r.text()).then((t) => {
-      const bin = Uint8Array.from(atob(t.trim()), (c) => c.charCodeAt(0));
-      new GLTFLoader().parse(bin.buffer, '', onRibs, fail);
-    }).catch(fail);
-  } else {
-    new GLTFLoader().load('models/zebra.glb', onRibs, undefined, fail);
-  }
-}
-function toggleRibs() {
-  state.ribs = !state.ribs;
-  $('#ribs').setAttribute('aria-pressed', String(state.ribs));
-  loadRibs();
-  occl.clear();
-  paint();
-  if (state.mode === 'atlas') renderPart(state.selected); else if (state.mode === 'edit') renderEditor();
-  if (((state.isolate && state.mode === 'atlas') || state.mode === 'edit') && state.selected.startsWith('Th')) closeFrame(state.selected);
+  refreshPanel();
+  if (reframe && closeUp() && state.selected.startsWith('Th')) closeFrame(state.selected);
 }
 
+/* ---------- Paczki modeli: pobieranie na żądanie ---------- */
+// Format paczek opisuje tools/build_packs.py. Przegląd (przeglad-*, zebra-przeglad) to siatki uproszczone,
+// a kregi/<kręg> i zebra/<n> — pełne, pobierane dopiero, gdy kręg jest wybrany albo duży na ekranie.
+const lowGeo = {}, highGeo = {};
+const packs = new Map();            // id -> { p, ctrl, done, keep, low }
+const net = { bytes: 0 };
+const wantHigh = new Set();
+const isOverview = (id) => id.startsWith('przeglad') || id === 'zebra-przeglad';
+const packForKey = (k) => `kregi/${k.startsWith('D_') ? k.slice(2) : k}`;
+const saveData = () => { const c = navigator.connection; return !!(c && (c.saveData || /(^|-)2g$/.test(c.effectiveType || ''))); };
+const kB = (b) => `${b >= 1e6 ? (b / 1e6).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(b / 1000)) + ' kB'}`;
+
+async function gunzip(bytes) {
+  if (typeof DecompressionStream === 'undefined') throw new Error('Ta przeglądarka jest zbyt stara, by rozpakować model. Zaktualizuj ją.');
+  const out = new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip')));
+  return new Uint8Array(await out.arrayBuffer());
+}
+async function fetchPack(id, signal, onProgress, low) {
+  // podgląd w artefakcie: pliki binarne zakodowane base64
+  const b64 = !!window.ATLAS_PACK_B64;
+  const url = `models/pakiety/${id}.pak${b64 ? '.b64.txt' : ''}`;
+  const res = await fetch(url, { signal, priority: low ? 'low' : 'auto' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${url}`);
+  const total = (PACKS[id]?.bajty || 0) * (b64 ? 4 / 3 : 1);
+  const chunks = [];
+  let got = 0;
+  const reader = res.body.getReader();
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value); got += value.length; net.bytes += value.length;
+    onProgress?.(Math.min(got, total), total);
+  }
+  let bytes = new Uint8Array(got);
+  let o = 0;
+  for (const c of chunks) { bytes.set(c, o); o += c.length; }
+  if (b64) bytes = Uint8Array.from(atob(new TextDecoder().decode(bytes).trim()), (c) => c.charCodeAt(0));
+  if (bytes[0] === 0x1f && bytes[1] === 0x8b) bytes = await gunzip(bytes);   // serwer mógł już rozpakować
+  return bytes;
+}
+function decodePack(bytes) {
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]) !== 'ATL1') throw new Error('Nieznany format paczki');
+  const hl = dv.getUint32(4, true);
+  const head = JSON.parse(new TextDecoder().decode(bytes.subarray(8, 8 + hl)));
+  const body = bytes.subarray(8 + hl);
+  let o = 0;
+  const vint = () => { let x = 0, m = 1, b; do { b = body[o++]; x += (b & 127) * m; m *= 128; } while (b & 128); return x; };
+  return head.meshes.map((h) => {
+    const pos = new Float32Array(h.n * 3);
+    o = h.p[0];
+    for (let c = 0; c < 3; c++) {
+      let acc = 0;
+      for (let i = 0; i < h.n; i++) { const z = vint(); acc += (z & 1) ? -(z + 1) / 2 : z / 2; pos[i * 3 + c] = (acc + h.base[c]) * h.s; }
+    }
+    const idx = h.n < 65536 ? new Uint16Array(h.t * 3) : new Uint32Array(h.t * 3);
+    const fifo = new Int32Array(16);
+    let fl = 0, next = 0;
+    o = h.i[0];
+    for (let k = 0; k < idx.length; k++) {
+      const c = vint();
+      const j = c === 0 ? next++ : c <= 16 ? fifo[c - 1] : next - 1 - (c - 17);
+      let q = fifo.indexOf(j);
+      if (q < 0 || q >= fl) { q = Math.min(fl, 15); if (fl < 16) fl++; }
+      for (; q > 0; q--) fifo[q] = fifo[q - 1];
+      fifo[0] = j;
+      idx[k] = j;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setIndex(new THREE.BufferAttribute(idx, 1));
+    g.computeVertexNormals();
+    g.computeBoundingBox();
+    g.computeBoundingSphere();
+    return { name: h.name, extras: h.extras || {}, geometry: g };
+  });
+}
+function ensurePack(id, opts = {}) {
+  if (!PACKS[id]) return Promise.resolve();
+  let st = packs.get(id);
+  if (st) {
+    if (opts.keep) st.keep = true;
+    if (!opts.low) st.low = false;
+    return st.p;
+  }
+  const ctrl = new AbortController();
+  st = { ctrl, done: false, keep: !!opts.keep, low: !!opts.low };
+  packs.set(id, st);
+  st.p = fetchPack(id, ctrl.signal, opts.onProgress, opts.low).then((bytes) => {
+    for (const m of decodePack(bytes)) addGeometry(m, isOverview(id));
+    st.done = true;
+    afterPack();
+  }).catch((err) => {
+    if (packs.get(id) === st) packs.delete(id);
+    if (err.name !== 'AbortError') { console.warn('Paczka', id, err); netStatus(`Nie udało się pobrać części modelu (${id}).`); updateLoader(err); }
+    throw err;
+  });
+  st.p.catch(() => {}).finally(() => netStatus());
+  netStatus();
+  return st.p;
+}
+function addGeometry({ name, extras, geometry }, low) {
+  (low ? lowGeo : highGeo)[name] = geometry;
+  let mesh = parts[name] || ribByName[name];
+  if (!mesh) {
+    const kind = extras.kind;
+    const bone = kind === 'bone' || kind === 'disc';
+    mesh = new THREE.Mesh(geometry, bone ? newMat(kind) : kind === 'rib' ? ribMat : facetMat);
+    mesh.name = name;
+    mesh.userData = { ...extras };
+    mesh.visible = false;               // o widoczności decyduje paint()
+    if (bone) parts[name] = mesh;
+    else { mesh.renderOrder = kind === 'rib' ? 0 : 1; ribMeshes.push(mesh); ribByName[name] = mesh; }
+    root.add(mesh);
+  }
+  useGeometry(mesh);
+}
+// pełna siatka, gdy jest potrzebna i już pobrana; w przeciwnym razie uproszczona
+function useGeometry(mesh) {
+  const n = mesh.name, lo = lowGeo[n], hi = highGeo[n];
+  const g = hi && (!lo || wantHigh.has(n)) ? hi : (lo || hi);
+  if (mesh.geometry !== g) { mesh.geometry = g; invalidate(); }
+  const kind = mesh.userData.kind;
+  if (kind === 'facet' || kind === 'ribfacet') return;
+  // celowanie: siatka uproszczona, a gdy jej nie ma — bryła zbudowana z pełnej
+  const src = lo ? 'low' : 'high';
+  if (mesh.userData.proxySrc !== src) {
+    mesh.userData.proxy = lo ? proxyOf(lo, mesh) : buildProxy(mesh);
+    mesh.userData.proxySrc = src;
+  }
+}
+let panelRibs = null;   // czy panel pokazuje już części żeber
+function refreshPanel() {
+  if (state.mode === 'atlas') renderPart(state.selected);
+  else if (state.mode === 'edit') renderEditor();
+}
+function afterPack() {
+  occl.clear();
+  paint();
+  if (pendingFrame && parts[pendingFrame.key]) { const { fn } = pendingFrame; pendingFrame = null; fn(); }
+  if (state.mode !== 'quiz' && panelRibs !== ribsOn(state.selected)) refreshPanel();
+  updateLoader();
+  scheduleLod(60);   // np. pobranie sąsiadów, gdy wybrany kręg już jest
+}
+
+// Co pobrać teraz: przegląd modułu, wybrany kręg (i żebra przy nim), kręgi duże na ekranie,
+// a w tle sąsiednie kręgi (chyba że włączone jest oszczędzanie danych).
+const LOD_DENSITY = 550;   // px na jednostkę modelu (10 cm): kręg Th7 ma ok. 0,27 j. wysokości → ok. 150 px
+let lodTimer = 0;
+function scheduleLod(ms = 120) { clearTimeout(lodTimer); lodTimer = setTimeout(updateLod, ms); }
+function updateLod() {
+  if (!state.module) return;
+  const need = new Set(MODULES[state.module].base);
+  if (state.ribs && !single()) need.add('zebra-przeglad');
+  const sel = currentKey();
+  const allowed = new Set(modKeys());
+  // w quizie na całym kręgosłupie wystarczy podświetlony przegląd; w „Pojedynczych kręgach” trzeba pobrać kręg
+  if (allowed.has(sel.replace('D_', '')) && (state.mode !== 'quiz' || single())) need.add(packForKey(sel));
+  if (state.ribs && state.mode !== 'quiz' && state.selected.startsWith('Th')) for (const n of relatedRibs(state.selected)) need.add(`zebra/${n}`);
+  if (!single()) {
+    const W = renderer.domElement.clientWidth, H = renderer.domElement.clientHeight;
+    const big = [];
+    const consider = (obj, id, minPx, dim) => {
+      if (!obj.visible || obj.material.opacity < 0.5) return;
+      const r = projectedBox(obj.geometry.boundingBox);
+      if (!r || r.x1 < 0 || r.x0 > W || r.y1 < 0 || r.y0 > H) return;
+      const size = dim(r);
+      if (size > minPx) big.push([size, id]);
+    };
+    // kryterium: ile pikseli ekranu przypada na 10 cm kości (duże kości, np. krzyżowa, nie wymuszają pobrania wcześniej)
+    const density = (m) => (r) => (r.y1 - r.y0) / Math.max(m.geometry.boundingBox.max.y - m.geometry.boundingBox.min.y, 0.05);
+    for (const [k, m] of Object.entries(parts)) if (lowGeo[k]) consider(m, packForKey(k), LOD_DENSITY, density(m));
+    for (const m of ribMeshes) if (m.userData.kind === 'rib' && lowGeo[m.name]) consider(m, `zebra/${m.userData.rib}`, LOD_DENSITY * 0.8, density(m));
+    big.sort((a, b) => b[0] - a[0]);
+    for (const [, id] of big.slice(0, 8)) need.add(id);
+  }
+  const pre = new Set();
+  // sąsiedzi dopiero, gdy potrzebne paczki są już pobrane (żeby nie zabierały im łącza)
+  const needDone = [...need].every((id) => packs.get(id)?.done || !PACKS[id]);
+  if (needDone && !saveData() && state.mode === 'atlas') {
+    const keys = modKeys();
+    const i = keys.indexOf(sel.replace('D_', ''));
+    for (const j of [i + 1, i - 1]) if (keys[j]) pre.add(packForKey(keys[j]));
+  }
+  wantHigh.clear();
+  for (const id of need) {
+    if (id.startsWith('kregi/')) { const k = id.slice(6); wantHigh.add(k); wantHigh.add('D_' + k); }
+    else if (id.startsWith('zebra/')) { const n = id.slice(6); wantHigh.add(`rib_L${n}`); wantHigh.add(`rib_R${n}`); }
+  }
+  for (const m of Object.values(parts)) useGeometry(m);
+  for (const m of ribMeshes) useGeometry(m);
+  for (const id of need) ensurePack(id, { keep: isOverview(id) }).catch(() => {});
+  for (const id of pre) if (!need.has(id)) ensurePack(id, { low: true }).catch(() => {});
+  for (const [id, st] of packs) {
+    if (!st.done && !st.keep && !need.has(id) && !pre.has(id)) { st.ctrl.abort(); packs.delete(id); }
+  }
+  netStatus();
+}
+
+// Mały napis „Pobieranie…” na scenie (pobrania w tle z wyprzedzeniem się nie liczą)
+let netErr = '', netErrAt = 0;
+function netStatus(err) {
+  if (err) { netErr = err; netErrAt = performance.now(); }
+  const el = $('#net');
+  if (!el) return;
+  const busy = [...packs.values()].filter((st) => !st.done && !st.low).length;
+  const showErr = netErr && performance.now() - netErrAt < 6000;
+  el.hidden = !busy && !showErr;
+  el.textContent = showErr && !busy ? netErr : 'Pobieranie szczegółów…';
+  el.classList.toggle('err', !!(showErr && !busy));
+  if (showErr) setTimeout(() => netStatus(), 6100);
+}
 
 /* ---------- Landmarks: automatic points + fixes from file + local edits ---------- */
 const LS_KEY = 'atlas-landmark-edits-v1';
@@ -396,10 +621,10 @@ const PART_ORDER = ['dens', 'body', 'arcus_ant', 'fovea_dentis', 'massa_lat', 'a
 const RIB_VIEW_PARTS = new Set(['body', 'transverse', 'fov_sup', 'fov_inf', 'fov_tp', 'rib_head', 'rib_neck', 'rib_tub', 'rib_head_next']);
 function partList(k, forLabels = false) {
   const L = lm(k);
-  const ribsOn = state.ribs && ribsReady && k.startsWith('Th');
+  const withRibs = ribsOn(k);
   return Object.keys(L)
-    .filter((p) => !forLabels || (ribsOn ? RIB_VIEW_PARTS.has(p) : !p.startsWith('rib_')))
-    .filter((p) => forLabels || !p.startsWith('rib_') || ribsOn)
+    .filter((p) => !forLabels || (withRibs ? RIB_VIEW_PARTS.has(p) : !p.startsWith('rib_')))
+    .filter((p) => forLabels || !p.startsWith('rib_') || withRibs)
     .sort((a, b) => PART_ORDER.indexOf(a) - PART_ORDER.indexOf(b))
     .map((p) => ({ part: p, def: partDef(k, p) })).filter((x) => x.def?.name);
 }
@@ -410,9 +635,9 @@ function project(p) {
   const r = renderer.domElement.getBoundingClientRect();
   return { x: (_v.x + 1) / 2 * r.width, y: (1 - _v.y) / 2 * r.height, behind: _v.z > 1 };
 }
-function projectedRect(keys) {
-  const box = boxOf(keys);
-  if (box.isEmpty()) return null;
+function projectedRect(keys) { return projectedBox(boxOf(keys)); }
+function projectedBox(box) {
+  if (!box || box.isEmpty()) return null;
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (let i = 0; i < 8; i++) {
     const q = project([i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z]);
@@ -463,7 +688,7 @@ function labelItems() {
   const rect = projectedRect([k]);
   // histereza: z nazw części na punkty wyczuwalne wracamy dopiero przy wyraźnie mniejszym kręgu
   const thr = (renderer.domElement.clientWidth < 520 ? 70 : 95) * (labelMode === 'parts' ? 0.8 : 1);
-  const big = rect && (state.isolate || (rect.y1 - rect.y0) > thr);
+  const big = rect && (closeUp() || (rect.y1 - rect.y0) > thr);
   labelMode = big ? 'parts' : 'palp';
   if (big) {
     const items = [];
@@ -478,11 +703,11 @@ function labelItems() {
     }
     return { items, ref: rect, kind: 'parts' };
   }
-  if (state.isolate) return { items: [], ref: null };
+  if (closeUp()) return { items: [], ref: null };
   const items = PALPATION.filter((l) => parts[l.key]?.visible !== false && lm(l.key)[l.part]).map((l) => ({
     id: `palp:${l.key}`, p: lm(l.key)[l.part].find(Boolean), title: l.label, sub: l.note, palp: true, key: l.key,
   }));
-  return { items, ref: projectedRect(ORDER), kind: 'palp' };
+  return { items, ref: projectedRect(modKeys()), kind: 'palp' };
 }
 
 function layoutLabels() {
@@ -594,7 +819,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 function metaBlock(fma) {
   return `<div class="meta">
     ${fma ? `<div>Model: <code>${fma}</code> · BodyParts3D</div>` : ''}
-    <div>Modele 3D: <a href="https://doi.org/10.18908/lsdba.nbdc00837-000" target="_blank" rel="noopener">BodyParts3D</a>, © The Database Center for Life Science, licencja <a href="https://creativecommons.org/licenses/by-sa/2.1/jp/deed.en" target="_blank" rel="noopener">CC BY-SA 2.1 JP</a>. Przetworzone (konwersja formatu, układ współrzędnych, kompresja).</div>
+    <div>Modele 3D: <a href="https://doi.org/10.18908/lsdba.nbdc00837-000" target="_blank" rel="noopener">BodyParts3D</a>, © The Database Center for Life Science, licencja <a href="https://creativecommons.org/licenses/by-sa/2.1/jp/deed.en" target="_blank" rel="noopener">CC BY-SA 2.1 JP</a>. Przetworzone (konwersja formatu, układ współrzędnych, uproszczenie siatek, kompresja).</div>
     <div>Opisy: wersja robocza do weryfikacji przez nauczyciela.</div>
   </div>`;
 }
@@ -642,6 +867,7 @@ function bindParts() {
 
 function renderPart(k) {
   invalidate();
+  panelRibs = ribsOn(k);
   const reg = regionOf(k);
   const R = REGIONS[reg];
   panelEl.style.setProperty('--rc', `var(--${reg.toLowerCase()})`);
@@ -684,24 +910,29 @@ function renderPart(k) {
 
 function select(k, doFrame) {
   if (state.mode === 'quiz') return;
+  if (!modKeys().includes(k.replace('D_', ''))) return;
+  if (single() && k.startsWith('D_')) k = k.slice(2);
   state.selected = k;
   if (state.mode === 'edit') { state.edit = { part: null, slot: 0 }; renderEditor(); } else renderPart(k);
   syncRuler();
+  updateLod();
   paint();
-  if (doFrame) {
+  updateLoader();
+  if (doFrame || single()) {
     const keys = k.startsWith('D_') ? [k.slice(2)] : [k];
-    if (state.isolate || state.mode === 'edit') closeFrame(k);
-    else frame(neighbors(keys[0], 3));
+    if (closeUp()) frameWhenReady(k, () => closeFrame(k));
+    else { pendingFrame = null; frame(neighbors(keys[0], 3)); }
   }
-  try { history.replaceState(null, '', `#${k}`); } catch (e) { /* ignore */ }
+  writeHash();
 }
 
 /* ---------- Quiz ---------- */
 function newQuestion() {
   const q = state.quiz;
-  const target = ORDER[Math.floor(Math.random() * ORDER.length)];
-  const i = ORDER.indexOf(target);
-  const pool = ORDER.filter((k) => k !== target && Math.abs(ORDER.indexOf(k) - i) <= 4);
+  const keys = modKeys();
+  const target = keys[Math.floor(Math.random() * keys.length)];
+  const i = keys.indexOf(target);
+  const pool = keys.filter((k) => k !== target && Math.abs(keys.indexOf(k) - i) <= 4);
   const opts = [target];
   while (opts.length < 4 && pool.length) opts.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
   opts.sort(() => Math.random() - 0.5);
@@ -712,7 +943,7 @@ function newQuestion() {
   panelEl.innerHTML = `
     <div>
       <div class="eyebrow"><span>Quiz</span><span>·</span><span class="score">Wynik ${q.good}/${q.total}</span></div>
-      <p class="quiz-q">Który to kręg? Jest podświetlony na modelu.</p>
+      <p class="quiz-q">${single() ? 'Który to kręg? Rozpoznaj go po kształcie.' : 'Który to kręg? Jest podświetlony na modelu.'}</p>
     </div>
     <div class="answers">${opts.map((k) => `<button type="button" data-k="${k}"><span>${esc(PARTS[k].name)}</span><span class="code">${PARTS[k].short}</span></button>`).join('')}</div>
     <p class="feedback" id="feedback" aria-live="polite">Obracaj model, aby lepiej się przyjrzeć. Liczy się pierwsza odpowiedź.</p>
@@ -720,8 +951,11 @@ function newQuestion() {
     ${metaBlock()}`;
   panelEl.querySelectorAll('.answers button').forEach((b) => b.addEventListener('click', () => answer(b.dataset.k)));
   $('#next').addEventListener('click', newQuestion);
+  updateLod();
   paint();
-  frame(neighbors(target, 3), VIEWS.three);
+  updateLoader();
+  if (single()) frameWhenReady(target, () => closeFrame(target, VIEWS.three));
+  else { pendingFrame = null; frame(neighbors(target, 3), VIEWS.three); }
 }
 function answer(k) {
   const q = state.quiz;
@@ -775,7 +1009,7 @@ function editableParts(k) {
   if (k.startsWith('Th')) {
     const n = +k.slice(2);
     const extra = ['fov_sup', ...(n <= 9 ? ['fov_inf'] : []), ...(n <= 10 ? ['fov_tp'] : [])];
-    if (state.ribs && ribsReady) extra.push('rib_head', ...(n <= 10 ? ['rib_neck', 'rib_tub'] : []), ...(n <= 9 ? ['rib_head_next'] : []));
+    if (ribsOn(k)) extra.push('rib_head', ...(n <= 10 ? ['rib_neck', 'rib_tub'] : []), ...(n <= 9 ? ['rib_head_next'] : []));
     return [...base, ...extra];
   }
   return k === 'C2' ? ['dens', ...base] : base;
@@ -837,6 +1071,7 @@ const localCount = () => new Set([...Object.keys(local.fixes), ...Object.keys(lo
 
 function renderEditor() {
   invalidate();
+  panelRibs = ribsOn(state.selected);
   const k = state.selected;
   const reg = regionOf(k);
   panelEl.style.setProperty('--rc', `var(--${reg.toLowerCase()})`);
@@ -991,6 +1226,15 @@ function buildProxy(mesh, cell = 0.04) {
   perf.proxyTris = (perf.proxyTris || 0) + idx.length / 3;
   return proxy;
 }
+// siatka uproszczona z paczki przeglądu jest od razu bryłą do celowania
+function proxyOf(geo, mesh) {
+  const p = new THREE.Mesh(geo, proxyMat);
+  p.userData.target = mesh;
+  p.matrixAutoUpdate = false;
+  p.updateMatrixWorld(true);
+  perf.proxyTris = (perf.proxyTris || 0) + geo.index.count / 3;
+  return p;
+}
 function activeProxies(bonesOnly) {
   const list = [];
   for (const m of Object.values(parts)) if (m.visible && m.material.opacity > 0.5 && m.userData.proxy) list.push(m.userData.proxy);
@@ -1047,9 +1291,11 @@ function processHover() {
 /* ---------- Toolbar ---------- */
 document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => {
   const v = b.dataset.view;
-  if (v === 'all') frame(ORDER, VIEWS.side);
-  else if ((state.isolate && state.mode === 'atlas') || state.mode === 'edit') closeFrame(state.selected, VIEWS[v]);
-  else frame(ORDER, VIEWS[v]);
+  const k = currentKey();
+  if (single()) closeFrame(k, VIEWS[v === 'all' ? 'three' : v]);
+  else if (v === 'all') frame(modKeys(), VIEWS.side);
+  else if (closeUp()) closeFrame(k, VIEWS[v]);
+  else frame(modKeys(), VIEWS[v]);
 }));
 function toggle(id, prop) {
   const b = $(id);
@@ -1058,6 +1304,7 @@ function toggle(id, prop) {
     b.setAttribute('aria-pressed', String(state[prop]));
     if (prop === 'isolate') select(state.selected, true);
     paint();
+    scheduleLod(0);
   });
 }
 toggle('#discs', 'showDiscs');
@@ -1076,15 +1323,19 @@ window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { state.edit.part = null; renderEditor(); return; }
   }
   if (state.mode === 'quiz') return;
+  if (e.key === 'Escape' && !pickerEl.hidden && state.module) { hidePicker(); return; }
+  if (!state.module || !pickerEl.hidden) return;
+  const keys = modKeys();
   const k = state.selected.replace('D_', '');
-  const i = ORDER.indexOf(k);
-  if (e.key === 'ArrowDown' && i < ORDER.length - 1) { e.preventDefault(); select(ORDER[i + 1], true); }
-  if (e.key === 'ArrowUp' && i > 0) { e.preventDefault(); select(ORDER[i - 1], true); }
+  const i = keys.indexOf(k);
+  if (e.key === 'ArrowDown' && i < keys.length - 1) { e.preventDefault(); select(keys[i + 1], true); }
+  if (e.key === 'ArrowUp' && i > 0) { e.preventDefault(); select(keys[i - 1], true); }
 });
 
 window.addEventListener('hashchange', () => {
-  const k = decodeURIComponent(location.hash.slice(1));
-  if (parts[k] && k !== state.selected && state.mode !== 'quiz') select(k, true);
+  const { mod, key } = parseHash();
+  if (mod && mod !== state.module) setModule(mod, key);
+  else if (key && key !== state.selected && state.mode !== 'quiz') select(key, true);
 });
 
 /* ---------- Theme reactivity ---------- */
@@ -1092,49 +1343,146 @@ const reTheme = () => { readColors(); paint(); };
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', reTheme);
 new MutationObserver(reTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
-/* ---------- Load ---------- */
+/* ---------- Wybór modułu ---------- */
+const MOD_KEY = 'atlas-module-v1';
+const pickerEl = $('#picker');
+const loaderEl = $('#loader');
+const validKey = (k) => ORDER.includes(k) || (/^D_/.test(k) && ORDER.includes(k.slice(2)) && k !== 'D_S' && k !== 'D_C1');
+function parseHash() {
+  const h = decodeURIComponent(location.hash.slice(1)).replace(/[&?]?debug\b/, '');
+  const [a, b] = h.split('/');
+  if (MODULES[a]) return { mod: a, key: validKey(b) ? b : null };
+  if (validKey(a)) return { mod: null, key: a };   // stare linki: #C7
+  return {};
+}
+function writeHash() {
+  if (!state.module) return;
+  const h = `#${state.module}/${state.selected}${DEBUG ? '&debug' : ''}`;
+  if (location.hash !== h) try { history.replaceState(null, '', h); } catch (e) { /* ignore */ }
+}
+const ICONS = {
+  kregoslup: '<svg viewBox="0 0 40 56" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6">' +
+    Array.from({ length: 9 }, (_, i) => `<rect x="${15 + Math.sin(i / 2.6) * 4}" y="${3 + i * 5.6}" width="${8 + i * 0.6}" height="3.6" rx=".6"/>`).join('') + '</g></svg>',
+  kregi: '<svg viewBox="0 0 40 56" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6"><ellipse cx="20" cy="19" rx="10" ry="7.5"/><path d="M12 25 L8 31 M28 25 L32 31 M14 27 Q20 33 26 27 M20 33 L20 47"/><circle cx="20" cy="28.5" r="2.6"/></g></svg>',
+  zebra: '<svg viewBox="0 0 40 56" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6">' +
+    Array.from({ length: 5 }, (_, i) => `<rect x="17" y="${6 + i * 9}" width="6" height="4.5" rx=".6"/><path d="M17 ${9 + i * 9} Q5 ${10 + i * 9} 4 ${19 + i * 9} M23 ${9 + i * 9} Q35 ${10 + i * 9} 36 ${19 + i * 9}"/>`).join('') + '</g></svg>',
+};
+function moduleSize(mod) {
+  const base = MODULES[mod].base.reduce((a, id) => a + (PACKS[id]?.bajty || 0), 0);
+  const per = ORDER.map((k) => PACKS[packForKey(k)]?.bajty || 0).filter(Boolean);
+  const range = `${kB(Math.min(...per))}–${kB(Math.max(...per))}`;
+  if (mod === 'kregi') return { big: range.replace(/ kB–/, '–'), small: 'za każdy oglądany kręg' };
+  return { big: kB(base), small: 'na start' };
+}
+function showPicker() {
+  const first = !state.module;
+  pickerEl.innerHTML = `<div class="pk" role="dialog" aria-modal="${!first}" aria-labelledby="pkTitle">
+    <div class="pk-head">
+      <div><span class="pk-eyebrow">Moduły</span><h2 id="pkTitle">Co chcesz oglądać?</h2></div>
+      ${first ? '' : '<button type="button" class="pk-close" id="pkClose" aria-label="Zamknij">×</button>'}
+    </div>
+    <p class="pk-lead">Pobierane jest tylko to, co wybierzesz. Na start wystarcza model uproszczony; pełny kręg (${moduleSize('kregi').big}) dochodzi, gdy go wybierzesz albo przybliżysz.</p>
+    <div class="pk-list">${Object.entries(MODULES).map(([id, m]) => {
+      const sz = moduleSize(id);
+      return `<button type="button" class="pk-card" data-mod="${id}" aria-current="${state.module === id}">
+        <span class="pk-icon">${ICONS[id]}</span>
+        <span class="pk-text"><b>${m.name}</b><span>${m.desc}</span></span>
+        <span class="pk-size"><b>${sz.big}</b><span>${sz.small}</span></span>
+      </button>`;
+    }).join('')}</div>
+    <p class="pk-foot">${net.bytes ? `Pobrano w tej sesji: <b>${kB(net.bytes)}</b> · ` : ''}${saveData() ? 'Oszczędzanie danych włączone: bez pobierania z wyprzedzeniem.' : 'Sąsiednie kręgi pobierają się w tle, chyba że w telefonie włączysz oszczędzanie danych.'}</p>
+  </div>`;
+  pickerEl.hidden = false;
+  loaderEl.hidden = true;
+  pickerEl.querySelectorAll('[data-mod]').forEach((b) => b.addEventListener('click', () => setModule(b.dataset.mod)));
+  $('#pkClose')?.addEventListener('click', hidePicker);
+  (pickerEl.querySelector('[aria-current="true"]') || pickerEl.querySelector('.pk-card')).focus({ preventScroll: true });
+}
+function hidePicker() {
+  pickerEl.hidden = true;
+  updateLoader();
+  $('#modbtn').focus({ preventScroll: true });
+}
+$('#modbtn').addEventListener('click', () => (pickerEl.hidden ? showPicker() : state.module && hidePicker()));
+
+// Zasłona „Wczytywanie…”: dopóki nie ma przeglądu modułu albo (w „Pojedynczych kręgach”) oglądanego kręgu
+const baseProgress = {};
+function updateLoader(err) {
+  if (!pickerEl.hidden || !state.module) { loaderEl.hidden = true; return; }
+  const base = MODULES[state.module].base;
+  const waiting = base.some((id) => !packs.get(id)?.done) || (single() && !parts[currentKey()]);
+  if (err && waiting) {
+    loaderEl.hidden = false;
+    loaderEl.innerHTML = `<div>Nie udało się pobrać modelu.<br><small>${esc(err.message || err)}</small><br><button type="button" class="btn" id="retry">Spróbuj ponownie</button></div>`;
+    $('#retry').addEventListener('click', () => { loaderEl.innerHTML = loaderHTML; setModule(state.module, state.selected); });
+    return;
+  }
+  if (loaderEl.querySelector('#retry')) loaderEl.innerHTML = loaderHTML;
+  loaderEl.hidden = !waiting;
+  if (waiting) {
+    const total = base.reduce((a, id) => a + (PACKS[id]?.bajty || 0), 0);
+    const got = base.reduce((a, id) => a + (packs.get(id)?.done ? PACKS[id]?.bajty || 0 : baseProgress[id] || 0), 0);
+    const lbl = loaderEl.querySelector('.ltext');
+    if (lbl) lbl.textContent = single() && !base.length ? `Wczytywanie: ${PARTS[currentKey()]?.name || currentKey()}…` : `Wczytywanie modelu… ${kB(got)} z ${kB(total)}`;
+    $('#loadbar').style.width = total ? `${Math.round((got / total) * 100)}%` : '60%';
+  }
+}
+const loaderHTML = loaderEl.innerHTML;
+
+let framedOnce = false;
+function setModule(mod, key = null) {
+  if (!MODULES[mod]) return;
+  state.module = mod;
+  try { localStorage.setItem(MOD_KEY, mod); } catch (e) { /* no storage */ }
+  pickerEl.hidden = true;
+  labelMode = 'palp';
+  $('#modname').textContent = MODULES[mod].name;
+  document.body.dataset.module = mod;
+  const keys = modKeys();
+  if (key && keys.includes(key.replace('D_', ''))) state.selected = key;
+  if (!keys.includes(state.selected.replace('D_', ''))) state.selected = mod === 'zebra' ? 'Th7' : 'C7';
+  if (single() && state.selected.startsWith('D_')) state.selected = state.selected.slice(2);
+  if (state.isolate) { state.isolate = false; $('#isolate').setAttribute('aria-pressed', 'false'); }
+  $('#isolate').hidden = single();
+  $('#discs').hidden = single();
+  $('.brand .sub').textContent = mod === 'zebra' ? 'Atlas 3D · 12 kręgów · 24 żebra' : mod === 'kregi' ? 'Atlas 3D · jeden kręg naraz' : 'Atlas 3D · 25 kości · 23 krążki';
+  for (const id of MODULES[mod].base) {
+    ensurePack(id, { keep: true, onProgress: (g) => { baseProgress[id] = g; updateLoader(); } }).catch(() => {});
+  }
+  setRibs(mod === 'zebra', false);   // także updateLod(), paint() i panel
+  syncRuler();
+  updateLoader();
+  const snap = !framedOnce;
+  const done = () => { framedOnce = true; if (snap && tween) { tween.t = 1; stepTween(0); } };
+  if (state.mode === 'quiz') newQuestion();
+  else if (single()) frameWhenReady(state.selected, () => { closeFrame(state.selected, VIEWS.three); done(); });
+  else {
+    pendingFrame = null;
+    Promise.all(MODULES[mod].base.map((id) => ensurePack(id))).then(() => {
+      if (state.module !== mod) return;
+      paint();
+      if (state.mode === 'edit' || state.isolate) closeFrame(state.selected); else frame(modKeys(), VIEWS.three);
+      done();
+    }).catch((e) => { if (e?.name !== 'AbortError') console.warn(e); });
+  }
+  writeHash();
+}
+
+/* ---------- Start ---------- */
 readColors();
 buildRuler();
-renderPart(state.selected);
-syncRuler();
 resize();
 camera.position.set(9, 0.8, -5);
-
-const bar = $('#loadbar');
-function onModel(gltf) {
-  gltf.scene.traverse((o) => {
-    if (!o.isMesh) return;
-    o.material = newMat(o.name.startsWith('D_') ? 'disc' : 'bone');
-    parts[o.name] = o;
-    o.userData.proxy = buildProxy(o);
-  });
-  root.add(gltf.scene);
-  $('#loader').hidden = true;
-  const hash = decodeURIComponent(location.hash.slice(1));
-  if (parts[hash]) state.selected = hash;
+{
+  const { mod, key } = parseHash();
+  let stored = null;
+  try { stored = localStorage.getItem(MOD_KEY); } catch (e) { /* no storage */ }
+  if (key) state.selected = key;
   renderPart(state.selected);
   syncRuler();
-  paint();
-  frame(ORDER, VIEWS.three);
-  tween.t = 1;
-  stepTween(0);
-  setTimeout(loadRibs, 400);   // żebra i dołki żebrowe doczytują się w tle
-}
-function onError(err) {
-  $('#loader').innerHTML = `<div>Nie udało się wczytać modelu. Odśwież stronę.<br><small>${esc(err?.message || err)}</small></div>`;
-}
-const loader = new GLTFLoader();
-// Domyślnie plik GLB. Wersja podglądu może podać model zakodowany base64 (window.ATLAS_MODEL_B64).
-if (window.ATLAS_MODEL_B64) {
-  fetch(window.ATLAS_MODEL_B64).then((r) => r.text()).then((t) => {
-    bar.style.width = '70%';
-    const bin = Uint8Array.from(atob(t.trim()), (c) => c.charCodeAt(0));
-    loader.parse(bin.buffer, '', onModel, onError);
-  }).catch(onError);
-} else {
-  loader.load('models/kregoslup.glb', onModel, (ev) => {
-    if (ev.total) bar.style.width = `${Math.round((ev.loaded / ev.total) * 100)}%`;
-  }, onError);
+  const start = mod || (key ? 'kregoslup' : stored);
+  if (MODULES[start]) setModule(start, key);
+  else showPicker();
 }
 
 /* ---------- Obniżona rozdzielczość bez przebudowy płótna ---------- */
@@ -1254,6 +1602,7 @@ renderer.setAnimationLoop(() => {
     perf.settled = true;     // kamera stanęła: jedna ostra klatka z aktualnym zasłanianiem etykiet
     occl.clear();
     needsRender = true;
+    scheduleLod();           // i sprawdzenie, które kręgi są na tyle duże, żeby pobrać pełne siatki
   }
   const rendered = needsRender;
   updateResolution(t0, speed, dt, rendered);

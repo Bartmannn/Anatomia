@@ -464,3 +464,72 @@ body.editing .hint { display: none; }
 .dbg b { font-size: 14px; }
 .dbg button { font: inherit; border: 1px solid var(--line); background: transparent; color: var(--ink); padding: 0 6px; cursor: pointer; }
 .dbg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+
+/* ---------- Moduły ---------- */
+.modbtn {
+  display: inline-flex; align-items: center; gap: 10px;
+  border: 1px solid var(--ink); background: var(--surface);
+  padding: 6px 12px; cursor: pointer; min-height: 34px;
+}
+.modbtn .modk { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.modbtn #modname { font-weight: 600; font-size: 14px; }
+.modbtn .caret { width: 7px; height: 7px; border-right: 1.5px solid var(--ink); border-bottom: 1.5px solid var(--ink); transform: translateY(-2px) rotate(45deg); }
+.modbtn:hover { background: var(--ground); }
+
+.picker {
+  position: absolute; inset: 0; z-index: 6;
+  display: grid; place-items: center;
+  padding: 16px; overflow: auto;
+  background: color-mix(in srgb, var(--ground) 92%, transparent);
+}
+.pk { width: min(640px, 100%); display: grid; gap: 14px; }
+.pk-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.pk-eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.pk h2 {
+  margin: 2px 0 0; font-family: var(--font-display); font-weight: 800; font-stretch: 112%;
+  font-size: clamp(22px, 3vw, 30px); line-height: 1.05; text-transform: uppercase; letter-spacing: -0.01em;
+}
+.pk-close { border: 1px solid var(--ink); background: var(--surface); width: 36px; height: 36px; font-size: 20px; line-height: 1; cursor: pointer; }
+.pk-lead { margin: 0; color: var(--muted); max-width: 52ch; }
+.pk-list { display: grid; gap: 8px; }
+.pk-card {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 14px; align-items: center;
+  text-align: left; padding: 12px 14px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow);
+}
+.pk-card:hover { border-color: var(--ink); }
+.pk-card[aria-current="true"] { border: 2px solid var(--ink); padding: 11px 13px; }
+.pk-icon { width: 44px; height: 56px; color: var(--ink); }
+.pk-icon svg { width: 100%; height: 100%; display: block; }
+.pk-text { display: grid; gap: 2px; }
+.pk-text b { font-size: 16px; }
+.pk-text span { font-size: 13px; color: var(--muted); line-height: 1.4; }
+.pk-size { display: grid; justify-items: end; text-align: right; gap: 2px; font-family: var(--font-mono); }
+.pk-size b { font-size: 14px; font-weight: 500; white-space: nowrap; }
+.pk-size span { font-size: 10.5px; color: var(--muted); letter-spacing: .02em; max-width: 16ch; }
+.pk-foot { margin: 0; font-size: 12px; color: var(--muted); font-family: var(--font-mono); line-height: 1.5; }
+
+.net {
+  position: absolute; left: 12px; bottom: 56px; z-index: 4;
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em;
+  background: var(--surface); border: 1px solid var(--line); padding: 4px 8px;
+  pointer-events: none;
+}
+.net::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 6px; background: var(--ink); vertical-align: 1px; animation: netblink 1s steps(2) infinite; }
+.net.err { border-color: var(--l); }
+.net.err::before { background: var(--l); animation: none; }
+@keyframes netblink { 50% { opacity: .2; } }
+.loader .btn { margin-top: 10px; }
+
+@media (max-width: 640px) {
+  .modbtn { order: 3; width: 100%; justify-content: space-between; }
+  .pk-card { grid-template-columns: 34px minmax(0, 1fr); gap: 10px; }
+  .pk-icon { width: 34px; height: 44px; }
+  .pk-size { grid-column: 2; justify-items: start; text-align: left; display: flex; gap: 8px; align-items: baseline; }
+  .pk-size span { max-width: none; }
+  .net { top: 8px; bottom: auto; left: 8px; }
+  .picker { place-items: start center; }
+}
+@media (max-width: 640px) {
+  .picker { position: fixed; z-index: 50; background: var(--ground); padding: 20px 16px 28px; }
+}
