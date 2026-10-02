@@ -9,7 +9,7 @@
 export const LAYERS = {
   1: { name: 'Warstwa powierzchowna', short: 'Warstwa 1', text: 'Mięśnie leżące tuż pod skórą i powięzią powierzchowną. Łączą tułów z obręczą barkową i kończyną górną (mięśnie kolcowo-ramienne).' },
   2: { name: 'Warstwa pośrednia', short: 'Warstwa 2', text: 'Leży pod mięśniem czworobocznym i najszerszym grzbietu. Mięśnie równoległoboczne i dźwigacz łopatki łączą kręgosłup z łopatką; cienkie mięśnie zębate tylne biegną od kręgosłupa do żeber i poruszają nimi przy oddychaniu.' },
-  3: { name: 'Warstwa głęboka', short: 'Warstwa 3', soon: true },
+  3: { name: 'Warstwa głęboka', short: 'Warstwa 3', text: 'Mięśnie własne grzbietu, leżące wzdłuż kręgosłupa w rynnie między wyrostkami kolczystymi a kątami żeber. Główny jest prostownik grzbietu (m. erector spinae) z trzema pasmami: bocznym — biodrowo-żebrowym, pośrednim — najdłuższym i przyśrodkowym — kolcowym. W górnej części przykrywają go mięśnie płatowate. W tym modelu nie ma jeszcze najgłębszych mięśni (poprzeczno-kolcowych, np. wielodzielnego).' },
 };
 
 const th = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => `Th${a + i}`);
@@ -127,6 +127,121 @@ MUSCLES.serratus_post = {
   nerve: 'Nerwy międzyżebrowe: górny Th1–Th4, dolny Th9–Th12.',
   massage: 'Są cienkie i leżą głęboko pod innymi mięśniami, więc nie opracowuje się ich osobno. Warto pamiętać o nich przy masażu oddechowym i przy bólu w okolicy dolnych żeber.',
   palpation: 'Praktycznie niewyczuwalne osobno — przykryte grubszymi mięśniami.',
+};
+
+const cv = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => `C${a + i}`);
+const rb = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+const ERECTOR_NOTE = 'Część prostownika grzbietu (m. erector spinae). ';
+const ERECTOR_ACTION = 'Działając obustronnie prostuje kręgosłup i utrzymuje postawę wyprostowaną; jednostronnie zgina kręgosłup w swoją stronę.';
+
+MUSCLES.iliocostalis = {
+  name: 'Mięsień biodrowo-żebrowy', latin: 'Musculus iliocostalis', layer: 3,
+  shape: ERECTOR_NOTE + 'Pasmo boczne, najdalej od kręgosłupa. Biegnie od miednicy po kątach żeber aż do szyi, w trzech odcinkach.',
+  parts: {
+    lumborum: {
+      name: 'Część lędźwiowa', latin: 'm. iliocostalis lumborum',
+      origin: 'Grzebień biodrowy, kość krzyżowa i powięź piersiowo-lędźwiowa (wspólne ścięgno prostownika).',
+      insertion: 'Kąty dolnych żeber (zwykle VII–XII) i wyrostki żebrowe górnych kręgów lędźwiowych.',
+      action: ERECTOR_ACTION + ' Obniża dolne żebra.',
+      attach: { vertebrae: ['S', 'L1', 'L2', 'L3'], bones: ['hip'], ribs: rb(7, 12) },
+    },
+    thoracis: {
+      name: 'Część piersiowa', latin: 'm. iliocostalis thoracis',
+      origin: 'Kąty dolnych 6 żeber (VII–XII), przyśrodkowo od przyczepów części lędźwiowej.',
+      insertion: 'Kąty górnych 6 żeber (I–VI) i wyrostek poprzeczny C7.',
+      action: ERECTOR_ACTION,
+      attach: { vertebrae: ['C7'], bones: [], ribs: rb(1, 12) },
+    },
+    cervicis: {
+      name: 'Część szyjna', latin: 'm. iliocostalis cervicis',
+      origin: 'Kąty żeber III–VI.',
+      insertion: 'Guzki tylne wyrostków poprzecznych C4–C6.',
+      action: 'Prostuje odcinek szyjny; jednostronnie zgina szyję w swoją stronę.',
+      attach: { vertebrae: cv(4, 6), bones: [], ribs: rb(3, 6) },
+    },
+  },
+  nerve: 'Gałęzie tylne nerwów rdzeniowych (szyjnych, piersiowych i lędźwiowych).',
+  massage: 'Boczny brzeg prostownika wyczuwa się w odcinku lędźwiowym jako wyraźny wał mięśniowy. Wzdłuż kątów żeber dobrze sprawdza się rozcieranie i ugniatanie podłużne.',
+  palpation: 'W odcinku lędźwiowym, bocznie od najdłuższego, przy unoszeniu tułowia z leżenia na brzuchu.',
+};
+
+MUSCLES.longissimus = {
+  name: 'Mięsień najdłuższy', latin: 'Musculus longissimus', layer: 3,
+  shape: ERECTOR_NOTE + 'Pasmo pośrednie, najdłuższe i najsilniejsze. Ciągnie się od kości krzyżowej aż do czaszki.',
+  parts: {
+    thoracis: {
+      name: 'Część piersiowa', latin: 'm. longissimus thoracis',
+      origin: 'Kość krzyżowa, grzebień biodrowy i wyrostki kolczyste kręgów lędźwiowych (wspólne ścięgno prostownika).',
+      insertion: 'Wyrostki żebrowe i dodatkowe kręgów lędźwiowych, wyrostki poprzeczne kręgów piersiowych oraz żebra II–XII (między guzkiem a kątem).',
+      action: ERECTOR_ACTION,
+      attach: { vertebrae: [...th(1, 12), ...lumbar, 'S'], bones: ['hip'], ribs: rb(2, 12) },
+    },
+    cervicis: {
+      name: 'Część szyjna', latin: 'm. longissimus cervicis',
+      origin: 'Wyrostki poprzeczne Th1–Th6.',
+      insertion: 'Guzki tylne wyrostków poprzecznych C2–C6.',
+      action: 'Prostuje odcinek szyjny; jednostronnie zgina szyję w swoją stronę.',
+      attach: { vertebrae: [...cv(2, 6), ...th(1, 6)], bones: [], ribs: [] },
+    },
+    capitis: {
+      name: 'Część głowowa', latin: 'm. longissimus capitis',
+      origin: 'Wyrostki poprzeczne Th1–Th3 i wyrostki stawowe C3–C7.',
+      insertion: 'Wyrostek sutkowaty kości skroniowej (tej kości nie ma w modelu).',
+      action: 'Prostuje głowę; jednostronnie zgina ją w swoją stronę i obraca w swoją stronę.',
+      attach: { vertebrae: [...cv(3, 7), ...th(1, 3)], bones: [], ribs: [] },
+    },
+  },
+  nerve: 'Gałęzie tylne nerwów rdzeniowych (szyjnych, piersiowych i lędźwiowych).',
+  massage: 'Najlepiej wyczuwalna część prostownika — dwa wały po obu stronach wyrostków kolczystych w odcinku lędźwiowym i piersiowym. Głaskanie, rozcieranie i ugniatanie wzdłuż przebiegu włókien; częsty obszar napięć przy bólach krzyża.',
+  palpation: 'Bezpośrednio bocznie od wyrostków kolczystych (ok. 2–3 cm), szczególnie w odcinku lędźwiowym przy wyproście tułowia.',
+};
+
+MUSCLES.spinalis = {
+  name: 'Mięsień kolcowy', latin: 'Musculus spinalis', layer: 3,
+  shape: ERECTOR_NOTE + 'Pasmo przyśrodkowe, najcieńsze. Leży tuż przy wyrostkach kolczystych i łączy je ze sobą.',
+  parts: {
+    thoracis: {
+      name: 'Część piersiowa', latin: 'm. spinalis thoracis',
+      origin: 'Wyrostki kolczyste Th11–L2.',
+      insertion: 'Wyrostki kolczyste Th2–Th8.',
+      action: 'Prostuje odcinek piersiowy kręgosłupa.',
+      attach: { vertebrae: [...th(2, 8), 'Th11', 'Th12', 'L1', 'L2'], bones: [], ribs: [] },
+    },
+    cervicis: {
+      name: 'Część szyjna', latin: 'm. spinalis cervicis',
+      origin: 'Wyrostki kolczyste C6–Th2 (często słabo wykształcona lub jej brak).',
+      insertion: 'Wyrostki kolczyste C2–C4.',
+      action: 'Prostuje odcinek szyjny.',
+      attach: { vertebrae: [...cv(2, 4), 'C6', 'C7', 'Th1', 'Th2'], bones: [], ribs: [] },
+    },
+  },
+  nerve: 'Gałęzie tylne nerwów rdzeniowych.',
+  massage: 'Leży w wąskiej rynnie tuż obok wyrostków kolczystych. Opracowuje się go razem z najdłuższym — rozcieranie wzdłuż linii wyrostków, bez ucisku na same wyrostki.',
+  palpation: 'Trudny do oddzielenia od mięśnia najdłuższego; wyczuwalny tuż przy wyrostkach kolczystych odcinka piersiowego.',
+};
+
+MUSCLES.splenius = {
+  name: 'Mięśnie płatowate', latin: 'Musculi splenii', layer: 3,
+  shape: 'Płaskie mięśnie karku biegnące skośnie w górę i na boki, od wyrostków kolczystych do głowy i górnych kręgów szyjnych. Przykrywają górną część prostownika; same leżą pod czworobocznym i równoległobocznymi.',
+  parts: {
+    capitis: {
+      name: 'Mięsień płatowaty głowy', latin: 'm. splenius capitis',
+      origin: 'Dolna część więzadła karkowego i wyrostki kolczyste C7–Th3.',
+      insertion: 'Wyrostek sutkowaty kości skroniowej i boczna część kresy karkowej górnej kości potylicznej.',
+      action: 'Obustronnie prostuje głowę i szyję; jednostronnie zgina głowę w swoją stronę i obraca ją w swoją stronę.',
+      attach: { vertebrae: ['C7', 'Th1', 'Th2', 'Th3'], bones: ['occipital'], ribs: [] },
+    },
+    cervicis: {
+      name: 'Mięsień płatowaty szyi', latin: 'm. splenius cervicis',
+      origin: 'Wyrostki kolczyste Th3–Th6.',
+      insertion: 'Guzki tylne wyrostków poprzecznych C1–C3.',
+      action: 'Obustronnie prostuje szyję; jednostronnie zgina ją i obraca w swoją stronę.',
+      attach: { vertebrae: [...cv(1, 3), ...th(3, 6)], bones: [], ribs: [] },
+    },
+  },
+  nerve: 'Gałęzie tylne nerwów rdzeniowych szyjnych (C1–C6).',
+  massage: 'Opracowuje się je w okolicy karku przez mięsień czworoboczny — rozcieranie i ugniatanie od potylicy w dół i na boki. Często napięte przy długim pochylaniu głowy (telefon, komputer).',
+  palpation: 'Między mostkowo-obojczykowo-sutkowym a górną częścią czworobocznego (trójkąt boczny szyi), przy obracaniu głowy w tę samą stronę.',
 };
 
 // Nazwy kości tła (do opisów przyczepów i etykiet)

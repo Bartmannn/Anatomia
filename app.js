@@ -1415,7 +1415,7 @@ document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('clic
   const v = b.dataset.view;
   const k = currentKey();
   if (single()) closeFrame(k, VIEWS[v === 'all' ? 'three' : v]);
-  else if (v === 'all') frame(modKeys(), VIEWS.side);
+  else if (v === 'all') frame(muscleMode() ? [...modKeys(), ...ORDER] : modKeys(), muscleMode() ? VIEWS.back : VIEWS.side);
   else if (closeUp()) closeFrame(k, VIEWS[v]);
   else frame(modKeys(), VIEWS[v]);
 }));
@@ -1592,7 +1592,11 @@ function setModule(mod, key = null) {
   $('#tint').hidden = mus;
   $('#attach').hidden = !mus;
   $('#layers').hidden = !mus;
-  if (mus) renderLayerChips();
+  if (mus) {
+    const ml = MUS.MUSCLES[state.selected]?.layer;      // link prosto do głębszego mięśnia: jego warstwa musi być widoczna
+    if (ml) state.layers[ml] = true;
+    renderLayerChips();
+  }
   document.querySelector('.modes [data-mode="quiz"]').hidden = mus;   // quiz z mięśni — później
   buildRuler();
   $('.brand h1').textContent = mus ? 'Mięśnie' : 'Kręgosłup';

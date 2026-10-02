@@ -64,9 +64,28 @@ LAYERS = {
         ('serratus_post_inf_R', 'FMA13405', 2400, {'muscle': 'serratus_post', 'part': 'inf', 'side': 'R'}),
         ('serratus_post_inf_L', 'FMA13406', 2400, {'muscle': 'serratus_post', 'part': 'inf', 'side': 'L'}),
     ],
-    # Do zrobienia (pliki są w paczce źródłowej anatomia-miesnie-zrodla.zip):
-    # 3 (głęboka): biodrowo-żebrowy FMA22740–22745, najdłuższy FMA22751/22753/22754/22756/22757/22758,
-    #    kolcowy FMA22779–22782, płatowaty FMA22726–22729
+    3: [  # warstwa głęboka: prostownik grzbietu (biodrowo-żebrowy, najdłuższy, kolcowy) i mięśnie płatowate
+        ('iliocostalis_lumborum_R', 'FMA22740', 2600, {'muscle': 'iliocostalis', 'part': 'lumborum', 'side': 'R'}),
+        ('iliocostalis_lumborum_L', 'FMA22741', 2600, {'muscle': 'iliocostalis', 'part': 'lumborum', 'side': 'L'}),
+        ('iliocostalis_thoracis_R', 'FMA22742', 1800, {'muscle': 'iliocostalis', 'part': 'thoracis', 'side': 'R'}),
+        ('iliocostalis_thoracis_L', 'FMA22743', 1800, {'muscle': 'iliocostalis', 'part': 'thoracis', 'side': 'L'}),
+        ('iliocostalis_cervicis_R', 'FMA22744', 900, {'muscle': 'iliocostalis', 'part': 'cervicis', 'side': 'R'}),
+        ('iliocostalis_cervicis_L', 'FMA22745', 900, {'muscle': 'iliocostalis', 'part': 'cervicis', 'side': 'L'}),
+        ('longissimus_thoracis_R', 'FMA22751', 2600, {'muscle': 'longissimus', 'part': 'thoracis', 'side': 'R'}),
+        ('longissimus_thoracis_L', 'FMA22753', 2600, {'muscle': 'longissimus', 'part': 'thoracis', 'side': 'L'}),
+        ('longissimus_cervicis_R', 'FMA22757', 800, {'muscle': 'longissimus', 'part': 'cervicis', 'side': 'R'}),
+        ('longissimus_cervicis_L', 'FMA22758', 800, {'muscle': 'longissimus', 'part': 'cervicis', 'side': 'L'}),
+        ('longissimus_capitis_R', 'FMA22754', 700, {'muscle': 'longissimus', 'part': 'capitis', 'side': 'R'}),
+        ('longissimus_capitis_L', 'FMA22756', 700, {'muscle': 'longissimus', 'part': 'capitis', 'side': 'L'}),
+        ('spinalis_thoracis_R', 'FMA22779', 1500, {'muscle': 'spinalis', 'part': 'thoracis', 'side': 'R'}),
+        ('spinalis_thoracis_L', 'FMA22780', 1500, {'muscle': 'spinalis', 'part': 'thoracis', 'side': 'L'}),
+        ('spinalis_cervicis_R', 'FMA22781', 500, {'muscle': 'spinalis', 'part': 'cervicis', 'side': 'R'}),
+        ('spinalis_cervicis_L', 'FMA22782', 500, {'muscle': 'spinalis', 'part': 'cervicis', 'side': 'L'}),
+        ('splenius_capitis_R', 'FMA22728', 1600, {'muscle': 'splenius', 'part': 'capitis', 'side': 'R'}),
+        ('splenius_capitis_L', 'FMA22729', 1600, {'muscle': 'splenius', 'part': 'capitis', 'side': 'L'}),
+        ('splenius_cervicis_R', 'FMA22726', 1400, {'muscle': 'splenius', 'part': 'cervicis', 'side': 'R'}),
+        ('splenius_cervicis_L', 'FMA22727', 1400, {'muscle': 'splenius', 'part': 'cervicis', 'side': 'L'}),
+    ],
 }
 
 

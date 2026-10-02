@@ -46,4 +46,5 @@ export const PACKS = {
   "kosci-tla": {"bajty": 94744, "trojkaty": 20800},
   "miesnie/warstwa-1": {"bajty": 120864, "trojkaty": 24400},
   "miesnie/warstwa-2": {"bajty": 82700, "trojkaty": 17400},
+  "miesnie/warstwa-3": {"bajty": 130565, "trojkaty": 28800},
 };

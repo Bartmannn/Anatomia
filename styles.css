@@ -565,3 +565,4 @@ body[data-module="grzbiet"] .main { grid-template-columns: 148px minmax(0, 1fr) 
   body[data-module="grzbiet"] .main { grid-template-columns: minmax(0, 1fr); }
   .ruler.mus .mgroup:not(:has(button)) { display: none; }
 }
+.chip { white-space: nowrap; }
