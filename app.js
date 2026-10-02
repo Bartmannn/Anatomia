@@ -5,7 +5,7 @@ import { PACKS } from './models/pakiety/spis.js';
 import * as MUS from './miesnie.js';
 import { REGIONS, PARTS, DISC, PART_LABELS, PART_LABELS_SPECIAL, PALPATION } from './content.js';
 import { LANDMARKS } from './landmarks.js';
-import { FIXES, REVIEWED } from './landmarks-fix.js';
+import * as FIX from './landmarks-fix.js';
 import { RIB_LANDMARKS, RIB_LINKS } from './landmarks-ribs.js';
 
 const ORDER = ['C1','C2','C3','C4','C5','C6','C7',
@@ -85,7 +85,7 @@ const muscleMode = () => MODULES[state.module]?.kind === 'muscles';
 const modKeys = () => MODULES[state.module]?.keys || ORDER;
 const single = () => state.module === 'kregi';
 // widok z bliska jednego kręgu (pozostałe przezroczyste albo ukryte)
-const closeUp = () => (state.isolate && state.mode === 'atlas') || state.mode === 'edit' || single();
+const closeUp = () => (state.isolate && state.mode === 'atlas') || state.mode === 'edit' || single() || (state.mode === 'quiz' && state.quiz?.type === 'czesc');
 const currentKey = () => (state.mode === 'quiz' ? state.quiz?.target : state.selected) || state.selected;
 
 /* ---------- Ruler ---------- */
@@ -304,8 +304,12 @@ function setFade(m, faded, op = 0.09) {
 }
 // Moduł mięśni: kości jako tło, przyczepy wybranego mięśnia (albo jego części) na kolor dołków
 function paintMuscles() {
-  const sel = state.selected;
-  const att = state.attach ? MUS.attachSet(sel, state.focusPart) : null;
+  const quiz = state.mode === 'quiz' ? state.quiz : null;
+  const sel = currentKey();
+  // w quizie przyczepy widać przy pytaniu „Czyje przyczepy?” i po odpowiedzi
+  const showAtt = quiz ? (quiz.type === 'przyczepy' || quiz.answered) : state.attach;
+  const att = showAtt ? MUS.attachSet(sel, quiz ? null : state.focusPart) : null;
+  const hideMuscles = quiz?.type === 'przyczepy' && !quiz.answered;
   const iso = state.isolate && state.mode === 'atlas';
   const selLayer = MUS.MUSCLES[sel]?.layer;
   const plain = (m, on, base = COLORS.bone) => {
@@ -321,7 +325,7 @@ function paintMuscles() {
   for (const m of ctxMeshes) { m.visible = true; plain(m, !!att?.bones.has(m.userData.bone)); }
   for (const m of muscleMeshes) {
     const e = m.userData;
-    m.visible = !!state.layers[e.layer];
+    m.visible = !hideMuscles && (!!state.layers[e.layer] || (quiz && e.layer === selLayer));
     const isSel = e.muscle === sel;
     tmp.copy(isSel ? COLORS.muscle : COLORS.muscleSoft);
     if (isSel && state.focusPart && state.focusPart !== e.part) tmp.lerp(COLORS.muscleSoft, 0.65);
@@ -355,7 +359,11 @@ function paint() {
     tmp.copy(base);
     if (state.tint && state.mode === 'atlas') tmp.lerp(COLORS[reg], isDisc ? 0.15 : 0.38);
     const isSel = k === sel;
-    if (isSel) tmp.copy(state.mode === 'quiz' ? COLORS.focus : COLORS[reg]);
+    if (isSel) {
+      if (state.mode !== 'quiz') tmp.copy(COLORS[reg]);
+      else if (state.quiz?.type === 'czesc') tmp.copy(base).lerp(COLORS.focus, 0.18);   // jasny kręg, żeby punkt był dobrze widoczny
+      else tmp.copy(COLORS.focus);
+    }
     const hov = k === state.hovered && !isSel;
     if (m.material.emissive) {
       m.material.emissive.copy(hov ? COLORS[reg] : BLACK);
@@ -585,13 +593,13 @@ function updateLod() {
   if (state.ribs && !single()) need.add('zebra-przeglad');
   if (muscleMode()) {
     // warstwa pobiera się dopiero, gdy jest włączona albo wybrano mięsień z tej warstwy
-    const selLayer = MUS.MUSCLES[state.selected]?.layer;
+    const selLayer = MUS.MUSCLES[currentKey()]?.layer;
     for (const n of MUS.READY_LAYERS) if (state.layers[n] || n === selLayer) need.add(MUS.layerPack(n));
   }
   const sel = currentKey();
   const allowed = new Set(muscleMode() ? [] : modKeys());   // w module mięśni kręgi są tylko tłem (przegląd)
   // w quizie na całym kręgosłupie wystarczy podświetlony przegląd; w „Pojedynczych kręgach” trzeba pobrać kręg
-  if (allowed.has(sel.replace('D_', '')) && (state.mode !== 'quiz' || single())) need.add(packForKey(sel));
+  if (allowed.has(sel.replace('D_', '')) && (state.mode !== 'quiz' || single() || quizType() === 'czesc')) need.add(packForKey(sel));
   if (state.ribs && state.mode !== 'quiz' && state.selected.startsWith('Th') && !muscleMode()) for (const n of relatedRibs(state.selected)) need.add(`zebra/${n}`);
   if (!single() && !muscleMode()) {
     const W = renderer.domElement.clientWidth, H = renderer.domElement.clientHeight;
@@ -648,9 +656,12 @@ function netStatus(err) {
 }
 
 /* ---------- Landmarks: automatic points + fixes from file + local edits ---------- */
+// landmarks-fix.js: FIXES (poprawione punkty), REVIEWED (sprawdzone kręgi), EXTRA (punkty dodane ręcznie)
+const { FIXES, REVIEWED } = FIX;
+const EXTRA = FIX.EXTRA || {};
 const LS_KEY = 'atlas-landmark-edits-v1';
-let local = { fixes: {}, reviewed: {} };
-try { local = { fixes: {}, reviewed: {}, ...(JSON.parse(localStorage.getItem(LS_KEY)) || {}) }; } catch (e) { /* no storage */ }
+let local = { fixes: {}, reviewed: {}, extra: {} };
+try { local = { fixes: {}, reviewed: {}, extra: {}, ...(JSON.parse(localStorage.getItem(LS_KEY)) || {}) }; } catch (e) { /* no storage */ }
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 // drop local edits that are already saved in landmarks-fix.js
 for (const [k, fx] of Object.entries(local.fixes)) {
@@ -658,6 +669,18 @@ for (const [k, fx] of Object.entries(local.fixes)) {
   if (!Object.keys(fx).length) delete local.fixes[k];
 }
 for (const k of Object.keys(local.reviewed)) if ((REVIEWED[k] || false) === local.reviewed[k]) delete local.reviewed[k];
+for (const [k, ex] of Object.entries(local.extra)) {
+  for (const id of Object.keys(ex)) if (EXTRA[k] && id in EXTRA[k] && same(EXTRA[k][id], ex[id])) delete ex[id];
+  if (!Object.keys(ex).length) delete local.extra[k];
+}
+// Punkty dodane ręcznie (id zaczyna się od x_): z pliku + lokalne zmiany (null = usunięty)
+function extrasOf(k) {
+  const out = { ...(EXTRA[k] || {}), ...(local.extra[k] || {}) };
+  for (const id of Object.keys(out)) if (!out[id]) delete out[id];
+  return out;
+}
+const extraDef = (k, id) => (id.startsWith('x_') ? extrasOf(k)[id] || null : null);
+const isPaired = (k, part) => PAIRED.has(part) || !!extraDef(k, part)?.pair;
 function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify(local)); } catch (e) { /* no storage */ } }
 const autoLm = (k) => ({ ...(LANDMARKS[k] || {}), ...(RIB_LANDMARKS[k] || {}) });
 function lm(k) {
@@ -666,6 +689,7 @@ function lm(k) {
     if (!src) continue;
     for (const [p, v] of Object.entries(src)) { if (v === null) delete out[p]; else out[p] = v; }
   }
+  for (const [id, d] of Object.entries(extrasOf(k))) out[id] = d.pts || [];
   for (const p of Object.keys(out)) { out[p] = (out[p] || []).map((x) => x || null); if (!out[p].some(Boolean)) delete out[p]; }
   return out;
 }
@@ -684,6 +708,10 @@ labelsEl.appendChild(svg);
 const nodes = new Map();   // id -> {el, dot, line}
 
 function partDef(k, part) {
+  if (part.startsWith('x_')) {
+    const d = extraDef(k, part);
+    return d ? { name: d.name, latin: d.latin || '', def: d.def || '', palp: !!d.palp, extra: true } : null;
+  }
   const S = PART_LABELS_SPECIAL;
   const reg = regionOf(k);
   const group = k.startsWith('D_') ? S.D : k === 'S' ? S.S : null;
@@ -703,6 +731,7 @@ function partDef(k, part) {
 
 const PART_ORDER = ['dens', 'body', 'arcus_ant', 'fovea_dentis', 'massa_lat', 'arcus_post', 'pedicle', 'lamina', 'foramen',
   'spinous', 'transverse', 'art_sup', 'art_inf', 'fov_sup', 'fov_inf', 'fov_tp', 'rib_head', 'rib_neck', 'rib_tub', 'rib_head_next', 'promontorium', 'canal', 'ala', 'auricular', 'crista_mediana', 'apex', 'anulus', 'nucleus'];
+const partRank = (p) => { const i = PART_ORDER.indexOf(p); return i < 0 ? 999 : i; };   // dodane punkty na końcu
 const RIB_VIEW_PARTS = new Set(['body', 'transverse', 'fov_sup', 'fov_inf', 'fov_tp', 'rib_head', 'rib_neck', 'rib_tub', 'rib_head_next']);
 function partList(k, forLabels = false) {
   const L = lm(k);
@@ -710,7 +739,7 @@ function partList(k, forLabels = false) {
   return Object.keys(L)
     .filter((p) => !forLabels || (withRibs ? RIB_VIEW_PARTS.has(p) : !p.startsWith('rib_')))
     .filter((p) => forLabels || !p.startsWith('rib_') || withRibs)
-    .sort((a, b) => PART_ORDER.indexOf(a) - PART_ORDER.indexOf(b))
+    .sort((a, b) => partRank(a) - partRank(b))
     .map((p) => ({ part: p, def: partDef(k, p) })).filter((x) => x.def?.name);
 }
 
@@ -767,14 +796,20 @@ function labelItems() {
       const def = partDef(k, part);
       (L[part] || []).forEach((p, i) => {
         if (!p) return;
-        const pair = PAIRED.has(part);
-        items.push({ id: `e:${k}:${part}:${i}`, p, title: `${def?.name || part}${pair ? ` (${SIDE_SHORT[i]})` : ''}`, sub: slotChanged(k, part, i) ? 'poprawiony' : 'automatyczny',
+        const pair = isPaired(k, part);
+        items.push({ id: `e:${k}:${part}:${i}`, p, title: `${def?.name || part}${pair ? ` (${SIDE_SHORT[i]})` : ''}`, sub: part.startsWith('x_') ? 'dodany' : slotChanged(k, part, i) ? 'poprawiony' : 'automatyczny',
           palp: !!def?.palp, part, focus: state.edit.part === part && (!pair || state.edit.slot === i),
           // with a part selected, only its points get labels; the rest stay as dots
           dotOnly: !!state.edit.part && state.edit.part !== part });
       });
     }
     return { items, ref: projectedRect([k]), kind: 'parts' };
+  }
+  if (state.mode === 'quiz' && state.quiz?.type === 'czesc' && state.quiz.point && parts[state.quiz.target]) {
+    const q = state.quiz;
+    const d = partDef(q.target, q.part);
+    return { items: [{ id: 'quiz:pt', p: q.point, title: q.answered ? d.name : '?', sub: q.answered ? d.latin : 'jak nazywa się ta część?', palp: false, focus: true }],
+      ref: projectedRect([q.target]), kind: 'parts' };
   }
   if (!state.labels || state.mode !== 'atlas') return { items: [], ref: null };
   const rect = projectedRect([k]);
@@ -939,10 +974,11 @@ function partsBlock(k) {
   if (!list.length) return '';
   const rv = reviewedOf(k);
   const status = `<div class="lmstatus${rv ? ' ok' : ''}"><span>${rv ? `Położenie etykiet sprawdzone ręcznie (${esc(rv)}).` : 'Położenie etykiet wyznaczone automatycznie, jeszcze niesprawdzone.'}</span>
-    <button type="button" class="linkbtn" data-action="edit">Popraw punkty</button></div>`;
+    <span class="lmlinks"><button type="button" class="linkbtn" data-action="edit">Popraw lub dodaj punkty</button>
+    <a class="linkbtn" href="${esc(reportUrl(k))}" target="_blank" rel="noopener">Zgłoś brak lub błąd</a></span></div>`;
   return `<div><h3>Części · najedź, aby wskazać na modelu</h3>${status}<dl class="parts">${list.map(({ part, def }) => `
     <div class="prow" data-part="${part}" tabindex="0">
-      <dt><i class="pd${def.palp ? ' palp' : ''}" aria-hidden="true"></i>${esc(def.name)}${def.palp ? ' <em>wyczuwalny</em>' : ''}</dt>
+      <dt><i class="pd${def.palp ? ' palp' : ''}" aria-hidden="true"></i>${esc(def.name)}${def.palp ? ' <em>wyczuwalny</em>' : ''}${def.extra ? ' <em class="added">dodany</em>' : ''}</dt>
       <dd>${esc(def.def || '')}${def.note ? ' ' + esc(def.note) : ''}</dd>
     </div>`).join('')}</dl></div>`;
 }
@@ -1037,54 +1073,141 @@ function select(k, doFrame) {
 }
 
 /* ---------- Quiz ---------- */
+// Rodzaje pytań zależą od modułu: kości albo mięśnie
+const QUIZ_TYPES = {
+  bones: [['kreg', 'Który kręg?'], ['czesc', 'Która część?']],
+  muscles: [['miesien', 'Który mięsień?'], ['przyczepy', 'Czyje przyczepy?']],
+};
+const quizKind = () => (muscleMode() ? 'muscles' : 'bones');
+const pickRand = (a) => a[Math.floor(Math.random() * a.length)];
+const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+// części kręgu z punktem i nazwą (bez części żeber), do pytań „Która część?”
+function quizPartsOf(k) {
+  const L = lm(k);
+  const seen = new Set();
+  return Object.keys(L).filter((p) => {
+    const name = partDef(k, p)?.name;
+    if (p.startsWith('rib_') || !name || !L[p].some(Boolean) || seen.has(name)) return false;
+    seen.add(name);
+    return true;
+  });
+}
+const quizType = () => state.quiz?.type;
 function newQuestion() {
   const q = state.quiz;
-  const keys = modKeys();
-  const target = keys[Math.floor(Math.random() * keys.length)];
-  const i = keys.indexOf(target);
-  const pool = keys.filter((k) => k !== target && Math.abs(keys.indexOf(k) - i) <= 4);
-  const opts = [target];
-  while (opts.length < 4 && pool.length) opts.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
-  opts.sort(() => Math.random() - 0.5);
-  Object.assign(q, { target, opts, answered: false });
+  const types = QUIZ_TYPES[quizKind()];
+  if (!types.some(([t]) => t === q.type)) { q.type = types[0][0]; q.good = 0; q.total = 0; }
+  let target, opts, part = null, point = null;
+  if (q.type === 'kreg') {
+    const keys = modKeys();
+    target = pickRand(keys);
+    const i = keys.indexOf(target);
+    const pool = keys.filter((k) => k !== target && Math.abs(keys.indexOf(k) - i) <= 4);
+    opts = [target];
+    while (opts.length < 4 && pool.length) opts.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+    shuffle(opts);
+  } else if (q.type === 'czesc') {
+    const keys = modKeys().filter((k) => quizPartsOf(k).length >= 4);
+    target = pickRand(keys);
+    const ps = quizPartsOf(target);
+    part = pickRand(ps);
+    point = lm(target)[part].find(Boolean);
+    opts = shuffle([part, ...shuffle(ps.filter((p) => p !== part)).slice(0, 3)]);
+  } else {
+    // mięśnie z włączonych warstw (gdy jest ich za mało — ze wszystkich)
+    let pool = MUS.MUSCLE_KEYS.filter((k) => state.layers[MUS.MUSCLES[k].layer]);
+    if (pool.length < 4) pool = MUS.MUSCLE_KEYS.slice();
+    target = pickRand(pool);
+    opts = shuffle([target, ...shuffle(MUS.MUSCLE_KEYS.filter((k) => k !== target)).slice(0, 3)]);
+  }
+  Object.assign(q, { target, opts, part, point, answered: false });
+  renderQuiz();
+  updateLod();
+  paint();
+  updateLoader();
+  if (q.type === 'czesc') frameWhenReady(target, () => framePoint(target, point));
+  else if (q.type === 'miesien') frameWhenReady(target, () => frame([target], VIEWS.back, 1.35));
+  else if (q.type === 'przyczepy') { pendingFrame = null; frame([...modKeys(), ...ORDER], VIEWS.back, 1.12); }
+  else if (single()) frameWhenReady(target, () => closeFrame(target, VIEWS.three));
+  else { pendingFrame = null; frame(neighbors(target, 3), VIEWS.three); }
+}
+// kamera po tej stronie kręgu, po której leży zaznaczony punkt
+function framePoint(k, p) {
+  const box = boxOf([k]);
+  const c = box.getCenter(new THREE.Vector3());
+  const v = new THREE.Vector3(...p).sub(c);
+  const dir = v.length() < 0.05 ? VIEWS.three : v.normalize().add(new THREE.Vector3(0, 0.35, 0)).normalize();
+  closeFrame(k, dir);
+}
+function quizOption(k) {
+  const q = state.quiz;
+  if (q.type === 'czesc') { const d = partDef(q.target, k); return [d?.name || k, d?.latin || '']; }
+  if (q.type === 'kreg') return [PARTS[k].name, PARTS[k].short];
+  const M = MUS.MUSCLES[k];
+  return [M.name, `W${M.layer}`];
+}
+function renderQuiz() {
+  const q = state.quiz;
   bigcodeEl.textContent = '?';
   document.documentElement.style.setProperty('--rc', 'var(--ink)');
   panelEl.style.setProperty('--rc', 'var(--focus)');
+  const question = {
+    kreg: single() ? 'Który to kręg? Rozpoznaj go po kształcie.' : 'Który to kręg? Jest podświetlony na modelu.',
+    czesc: `Jak nazywa się zaznaczona część? To ${q.target ? esc(PARTS[q.target]?.name.toLowerCase() || '') : ''} (${esc(PARTS[q.target]?.short || '')}).`,
+    miesien: 'Który mięsień jest podświetlony?',
+    przyczepy: 'Na kościach świecą przyczepy jednego mięśnia. Który to mięsień?',
+  }[q.type];
   panelEl.innerHTML = `
     <div>
       <div class="eyebrow"><span>Quiz</span><span>·</span><span class="score">Wynik ${q.good}/${q.total}</span></div>
-      <p class="quiz-q">${single() ? 'Który to kręg? Rozpoznaj go po kształcie.' : 'Który to kręg? Jest podświetlony na modelu.'}</p>
+      <div class="qtypes" role="group" aria-label="Rodzaj pytań">${QUIZ_TYPES[quizKind()].map(([t, label]) => `<button type="button" data-qt="${t}" aria-pressed="${t === q.type}">${label}</button>`).join('')}</div>
+      <p class="quiz-q">${question}</p>
     </div>
-    <div class="answers">${opts.map((k) => `<button type="button" data-k="${k}"><span>${esc(PARTS[k].name)}</span><span class="code">${PARTS[k].short}</span></button>`).join('')}</div>
+    <div class="answers">${q.opts.map((k) => { const [a, b] = quizOption(k); return `<button type="button" data-k="${k}"><span>${esc(a)}</span><span class="code">${esc(b)}</span></button>`; }).join('')}</div>
     <p class="feedback" id="feedback" aria-live="polite">Obracaj model, aby lepiej się przyjrzeć. Liczy się pierwsza odpowiedź.</p>
     <button type="button" class="btn" id="next" hidden>Następne pytanie</button>
     ${metaBlock()}`;
   panelEl.querySelectorAll('.answers button').forEach((b) => b.addEventListener('click', () => answer(b.dataset.k)));
+  panelEl.querySelectorAll('[data-qt]').forEach((b) => b.addEventListener('click', () => {
+    if (b.dataset.qt === q.type) return;
+    Object.assign(q, { type: b.dataset.qt, good: 0, total: 0 });
+    newQuestion();
+  }));
   $('#next').addEventListener('click', newQuestion);
-  updateLod();
-  paint();
-  updateLoader();
-  if (single()) frameWhenReady(target, () => closeFrame(target, VIEWS.three));
-  else { pendingFrame = null; frame(neighbors(target, 3), VIEWS.three); }
 }
 function answer(k) {
   const q = state.quiz;
   if (q.answered) return;
   q.answered = true;
   q.total++;
-  const ok = k === q.target;
+  const right = q.type === 'czesc' ? q.part : q.target;
+  const ok = k === right;
   if (ok) q.good++;
   panelEl.querySelectorAll('.answers button').forEach((b) => {
     b.disabled = true;
-    if (b.dataset.k === q.target) b.classList.add('ok');
+    if (b.dataset.k === right) b.classList.add('ok');
     else if (b.dataset.k === k) b.classList.add('bad');
   });
-  const P = PARTS[q.target];
-  $('#feedback').innerHTML = `${ok ? '<strong>Dobrze.</strong>' : '<strong>Nie tym razem.</strong>'} To ${esc(P.name)} (${P.short}). ${esc(P.massage)}`;
+  const head = ok ? '<strong>Dobrze.</strong>' : '<strong>Nie tym razem.</strong>';
+  let text;
+  if (q.type === 'kreg') {
+    const P = PARTS[q.target];
+    text = `To ${esc(P.name)} (${P.short}). ${esc(P.massage)}`;
+    bigcodeEl.textContent = P.short === 'S1–S5' ? 'S' : P.short;
+  } else if (q.type === 'czesc') {
+    const d = partDef(q.target, q.part);
+    text = `To ${esc(d.name.toLowerCase())}${d.latin ? ` (${esc(d.latin)})` : ''}. ${esc(d.def || '')}`;
+  } else {
+    const M = MUS.MUSCLES[q.target];
+    const att = MUS.attachSet(q.target);
+    const where = [att.vertebrae.size ? `kręgi ${MUS.rangeText([...att.vertebrae])}` : '', ...[...att.bones].map((b) => MUS.CTX_BONES[b]?.toLowerCase()), att.ribs.size ? `żebra ${Math.min(...att.ribs)}–${Math.max(...att.ribs)}` : ''].filter(Boolean);
+    text = `To ${esc(M.name.toLowerCase())} (${esc(MUS.LAYERS[M.layer].name.toLowerCase())}). Przyczepy: ${esc(where.join(', '))}.`;
+  }
+  $('#feedback').innerHTML = `${head} ${text}`;
   panelEl.querySelector('.score').textContent = `Wynik ${q.good}/${q.total}`;
-  bigcodeEl.textContent = P.short === 'S1–S5' ? 'S' : P.short;
   $('#next').hidden = false;
   $('#next').focus();
+  paint();            // po odpowiedzi: nazwa punktu, mięsień i jego przyczepy
 }
 function syncModeButtons() {
   const mode = state.mode;
@@ -1096,11 +1219,11 @@ function syncModeButtons() {
   document.body.classList.toggle('editing', mode === 'edit');
 }
 function setMode(mode) {
-  if (mode !== 'atlas' && muscleMode()) return;
+  if (mode === 'edit' && muscleMode()) return;
   state.mode = mode;
   syncModeButtons();
   if (mode === 'quiz') {
-    state.quiz = state.quiz || { good: 0, total: 0 };
+    state.quiz = state.quiz || { good: 0, total: 0, type: null };
     newQuestion();
   } else {
     select(state.selected, true);
@@ -1116,7 +1239,8 @@ const PAIRED = new Set(['pedicle', 'lamina', 'transverse', 'art_sup', 'art_inf',
 // kolejność punktów w parach: [lewa, prawa] (strona ciała, nie ekranu)
 const SIDE_NAMES = ['lewa', 'prawa'];
 const SIDE_SHORT = ['L', 'P'];
-function editableParts(k) {
+function editableParts(k) { return [...builtinParts(k), ...Object.keys(extrasOf(k))]; }
+function builtinParts(k) {
   if (k.startsWith('D_')) return ['anulus', 'nucleus'];
   if (k === 'S') return ['promontorium', 'canal', 'art_sup', 'ala', 'auricular', 'crista_mediana', 'apex'];
   if (k === 'C1') return ['arcus_ant', 'fovea_dentis', 'massa_lat', 'arcus_post', 'foramen', 'transverse'];
@@ -1133,9 +1257,42 @@ const r4 = (v) => Math.round(v * 1e4) / 1e4;
 function setPoint(k, part, slot, p) {
   const arr = (lm(k)[part] || []).slice();
   while (arr.length < slot) arr.push(null);
-  arr[slot] = p.map(r4);
-  (local.fixes[k] ||= {})[part] = arr;
+  arr[slot] = p ? p.map(r4) : null;
+  if (part.startsWith('x_')) (local.extra[k] ||= {})[part] = { ...extraDef(k, part), pts: arr };
+  else (local.fixes[k] ||= {})[part] = arr;
   saveLocal();
+}
+// Nowy punkt dodany ręcznie (np. część kości, o której zapomnieliśmy)
+function slugify(t) {
+  return t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ł/g, 'l').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 32) || 'punkt';
+}
+function saveExtra(k, id, fields) {
+  const d = { ...(extraDef(k, id) || { pts: [] }), ...fields };
+  for (const f of ['latin', 'def']) if (!d[f]) delete d[f];
+  for (const f of ['pair', 'palp']) if (!d[f]) delete d[f];
+  (local.extra[k] ||= {})[id] = d;
+  saveLocal();
+}
+function addExtra(k, fields) {
+  let id = 'x_' + slugify(fields.name);
+  for (let i = 2; extraDef(k, id) || lm(k)[id]; i++) id = `x_${slugify(fields.name)}_${i}`;
+  saveExtra(k, id, { ...fields, pts: [] });
+  return id;
+}
+function removeExtra(k, id) {
+  if (EXTRA[k]?.[id]) (local.extra[k] ||= {})[id] = null;      // jest w pliku: oznacz jako usunięty
+  else if (local.extra[k]) { delete local.extra[k][id]; if (!Object.keys(local.extra[k]).length) delete local.extra[k]; }
+  saveLocal();
+}
+// Zgłoszenie na GitHubie (dla osób bez dostępu do repozytorium): gotowy tytuł i treść, wysyła sam użytkownik
+const REPO_ISSUES = 'https://github.com/Bartmannn/Anatomia/issues/new';
+const issueUrl = (title, body) => `${REPO_ISSUES}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+function reportUrl(k, id = null) {
+  const where = k.startsWith('D_') ? `krążek ${discLabel(k)}` : `${PARTS[k]?.name || k} (${k})`;
+  if (!id) return issueUrl(`Brakujący lub błędny punkt: ${k}`, `Kręg / krążek: ${where}\n\nCzego brakuje albo co jest nie tak (nazwa części, opis, położenie):\n\n\nŹródło (podręcznik, notatki z zajęć):\n`);
+  const d = extraDef(k, id);
+  const pts = (d.pts || []).map((p, i) => (p ? `${d.pair ? SIDE_NAMES[i] + ': ' : ''}[${p.join(', ')}]` : null)).filter(Boolean).join('; ') || 'jeszcze nie wskazany';
+  return issueUrl(`Propozycja punktu: ${d.name} (${k})`, `Kręg / krążek: ${where}\nNazwa: ${d.name}\nNazwa łacińska: ${d.latin || '—'}\nOpis: ${d.def || '—'}\nParzysty: ${d.pair ? 'tak' : 'nie'} · wyczuwalny: ${d.palp ? 'tak' : 'nie'}\nPołożenie (współrzędne modelu): ${pts}\n\nŹródło (podręcznik, notatki z zajęć):\n`);
 }
 function placePoint(ev) {
   const r = renderer.domElement.getBoundingClientRect();
@@ -1175,15 +1332,31 @@ function exportText() {
   const order = (o) => Object.fromEntries(Object.entries(o).sort((a, b) => [...ORDER, ...ORDER.map((x) => 'D_' + x)].indexOf(a[0]) - [...ORDER, ...ORDER.map((x) => 'D_' + x)].indexOf(b[0])));
   const fx = order(mergedFixes());
   const lines = Object.entries(fx).map(([k, v]) => `  ${JSON.stringify(k)}: ${JSON.stringify(v)},`).join('\n');
+  const ex = {};
+  for (const k of new Set([...Object.keys(EXTRA), ...Object.keys(local.extra)])) { const e = extrasOf(k); if (Object.keys(e).length) ex[k] = e; }
+  const exLines = Object.entries(order(ex)).map(([k, v]) => `  ${JSON.stringify(k)}: {\n${Object.entries(v).map(([id, d]) => `    ${JSON.stringify(id)}: ${JSON.stringify(d)},`).join('\n')}\n  },`).join('\n');
   return `// Ręczne poprawki punktów etykiet. Plik tworzy tryb „Popraw punkty” na stronie (przycisk „Pobierz landmarks-fix.js”).
 // Współrzędne w układzie models/kregoslup.glb (1 jednostka = 10 cm). null = punkt usunięty.
 // REVIEWED: data sprawdzenia punktów danego kręgu.
+// EXTRA: punkty dodane ręcznie (części, których brakowało). name — nazwa (można ją tu poprawić), latin, def — opis,
+//        pair — parzysty ([lewa, prawa]), palp — wyczuwalny pod palcami, pts — współrzędne.
 export const FIXES = {${lines ? '\n' + lines + '\n' : ''}};
 export const REVIEWED = ${JSON.stringify(order(rev), null, 2)};
+export const EXTRA = {${exLines ? '\n' + exLines + '\n' : ''}};
 `;
 }
-const localCount = () => new Set([...Object.keys(local.fixes), ...Object.keys(local.reviewed)]).size;
+const localCount = () => new Set([...Object.keys(local.fixes), ...Object.keys(local.reviewed), ...Object.keys(local.extra)]).size;
 
+function extraForm(d, id, submit) {
+  return `<form class="exform" id="${id}">
+    <label>Nazwa <input name="name" required maxlength="60" value="${esc(d.name || '')}" placeholder="np. Wyrostek dodatkowy"></label>
+    <label>Nazwa łacińska <small>(opcjonalnie)</small> <input name="latin" maxlength="80" value="${esc(d.latin || '')}" placeholder="np. processus accessorius"></label>
+    <label>Opis <small>(opcjonalnie)</small> <textarea name="def" rows="2" maxlength="400">${esc(d.def || '')}</textarea></label>
+    <label class="check"><input type="checkbox" name="pair" ${d.pair ? 'checked' : ''}> <span>Parzysty (osobno lewa i prawa strona)</span></label>
+    <label class="check"><input type="checkbox" name="palp" ${d.palp ? 'checked' : ''}> <span>Wyczuwalny pod palcami</span></label>
+    <button type="submit" class="btn">${submit}</button>
+  </form>`;
+}
 function renderEditor() {
   invalidate();
   panelRibs = ribsOn(state.selected);
@@ -1197,6 +1370,7 @@ function renderEditor() {
   const rv = reviewedOf(k);
   const { part: ap, slot: as } = state.edit;
   const activeDef = ap ? partDef(k, ap) : null;
+  const apExtra = ap ? extraDef(k, ap) : null;
   const ctl = ap ? `<div class="ectl">
       <p id="editmsg" class="feedback" aria-live="polite">${lm(k)[ap]?.[as] ? 'Kliknij na kości, aby przenieść punkt, albo przesuń go przyciskami.' : 'Kliknij na kości, aby ustawić punkt.'}</p>
       <div class="nudge" role="group" aria-label="Przesuń punkt">
@@ -1212,14 +1386,19 @@ function renderEditor() {
         ${fixedIn(k, ap) ? '<button type="button" class="linkbtn" id="reset">Przywróć automatyczny</button>' : ''}
         <button type="button" class="linkbtn" id="stop">Gotowe</button>
       </div>
+      ${apExtra ? `<details class="exedit"><summary>Nazwa i opis tego punktu</summary>${extraForm(apExtra, 'exform', 'Zapisz')}
+        <div class="erow-actions"><button type="button" class="linkbtn" id="exdel">Usuń ten punkt z listy</button>
+        <a class="linkbtn" href="${esc(reportUrl(k, ap))}" target="_blank" rel="noopener">Zgłoś ten punkt na GitHubie</a></div></details>` : ''}
     </div>` : '';
   const rows = editableParts(k).map((part) => {
     const def = partDef(k, part);
     const pts = L[part] || [];
-    const n = PAIRED.has(part) ? 2 : 1;
+    const n = isPaired(k, part) ? 2 : 1;
     const changed = Array.from({ length: n }, (_, i) => pts[i] && slotChanged(k, part, i)).some(Boolean);
-    const unsaved = local.fixes[k] && part in local.fixes[k];
-    const tag = !pts.length ? 'brak punktu' : changed ? (unsaved ? 'poprawiony · niezapisany w pliku' : 'poprawiony') : 'automatyczny';
+    const isExtra = part.startsWith('x_');
+    const unsaved = isExtra ? !!(local.extra[k] && part in local.extra[k]) : !!(local.fixes[k] && part in local.fixes[k]);
+    const tag = isExtra ? `dodany${pts.some(Boolean) ? '' : ' · wskaż na modelu'}${unsaved ? ' · niezapisany w pliku' : ''}`
+      : !pts.length ? 'brak punktu' : changed ? (unsaved ? 'poprawiony · niezapisany w pliku' : 'poprawiony') : 'automatyczny';
     const slots = Array.from({ length: n }, (_, i) => `<button type="button" class="slot${ap === part && as === i ? ' on' : ''}${pts[i] ? '' : ' empty'}" data-part="${part}" data-slot="${i}" aria-pressed="${ap === part && as === i}">${n > 1 ? SIDE_NAMES[i] : 'wybierz'}</button>`).join('');
     return `<div class="erow${ap === part ? ' active' : ''}"><div><b>${esc(def?.name || part)}</b><small class="${changed ? 'fx' : ''}">${tag}</small></div><div class="slots">${slots}</div></div>${ap === part ? ctl : ''}`;
   }).join('');
@@ -1237,6 +1416,11 @@ function renderEditor() {
       <li>Dopracuj strzałkami na klawiaturze lub przyciskami: 1 mm, z Shift 5 mm. PgUp / PgDn przesuwa w głąb (np. do środka otworu kręgowego).</li>
     </ol></div>
     <div class="elist">${rows}</div>
+    <div class="addpt">
+      <h3>Brakuje punktu?</h3>
+      <p class="small">Dodaj część, o której zapomnieliśmy — pojawi się w opisie i na modelu z dopiskiem „dodany”. Nie masz dostępu do repozytorium? <a href="${esc(reportUrl(k))}" target="_blank" rel="noopener">Zgłoś to na GitHubie</a>.</p>
+      ${extraForm({}, 'addform', 'Dodaj i wskaż na modelu')}
+    </div>
     <div class="export">
       <h3>Zapis do projektu</h3>
       <p>${n ? `Niezapisane w pliku zmiany: <b>${n}</b> ${n === 1 ? 'kręg' : 'kręgi/krążki'}.` : 'Wszystkie poprawki są już w pliku landmarks-fix.js.'}</p>
@@ -1262,6 +1446,7 @@ function renderEditor() {
     saveLocal(); renderEditor();
   });
   $('#del')?.addEventListener('click', () => {
+    if (apExtra) { setPoint(k, ap, as, null); renderEditor(); return; }
     const arr = (lm(k)[ap] || []).slice();
     arr[as] = null;
     (local.fixes[k] ||= {})[ap] = arr.some(Boolean) ? arr : null;
@@ -1274,6 +1459,26 @@ function renderEditor() {
     saveLocal(); renderEditor();
   });
   $('#stop')?.addEventListener('click', () => { state.edit.part = null; renderEditor(); });
+  const formFields = (f) => ({ name: f.name.value.trim(), latin: f.latin.value.trim(), def: f.def.value.trim(), pair: f.pair.checked, palp: f.palp.checked });
+  $('#addform').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const fields = formFields(e.target);
+    if (!fields.name) return;
+    const id = addExtra(k, fields);
+    state.edit = { part: id, slot: 0 };
+    renderEditor();
+    editMsg('Obróć model i kliknij na kości w miejscu tej części.');
+  });
+  $('#exform')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const fields = formFields(e.target);
+    if (!fields.name) return;
+    const pts = extraDef(k, ap).pts || [];
+    saveExtra(k, ap, { ...fields, pts: fields.pair ? pts : pts.slice(0, 1) });
+    if (!fields.pair) state.edit.slot = 0;
+    renderEditor();
+  });
+  $('#exdel')?.addEventListener('click', () => { removeExtra(k, ap); state.edit.part = null; occl.clear(); renderEditor(); });
   $('#done').addEventListener('click', () => setMode('atlas'));
   $('#dl').addEventListener('click', () => {
     try {
@@ -1294,7 +1499,7 @@ function renderEditor() {
   });
   const disc = $('#discard');
   disc?.addEventListener('click', () => {
-    if (disc.dataset.sure) { local = { fixes: {}, reviewed: {} }; saveLocal(); state.edit.part = null; renderEditor(); return; }
+    if (disc.dataset.sure) { local = { fixes: {}, reviewed: {}, extra: {} }; saveLocal(); state.edit.part = null; renderEditor(); return; }
     disc.dataset.sure = '1'; disc.textContent = 'Na pewno? Kliknij jeszcze raz';
   });
   syncRuler();
@@ -1580,7 +1785,7 @@ function setModule(mod, key = null) {
   document.body.dataset.module = mod;
   const keys = modKeys();
   const mus = muscleMode();
-  if (mus && state.mode !== 'atlas') { state.mode = 'atlas'; syncModeButtons(); }
+  if (mus && state.mode === 'edit') { state.mode = 'atlas'; syncModeButtons(); }
   if (!mus && keys.includes(state.lastBone.replace('D_', ''))) state.selected = state.lastBone;
   if (key && keys.includes(key.replace('D_', ''))) state.selected = key;
   if (!keys.includes(state.selected.replace('D_', ''))) state.selected = mus ? keys[0] : mod === 'zebra' ? 'Th7' : 'C7';
@@ -1597,7 +1802,6 @@ function setModule(mod, key = null) {
     if (ml) state.layers[ml] = true;
     renderLayerChips();
   }
-  document.querySelector('.modes [data-mode="quiz"]').hidden = mus;   // quiz z mięśni — później
   buildRuler();
   $('.brand h1').textContent = mus ? 'Mięśnie' : 'Kręgosłup';
   $('.stage .hint').innerHTML = `Przeciągnij, aby obrócić · kółko lub dwa palce, aby przybliżyć<br>${mus ? 'Kliknij mięsień, aby go wybrać' : 'Kliknij kość, aby ją wybrać'} · strzałki ↑ ↓`;

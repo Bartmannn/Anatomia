@@ -16,6 +16,8 @@ Najprostszy sposób. Zauważyłeś błędną nazwę, literówkę albo źle przyc
 - Załóż zgłoszenie w zakładce [Issues](https://github.com/Bartmannn/Anatomia/issues) → *New issue*,
 - albo po prostu napisz do mnie na grupie.
 
+Najszybciej: w opisie kręgu kliknij **Zgłoś brak lub błąd** — otworzy się gotowe zgłoszenie z nazwą kręgu, wystarczy dopisać, czego brakuje.
+
 Podaj, **który kręg** (np. Th7) i **co jest nie tak**. Jeśli to kwestia merytoryczna, dopisz **źródło**, np. podręcznik i stronę albo notatki z zajęć. Zrzut ekranu też bardzo pomaga.
 
 ## 2. Popraw tekst opisu (bez instalowania czegokolwiek)
@@ -33,7 +35,10 @@ Kilka zasad, żeby strona się nie zepsuła:
 - nie usuwaj cudzysłowów, przecinków ani nawiasów,
 - jeśli w tekście potrzebny jest apostrof, napisz go jako `\'`.
 
-## 3. Popraw położenie etykiet na modelu
+## 3. Popraw położenie etykiet na modelu albo dodaj brakujący punkt
+
+Brakuje jakiejś części kręgu? W trybie **Popraw lub dodaj punkty** jest formularz *Brakuje punktu?*: wpisz nazwę, kliknij **Dodaj i wskaż na modelu** i kliknij na kości. Dalej postępuj jak przy poprawkach poniżej (pobierz `landmarks-fix.js`). Przy dodanym punkcie jest też link **Zgłoś ten punkt na GitHubie** z gotowym opisem i położeniem — przyda się, jeśli nie chcesz wysyłać pliku.
+
 
 Etykiety (trzon, wyrostki, otwór kręgowy…) zostały rozmieszczone automatycznie, więc trzeba je sprawdzić kręg po kręgu. Robi się to na samej stronie.
 

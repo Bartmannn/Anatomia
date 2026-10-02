@@ -22,8 +22,8 @@ Atlas mogą swobodnie wykorzystywać uczniowie i nauczyciele. Uwagi i poprawki s
 - **Punkty wyczuwalne pod palcami** w widoku całego kręgosłupa: C2, C7, Th3, Th7, L4, S2.
 - **Opisy każdego kręgu:** cechy budowy, wskazówki dla masażysty (palpacja, na co uważać), przyczepy mięśni.
 - **Widoki** przód, bok, tył i góra. Można też pokazać tylko wybrany kręg, pokolorować odcinki albo ukryć krążki.
-- **Quiz** — rozpoznawanie podświetlonego kręgu, a w module *Pojedyncze kręgi* rozpoznawanie kręgu po samym kształcie.
-- **Tryb „Popraw punkty”** do ręcznego poprawiania położenia etykiet (opis niżej).
+- **Quiz** z kilkoma rodzajami pytań: *Który kręg?* (podświetlony kręg, a w module *Pojedyncze kręgi* — sam kształt), *Która część?* (zaznaczony punkt na kręgu), *Który mięsień?* i *Czyje przyczepy?* (świecą tylko przyczepy na kościach).
+- **Tryb „Popraw lub dodaj punkty”** do ręcznego poprawiania położenia etykiet i dodawania brakujących części, a także przycisk **Zgłoś brak lub błąd** (opis niżej).
 - **Linki do konkretnego widoku**, np. `…/Anatomia/#kregi/Th7` (moduł / kręg) — wygodne do wysłania w grupie.
 - Działa na komputerze i na telefonie, w jasnym i ciemnym motywie.
 
@@ -121,9 +121,28 @@ Etykiety części kręgów są wyznaczane automatycznie z kształtu kości (skra
 3. Gdy wszystkie punkty kręgu są dobre, zaznacz **Sprawdziłem punkty tego kręgu**. Uczniowie zobaczą przy nim informację, że etykiety sprawdzono ręcznie.
 4. Kliknij **Pobierz landmarks-fix.js**, podmień plik w folderze projektu i zrób commit.
 
+### Brakujący punkt
+
+Jeśli w kręgu brakuje jakiejś części, w trybie **Popraw lub dodaj punkty** jest formularz *Brakuje punktu?*: wpisz nazwę (opcjonalnie nazwę łacińską, opis, czy jest parzysta i czy wyczuwalna pod palcami), kliknij **Dodaj i wskaż na modelu** i kliknij na kości. Nowy punkt pojawia się w opisie kręgu i na modelu z dopiskiem „dodany”, trafia też do quizu „Która część?”. Zapisuje się w `landmarks-fix.js` (sekcja `EXTRA`) razem z pozostałymi poprawkami.
+
+Kto nie ma dostępu do repozytorium, może kliknąć **Zgłoś brak lub błąd** w opisie kręgu. Otwiera się gotowe zgłoszenie (GitHub Issues) z nazwą kręgu; przy dodanym punkcie także z jego nazwą i położeniem. Potrzebne jest konto na GitHubie.
+
 Poprawki zapisują się w przeglądarce do czasu pobrania pliku. `landmarks.js` można w każdej chwili wygenerować od nowa skryptem, a poprawki z `landmarks-fix.js` nie zginą.
 
 ## Edycja opisów
+
+### Gdzie zmienić nazwę punktu
+
+| Co | Gdzie |
+|---|---|
+| Nazwy części wspólne dla większości kręgów (trzon, łuk, wyrostki, dołki żebrowe, części żeber) | `content.js` → `PART_LABELS` |
+| Nazwy części nietypowych kręgów i ich wyjątki (C1, C2, C3–C5, Th1, Th10–Th12, odcinek lędźwiowy, kość krzyżowa, krążki) | `content.js` → `PART_LABELS_SPECIAL` |
+| Punkty wyczuwalne pod palcami w widoku całego kręgosłupa (C2, C7, Th3, Th7, L4, S2) | `content.js` → `PALPATION` |
+| Opisy kręgów (nazwa kręgu, cechy, uwagi dla masażysty) | `content.js` → `PARTS` |
+| Mięśnie, ich części i przyczepy | `content-miesnie.js` |
+| Punkty dodane ręcznie | `landmarks-fix.js` → `EXTRA` (pole `name`) albo w trybie „Popraw lub dodaj punkty” → *Nazwa i opis tego punktu* |
+
+Każdy wpis ma `name` (nazwa polska), `latin` (łacińska) i `def` (opis). Zmiana nazwy w `PART_LABELS` działa we wszystkich kręgach naraz, a wpis w `PART_LABELS_SPECIAL` tylko w wybranym. Położenia punktów to osobna sprawa — są w `landmarks.js` i `landmarks-fix.js`.
 
 Wszystkie teksty, czyli nazwy kręgów, cechy, uwagi dla masażysty, przyczepy mięśni, nazwy części kości i punkty wyczuwalne, są w pliku `content.js`. Opisy mięśni (przyczepy, działanie, unerwienie, masaż i listy kości do podświetlenia) są w `content-miesnie.js`. Można go edytować w zwykłym edytorze tekstu, bez znajomości reszty kodu. Po zapisaniu wystarczy odświeżyć stronę.
 

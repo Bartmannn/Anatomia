@@ -2,7 +2,7 @@
 // Siatki, materiały i kolory obsługuje app.js — tu tylko logika specyficzna dla mięśni.
 import { MUSCLES, LAYERS, CTX_BONES } from './content-miesnie.js';
 
-export { MUSCLES, LAYERS };
+export { MUSCLES, LAYERS, CTX_BONES };
 export const MUSCLE_KEYS = Object.keys(MUSCLES);
 export const layerPack = (n) => `miesnie/warstwa-${n}`;
 export const READY_LAYERS = Object.entries(LAYERS).filter(([, l]) => !l.soon).map(([n]) => +n);
