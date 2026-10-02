@@ -92,15 +92,69 @@ function syncRuler() {
 }
 
 /* ---------- Three.js scene ---------- */
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+/* ---------- Wydajność: stan ---------- */
+// #debug w adresie pokazuje licznik (kl./s, czas klatki, trójkąty, rozdzielczość, jakość).
+const DEBUG = /(^|[#&?])debug\b/.test(location.hash + location.search);
+const COARSE = matchMedia('(pointer: coarse)').matches;      // telefon / tablet
+const perf = {
+  base: Math.min(window.devicePixelRatio || 1, COARSE ? 1.5 : 2),   // najwyższa używana gęstość pikseli
+  lvl: 0,              // 0 = pełna, 1 = 75%, 2 = 50% (zależnie od prędkości obrotu)
+  lowerSince: 0,       // od kiedy prędkość pozwala wrócić do ostrzejszego poziomu
+  cap: 1,              // pułap z pomiaru wydajności urządzenia (0.6–1)
+  current: 0,          // aktualnie ustawiony pixel ratio
+  quality: COARSE ? 'fast' : 'high',
+  lastMove: 0, settled: true,
+  emaDt: 16, slowSince: 0, fastSince: 0,
+  frames: 0, renders: 0, renderMs: 0, jsMs: 0, speed: 0,
+};
+const LEVELS = [1, 0.75, 0.5];
+let needsRender = true;
+const invalidate = () => { needsRender = true; };
+
+const renderer = new THREE.WebGLRenderer({ antialias: !COARSE, alpha: true, powerPreference: 'high-performance' });
 renderer.toneMapping = THREE.NeutralToneMapping;
 stageEl.prepend(renderer.domElement);
+function applyRatio(r) {
+  if (Math.abs(r - perf.current) < 0.01) return;
+  perf.current = r;
+  renderer.setPixelRatio(r);
+  invalidate();
+}
+applyRatio(perf.base);
 
 const scene = new THREE.Scene();
-const pmrem = new THREE.PMREMGenerator(renderer);
-scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+let envTex = null;
+function ensureEnv() {           // oświetlenie otoczenia tylko dla trybu „wysoka jakość”
+  if (!envTex) envTex = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+  return envTex;
+}
+if (perf.quality === 'high') scene.environment = ensureEnv();
 scene.environmentIntensity = 0.55;
+
+// Matcap: gotowe „światło” w jednej teksturze — kilka razy tańsze od materiału PBR.
+let matcapTex = null;
+function matcap() {
+  if (matcapTex) return matcapTex;
+  const s = 256, c = document.createElement('canvas');
+  c.width = c.height = s;
+  const g = c.getContext('2d');
+  const grad = g.createRadialGradient(s * 0.36, s * 0.3, s * 0.04, s * 0.5, s * 0.52, s * 0.52);
+  grad.addColorStop(0, '#ffffff');
+  grad.addColorStop(0.35, '#e9e9e9');
+  grad.addColorStop(0.75, '#a9a9a9');
+  grad.addColorStop(1, '#6f6f6f');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, s, s);
+  matcapTex = new THREE.CanvasTexture(c);
+  matcapTex.colorSpace = THREE.SRGBColorSpace;
+  return matcapTex;
+}
+function newMat(kind) {
+  const extra = kind === 'rib' ? { side: THREE.DoubleSide }
+    : kind === 'facet' ? { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 } : {};
+  if (perf.quality === 'fast') return new THREE.MeshMatcapMaterial({ matcap: matcap(), ...extra });
+  return new THREE.MeshStandardMaterial({ roughness: kind === 'disc' ? 0.55 : kind === 'facet' ? 0.45 : 0.82, metalness: 0, ...extra });
+}
 
 const key = new THREE.DirectionalLight(0xffffff, 1.6);
 key.position.set(3, 6, 4);
@@ -126,6 +180,8 @@ function resize() {
   renderer.setSize(r.width, r.height, false);
   camera.aspect = r.width / Math.max(r.height, 1);
   camera.updateProjectionMatrix();
+  for (const n of nodes.values()) n.h = undefined;   // etykiety zmierzą się na nowo
+  invalidate();
 }
 new ResizeObserver(resize).observe(renderer.domElement);
 
@@ -174,6 +230,7 @@ const neighbors = (k, n) => {
 
 /* ---------- Materials ---------- */
 const tmp = new THREE.Color();
+const BLACK = new THREE.Color(0);
 function paint() {
   const sel = state.mode === 'quiz' ? state.quiz?.target : state.selected;
   for (const [k, m] of Object.entries(parts)) {
@@ -184,9 +241,12 @@ function paint() {
     if (state.tint && state.mode === 'atlas') tmp.lerp(COLORS[reg], isDisc ? 0.15 : 0.38);
     const isSel = k === sel;
     if (isSel) tmp.copy(state.mode === 'quiz' ? COLORS.focus : COLORS[reg]);
+    const hov = k === state.hovered && !isSel;
+    if (m.material.emissive) {
+      m.material.emissive.copy(hov ? COLORS[reg] : BLACK);
+      m.material.emissiveIntensity = 0.18;
+    } else if (hov) tmp.lerp(COLORS[reg], 0.3);
     m.material.color.copy(tmp);
-    m.material.emissive.copy(k === state.hovered && !isSel ? COLORS[reg] : new THREE.Color(0));
-    m.material.emissiveIntensity = 0.18;
     m.visible = !isDisc || state.showDiscs;
     const faded = !isSel && ((state.isolate && state.mode === 'atlas') || state.mode === 'edit');
     if (m.material.transparent !== faded) m.material.needsUpdate = true;
@@ -195,6 +255,7 @@ function paint() {
     m.material.depthWrite = !faded;
   }
   paintRibs();
+  invalidate();
 }
 
 /* ---------- Ribs (models/zebra.glb, loaded in the background) ---------- */
@@ -202,9 +263,9 @@ const ribMeshes = [];
 let ribsReady = false, ribsLoading = false;
 renderer.localClippingEnabled = true;
 const clipPlanes = [new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0), new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)];
-const ribMat = new THREE.MeshStandardMaterial({ roughness: 0.82, metalness: 0, side: THREE.DoubleSide });
-const ribMatHi = new THREE.MeshStandardMaterial({ roughness: 0.82, metalness: 0, side: THREE.DoubleSide });
-const facetMat = new THREE.MeshStandardMaterial({ roughness: 0.45, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+let ribMat = newMat('rib');
+let ribMatHi = newMat('rib');
+let facetMat = newMat('facet');
 function paintRibs() {
   if (!ribsReady) return;
   const k = state.selected;
@@ -241,6 +302,7 @@ function onRibs(gltf) {
     o.material = o.userData.kind === 'rib' ? ribMat : facetMat;
     o.renderOrder = o.userData.kind === 'rib' ? 0 : 1;
     ribMeshes.push(o);
+    if (o.userData.kind === 'rib') o.userData.proxy = buildProxy(o);
   });
   root.add(gltf.scene);
   ribsReady = true;
@@ -368,9 +430,8 @@ function occluded(id, p) {
   const dist = dir.length();
   occRay.set(camera.position, dir.normalize());
   occRay.far = dist;
-  const meshes = [...Object.values(parts), ...ribMeshes].filter((m) => m.visible && m.material.opacity > 0.5);
-  const hit = occRay.intersectObjects(meshes, false)[0];
-  const res = !!hit && hit.distance < dist - 0.03;
+  const hit = firstProxyHit(occRay);
+  const res = !!hit && hit.distance < dist - 0.05;
   occl.set(id, res);
   return res;
 }
@@ -465,7 +526,8 @@ function layoutLabels() {
         n.el.querySelector('span').textContent = it.sub || '';
         n.el.dataset.t = it.title + it.sub;
       }
-      it.h = n.el.offsetHeight || lineH;
+      if (n.h === undefined || n.el.dataset.t !== n.measured) { n.h = n.el.offsetHeight || lineH; n.measured = n.el.dataset.t; }
+      it.h = n.h;
     }
     let y = 40;
     for (const it of list) { it.ly = Math.max(it.q.y, y + it.h / 2); y = it.ly + it.h / 2 + 4; }
@@ -564,14 +626,15 @@ function bindParts() {
   panelEl.querySelector('[data-action=edit]')?.addEventListener('click', () => setMode('edit'));
   panelEl.querySelector('[data-action=ribs]')?.addEventListener('click', toggleRibs);
   panelEl.querySelectorAll('.prow').forEach((r) => {
-    const on = () => { state.focusPart = r.dataset.part; };
-    const off = () => { state.focusPart = null; };
+    const on = () => { state.focusPart = r.dataset.part; invalidate(); };
+    const off = () => { state.focusPart = null; invalidate(); };
     r.addEventListener('mouseenter', on); r.addEventListener('focus', on);
     r.addEventListener('mouseleave', off); r.addEventListener('blur', off);
   });
 }
 
 function renderPart(k) {
+  invalidate();
   const reg = regionOf(k);
   const R = REGIONS[reg];
   panelEl.style.setProperty('--rc', `var(--${reg.toLowerCase()})`);
@@ -766,6 +829,7 @@ export const REVIEWED = ${JSON.stringify(order(rev), null, 2)};
 const localCount = () => new Set([...Object.keys(local.fixes), ...Object.keys(local.reviewed)]).size;
 
 function renderEditor() {
+  invalidate();
   const k = state.selected;
   const reg = regionOf(k);
   panelEl.style.setProperty('--rc', `var(--${reg.toLowerCase()})`);
@@ -880,6 +944,63 @@ function renderEditor() {
   paint();
 }
 
+/* ---------- Uproszczone bryły do celowania (raycast) ---------- */
+// Trafienia i zasłanianie etykiet liczymy na siatkach uproszczonych ok. 10× (łączenie wierzchołków co 2,5 mm),
+// a nie na pełnych modelach. Dokładna siatka jest używana tylko przy stawianiu punktów w edytorze.
+const proxyMat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+function buildProxy(mesh, cell = 0.04) {
+  mesh.updateWorldMatrix(true, false);
+  const pos = mesh.geometry.attributes.position;
+  const v = new THREE.Vector3();
+  const map = new Map();
+  const sums = [];
+  const remap = new Uint32Array(pos.count);
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
+    const key = `${Math.floor(v.x / cell)},${Math.floor(v.y / cell)},${Math.floor(v.z / cell)}`;
+    let id = map.get(key);
+    if (id === undefined) { id = sums.length / 4; map.set(key, id); sums.push(0, 0, 0, 0); }
+    sums[id * 4] += v.x; sums[id * 4 + 1] += v.y; sums[id * 4 + 2] += v.z; sums[id * 4 + 3]++;
+    remap[i] = id;
+  }
+  const n = sums.length / 4;
+  const P = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { const c = sums[i * 4 + 3]; P[i * 3] = sums[i * 4] / c; P[i * 3 + 1] = sums[i * 4 + 1] / c; P[i * 3 + 2] = sums[i * 4 + 2] / c; }
+  const src = mesh.geometry.index.array;
+  const idx = [];
+  for (let t = 0; t < src.length; t += 3) {
+    const a = remap[src[t]], b = remap[src[t + 1]], c = remap[src[t + 2]];
+    if (a !== b && b !== c && a !== c) idx.push(a, b, c);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(P, 3));
+  g.setIndex(n < 65536 ? new THREE.Uint16BufferAttribute(idx, 1) : new THREE.Uint32BufferAttribute(idx, 1));
+  g.computeBoundingSphere();
+  g.computeBoundingBox();
+  const proxy = new THREE.Mesh(g, proxyMat);
+  proxy.userData.target = mesh;
+  proxy.matrixAutoUpdate = false;
+  proxy.updateMatrixWorld(true);
+  perf.proxyTris = (perf.proxyTris || 0) + idx.length / 3;
+  return proxy;
+}
+function activeProxies(bonesOnly) {
+  const list = [];
+  for (const m of Object.values(parts)) if (m.visible && m.material.opacity > 0.5 && m.userData.proxy) list.push(m.userData.proxy);
+  if (!bonesOnly) for (const m of ribMeshes) if (m.visible && m.userData.proxy) list.push(m.userData.proxy);
+  return list;
+}
+// Pierwsze trafienie, z pominięciem części żeber odciętych w widoku „Tylko wybrany”.
+function firstProxyHit(rc, bonesOnly = false) {
+  const hits = rc.intersectObjects(activeProxies(bonesOnly), false);
+  const clipped = ribMat.clippingPlanes?.length;
+  for (const h of hits) {
+    if (clipped && h.object.userData.target.userData.kind === 'rib' && !clipPlanes.every((pl) => pl.distanceToPoint(h.point) >= 0)) continue;
+    return h;
+  }
+  return null;
+}
+
 /* ---------- Picking ---------- */
 const ray = new THREE.Raycaster();
 const ptr = new THREE.Vector2();
@@ -888,8 +1009,8 @@ function pick(ev) {
   const r = renderer.domElement.getBoundingClientRect();
   ptr.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
   ray.setFromCamera(ptr, camera);
-  const hits = ray.intersectObjects(Object.values(parts).filter((m) => m.visible && m.material.opacity > 0.5), false);
-  return hits[0]?.object.name || null;
+  const hit = firstProxyHit(ray, true);
+  return hit?.object.userData.target.name || null;
 }
 renderer.domElement.addEventListener('pointerdown', (e) => { downAt = [e.clientX, e.clientY]; });
 renderer.domElement.addEventListener('pointerup', (e) => {
@@ -898,15 +1019,23 @@ renderer.domElement.addEventListener('pointerup', (e) => {
   const k = pick(e);
   if (k && state.mode !== 'quiz') select(k, false);
 });
+// Podświetlanie pod kursorem: najwyżej raz na klatkę i nie podczas obracania.
+let hoverEv = null;
 renderer.domElement.addEventListener('pointermove', (e) => {
   if (e.pointerType !== 'mouse' || e.buttons) return;
+  hoverEv = e;
+});
+renderer.domElement.addEventListener('pointerleave', () => { hoverEv = null; if (state.hovered) { state.hovered = null; paint(); } });
+function processHover() {
+  if (!hoverEv) return;
+  const e = hoverEv; hoverEv = null;
   const k = state.mode !== 'quiz' ? pick(e) : null;
   renderer.domElement.style.cursor = state.mode === 'edit' && state.edit.part ? 'crosshair' : (k ? 'pointer' : '');
   if (k !== state.hovered) {
     state.hovered = k;
     paint();
   }
-});
+}
 
 /* ---------- Toolbar ---------- */
 document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => {
@@ -968,11 +1097,9 @@ const bar = $('#loadbar');
 function onModel(gltf) {
   gltf.scene.traverse((o) => {
     if (!o.isMesh) return;
-    o.material = new THREE.MeshStandardMaterial({
-      roughness: o.name.startsWith('D_') ? 0.55 : 0.82,
-      metalness: 0,
-    });
+    o.material = newMat(o.name.startsWith('D_') ? 'disc' : 'bone');
     parts[o.name] = o;
+    o.userData.proxy = buildProxy(o);
   });
   root.add(gltf.scene);
   $('#loader').hidden = true;
@@ -1003,10 +1130,120 @@ if (window.ATLAS_MODEL_B64) {
   }, onError);
 }
 
+/* ---------- Pętla: rysowanie na żądanie + rozdzielczość zależna od ruchu ---------- */
+const prevQ = new THREE.Quaternion();
+const prevP = new THREE.Vector3();
+function motionSpeed(dt) {
+  // prędkość kątowa kamery + względna zmiana położenia (przesuwanie, przybliżanie) na sekundę
+  const ang = prevQ.angleTo(camera.quaternion);
+  const lin = prevP.distanceTo(camera.position) / Math.max(camera.position.distanceTo(controls.target), 1e-3);
+  prevQ.copy(camera.quaternion);
+  prevP.copy(camera.position);
+  return (ang + lin) / Math.max(dt, 1e-3);
+}
+function updateResolution(now, speed, dt, rendered) {
+  // 1) poziom z prędkości: w dół od razu, w górę dopiero po 150 ms spokoju (histereza)
+  const target = speed > 3 ? 2 : speed > 0.8 ? 1 : 0;
+  if (target > perf.lvl) { perf.lvl = target; perf.lowerSince = 0; }
+  else if (target < perf.lvl) {
+    if (!perf.lowerSince) perf.lowerSince = now;
+    else if (now - perf.lowerSince > 150) { perf.lvl = target; perf.lowerSince = 0; }
+  } else perf.lowerSince = 0;
+  // 2) pułap z wydajności: mierzony tylko wtedy, gdy rysujemy klatka po klatce
+  if (rendered && speed > 0.05) {
+    perf.emaDt = perf.emaDt * 0.9 + dt * 1000 * 0.1;
+    if (perf.emaDt > 24) {
+      if (!perf.slowSince) perf.slowSince = now;
+      else if (now - perf.slowSince > 1000) {
+        perf.cap = Math.max(0.6, perf.cap * 0.85); perf.slowSince = 0;
+        if (perf.cap <= 0.61 && perf.quality === 'high') setQuality('fast');   // dalej za wolno → tańszy materiał
+      }
+    } else perf.slowSince = 0;
+    if (perf.emaDt < 15) {
+      if (!perf.fastSince) perf.fastSince = now;
+      else if (now - perf.fastSince > 3000) { perf.cap = Math.min(1, perf.cap / 0.85); perf.fastSince = 0; }
+    } else perf.fastSince = 0;
+  }
+  applyRatio(Math.max(0.5, perf.base * LEVELS[perf.lvl] * perf.cap));
+}
+function setQuality(q) {
+  if (perf.quality === q) return;
+  perf.quality = q;
+  scene.environment = q === 'high' ? ensureEnv() : null;
+  for (const m of Object.values(parts)) { const old = m.material; m.material = newMat(m.name.startsWith('D_') ? 'disc' : 'bone'); old.dispose(); }
+  const [a, b, c] = [ribMat, ribMatHi, facetMat];
+  ribMat = newMat('rib'); ribMatHi = newMat('rib'); facetMat = newMat('facet');
+  for (const m of ribMeshes) if (m.userData.kind !== 'rib') m.material = facetMat;
+  a.dispose(); b.dispose(); c.dispose();
+  paint();
+  updateDebug(true);
+}
+
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
-  stepTween(clock.getDelta());
-  controls.update();
-  renderer.render(scene, camera);
-  layoutLabels();
+  const dt = Math.min(clock.getDelta(), 0.1);
+  const t0 = performance.now();
+  if (tween) { stepTween(dt); needsRender = true; }
+  if (controls.update()) needsRender = true;     // zwraca true, dopóki kamera się rusza (też bezwładność)
+  processHover();
+  const speed = motionSpeed(dt);
+  perf.speed = speed;
+  if (speed > 0.05) { perf.lastMove = t0; perf.settled = false; }
+  else if (!perf.settled && t0 - perf.lastMove > 150) {
+    perf.settled = true;     // kamera stanęła: jedna ostra klatka z aktualnym zasłanianiem etykiet
+    occl.clear();
+    needsRender = true;
+  }
+  const rendered = needsRender;
+  updateResolution(t0, speed, dt, rendered);
+  if (needsRender) {
+    needsRender = false;
+    const r0 = performance.now();
+    renderer.render(scene, camera);
+    const r1 = performance.now();
+    layoutLabels();
+    perf.renderMs = perf.renderMs * 0.8 + (r1 - r0) * 0.2;
+    perf.renders++;
+    perf.jsMs = perf.jsMs * 0.8 + (performance.now() - t0 - (r1 - r0)) * 0.2;
+  }
+  perf.frames++;
+  if (DEBUG) updateDebug();
 });
+
+/* ---------- Licznik #debug ---------- */
+let dbgEl = null, dbgAt = 0, dbgR = 0, dbgF = 0;
+function updateDebug(force = false) {
+  if (!DEBUG) return;
+  const now = performance.now();
+  if (!force && now - dbgAt < 500) return;
+  if (!dbgEl) {
+    dbgEl = document.createElement('div');
+    dbgEl.id = 'dbg';
+    dbgEl.className = 'dbg';
+    stageEl.appendChild(dbgEl);
+    dbgEl.addEventListener('click', (e) => { if (e.target.dataset.q) setQuality(e.target.dataset.q); });
+  }
+  const sec = Math.max((now - dbgAt) / 1000, 0.001);
+  const fps = (perf.renders - dbgR) / sec, loop = (perf.frames - dbgF) / sec;
+  dbgAt = now; dbgR = perf.renders; dbgF = perf.frames;
+  const info = renderer.info.render;
+  const fullTris = Object.values(parts).concat(ribMeshes).filter((m) => m.visible).reduce((a, m) => a + (m.geometry.index?.count || 0) / 3, 0);
+  dbgEl.innerHTML = `<b>${fps.toFixed(0)}</b> kl./s rysowane · pętla ${loop.toFixed(0)}/s<br>
+    render ${perf.renderMs.toFixed(1)} ms · JS ${perf.jsMs.toFixed(1)} ms<br>
+    trójkąty ${(info.triangles / 1000).toFixed(0)} tys. (widoczne ${(fullTris / 1000).toFixed(0)} tys.) · wywołania ${info.calls}<br>
+    rozdz. ${perf.current.toFixed(2)}× (poziom ${Math.round(LEVELS[perf.lvl] * 100)}%, pułap ${Math.round(perf.cap * 100)}%) · prędkość ${perf.speed.toFixed(2)}<br>
+    celowanie: ${((perf.proxyTris || 0) / 1000).toFixed(0)} tys. tr. zamiast pełnych<br>
+    jakość: <button type="button" data-q="high" aria-pressed="${perf.quality === 'high'}">wysoka</button> <button type="button" data-q="fast" aria-pressed="${perf.quality === 'fast'}">szybka</button>`;
+}
+if (DEBUG) {
+  window.__atlasPerf = perf; window.__atlasCam = camera;
+  // porównanie: N promieni przez pełne siatki vs uproszczone bryły
+  window.__atlasBench = (N = 200) => {
+    const rc = new THREE.Raycaster();
+    const full = [...Object.values(parts), ...ribMeshes.filter((m) => m.userData.kind === 'rib')].filter((m) => m.visible);
+    const prox = full.map((m) => m.userData.proxy).filter(Boolean);
+    const dirs = Array.from({ length: N }, () => new THREE.Vector2(Math.random() * 1.2 - 0.6, Math.random() * 1.6 - 0.8));
+    const run = (list) => { const t = performance.now(); for (const d of dirs) { rc.setFromCamera(d, camera); rc.intersectObjects(list, false); } return (performance.now() - t) / N; };
+    return { fullMsPerRay: +run(full).toFixed(3), proxyMsPerRay: +run(prox).toFixed(3), meshes: full.length };
+  };
+}

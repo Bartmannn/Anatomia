@@ -453,3 +453,14 @@ body.editing .hint { display: none; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* Licznik wydajności (#debug) */
+.dbg {
+  position: absolute; right: 12px; top: 44px; z-index: 5;
+  font-family: var(--font-mono); font-size: 11px; line-height: 1.5;
+  color: var(--ink); background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border: 1px solid var(--line); padding: 6px 8px; pointer-events: auto;
+}
+.dbg b { font-size: 14px; }
+.dbg button { font: inherit; border: 1px solid var(--line); background: transparent; color: var(--ink); padding: 0 6px; cursor: pointer; }
+.dbg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }

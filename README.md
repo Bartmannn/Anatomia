@@ -75,6 +75,17 @@ Zainstaluj rozszerzenie **Live Server**, otwórz folder projektu, kliknij prawym
 
 Aktualna przeglądarka z obsługą WebGL: Chrome, Edge, Firefox lub Safari. Przy pierwszym wejściu strona pobiera ok. 6 MB (głównie model 3D), a potem w tle ok. 3 MB modelu żeber.
 
+## Wydajność
+
+Strona jest przygotowana z myślą o telefonach:
+
+- **Rysowanie na żądanie.** Nowa klatka powstaje tylko, gdy coś się zmienia. W spoczynku karta nie obciąża procesora ani karty graficznej.
+- **Rozdzielczość zależna od ruchu.** Przy szybkim obracaniu obraz jest rysowany w 75% albo 50% rozdzielczości, a po zatrzymaniu od razu wraca pełna ostrość. Słabsze urządzenia dostają dodatkowo niższy pułap, wyliczany z czasu klatki.
+- **Tańszy materiał na telefonach.** Na ekranach dotykowych (i automatycznie, gdy urządzenie nie nadąża) zamiast realistycznego materiału używany jest matcap, czyli oświetlenie zapisane w jednej teksturze.
+- **Szybkie celowanie.** Trafienia kursorem i zasłanianie etykiet są liczone na uproszczonych bryłach (ok. 8× mniej trójkątów), a podświetlanie pod kursorem najwyżej raz na klatkę.
+
+Dopisz `#debug` na końcu adresu (np. `http://localhost:8000/#debug`), żeby zobaczyć licznik: klatki na sekundę, czas rysowania, liczbę trójkątów, aktualną rozdzielczość i przełącznik jakości.
+
 ## Publikacja na GitHub Pages
 
 1. W repozytorium na GitHubie wejdź w *Settings → Pages*.
