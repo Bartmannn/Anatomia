@@ -5,7 +5,7 @@
 // Wyłapuje błędy, które psują stronę albo jej fragment: zgubiony cudzysłów lub przecinek w content.js,
 // brakujące pola (nazwa, opis), literówkę w kluczu kręgu, punkt bez współrzędnych, brakujący plik modelu.
 // Uruchamia się też automatycznie na GitHubie przy każdej zmianie (.github/workflows/testy.yml).
-import { readFileSync, existsSync, statSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, statSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -155,6 +155,28 @@ for (const src of ['app.js', 'styles.css']) if (!html.includes(src)) err('index.
 for (const m of html.matchAll(/(?:src|href)="(https?:\/\/[^"]+)"/g)) err('index.html', `zewnętrzny zasób ${m[1]} — pliki strony powinny być w repozytorium`);
 for (const f of ['fonts/fonts.css', ...[...readFileSync(join(ROOT, 'fonts', 'fonts.css'), 'utf8').matchAll(/url\(([^)]+)\)/g)].map((m) => 'fonts/' + m[1])]) {
   if (!existsSync(join(ROOT, f))) err('fonts/fonts.css', `brak pliku ${f}`);
+}
+
+/* ---------- praca bez internetu (sw.js) i aplikacja ---------- */
+{
+  const sw = readFileSync(join(ROOT, 'sw.js'), 'utf8');
+  const list = (name) => {
+    const m = sw.match(new RegExp(`const ${name} = \\[([\\s\\S]*?)\\];`));
+    return m ? [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]) : null;
+  };
+  const strony = list('PLIKI_STRONY'), stale = list('PLIKI_STALE');
+  if (!strony || !stale) err('sw.js', 'nie znaleziono list PLIKI_STRONY / PLIKI_STALE');
+  else {
+    const all = new Set([...strony, ...stale]);
+    for (const f of all) if (f !== './' && !existsSync(join(ROOT, f))) err('sw.js', `na liście jest ${f}, ale takiego pliku nie ma`);
+    const wanted = ['app.js', 'index.html', 'styles.css', 'content.js', 'content-miesnie.js', 'landmarks.js', 'landmarks-ribs.js', 'landmarks-fix.js', 'models/pakiety/spis.js',
+      ...readdirSync(join(ROOT, 'js')).filter((f) => f.endsWith('.js')).map((f) => 'js/' + f)];
+    for (const f of wanted) if (!all.has(f)) err('sw.js', `brak ${f} na liście PLIKI_STRONY — bez tego strona nie zadziała offline`);
+  }
+  const man = JSON.parse(readFileSync(join(ROOT, 'manifest.webmanifest'), 'utf8'));
+  for (const ic of man.icons || []) if (!existsSync(join(ROOT, ic.src))) err('manifest.webmanifest', `brak ikony ${ic.src}`);
+  const og = html.match(/property="og:image" content="[^"]*\/([^"/]+)"/);
+  if (og && !existsSync(join(ROOT, og[1]))) err('index.html', `brak obrazka podglądu linku ${og[1]}`);
 }
 
 /* ---------- wynik ---------- */

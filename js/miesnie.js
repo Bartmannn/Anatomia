@@ -1,6 +1,6 @@
 // Moduł „Mięśnie grzbietu”: dane i widok niezależny od three.js (panel, nawigacja, etykiety, przyczepy).
 // Siatki, materiały i kolory obsługuje app.js — tu tylko logika specyficzna dla mięśni.
-import { MUSCLES, LAYERS, CTX_BONES } from './content-miesnie.js';
+import { MUSCLES, LAYERS, CTX_BONES } from '../content-miesnie.js';
 
 export { MUSCLES, LAYERS, CTX_BONES };
 export const MUSCLE_KEYS = Object.keys(MUSCLES);

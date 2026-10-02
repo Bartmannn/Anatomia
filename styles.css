@@ -589,3 +589,14 @@ body[data-module="grzbiet"] .main { grid-template-columns: 148px minmax(0, 1fr) 
 .exform input:focus, .exform textarea:focus { outline: 2px solid var(--focus); outline-offset: 0; border-color: transparent; }
 .exedit { margin-top: 8px; border-top: 1px dashed var(--line); padding-top: 8px; }
 .exedit summary { cursor: pointer; font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+
+/* Bez internetu */
+.pk-offline { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; }
+.pk-note { margin: 0; font-size: 13px; color: var(--muted); }
+.pk-offlist { display: grid; gap: 4px; }
+.pk-off { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; font-size: 14px; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+.pk-offsize { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.pk-off .chip { min-width: 108px; justify-content: center; box-shadow: none; }
+.pk-off .chip:disabled { cursor: default; color: var(--muted); }
+.net.off { border-style: dashed; }
+.net.off::before { animation: none; background: var(--muted); }

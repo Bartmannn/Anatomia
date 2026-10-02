@@ -25,7 +25,7 @@ Atlas mogą swobodnie wykorzystywać uczniowie i nauczyciele. Uwagi i poprawki s
 - **Quiz** z kilkoma rodzajami pytań: *Który kręg?* (podświetlony kręg, a w module *Pojedyncze kręgi* — sam kształt), *Która część?* (zaznaczony punkt na kręgu), *Który mięsień?* i *Czyje przyczepy?* (świecą tylko przyczepy na kościach).
 - **Tryb „Popraw lub dodaj punkty”** do ręcznego poprawiania położenia etykiet i dodawania brakujących części, a także przycisk **Zgłoś brak lub błąd** (opis niżej).
 - **Linki do konkretnego widoku**, np. `…/Anatomia/#kregi/Th7` (moduł / kręg) — wygodne do wysłania w grupie.
-- Działa na komputerze i na telefonie, w jasnym i ciemnym motywie.
+- Działa na komputerze i na telefonie, w jasnym i ciemnym motywie, także **bez internetu** (po zapisaniu modułu) i jako ikona na ekranie głównym telefonu.
 
 W modelu nie ma kości guzicznej, bo nie ma jej w użytym zbiorze danych.
 
@@ -100,12 +100,19 @@ Strona jest przygotowana z myślą o telefonach:
 
 Dopisz `&debug` na końcu adresu (np. `http://localhost:8000/#kregoslup/C7&debug`), żeby zobaczyć licznik: klatki na sekundę, czas rysowania, liczbę trójkątów, aktualną rozdzielczość i przełącznik jakości.
 
+## Bez internetu i na telefonie
+
+- **Praca offline.** Strona zapisuje w przeglądarce swój kod i wszystko, co było oglądane (`sw.js`). Na zajęciach bez Wi-Fi otworzy się z tych plików. Przed zajęciami można zapisać cały moduł: menu *Moduł* → *Bez internetu* → *Zapisz* (od ok. 0,8 MB dla mięśni do ok. 2,3 MB dla całego kręgosłupa).
+- **Aktualizacje.** Kod strony jest pobierany najpierw z sieci, więc poprawki widać od razu. Modele mają w adresie swój rozmiar (`?v=…`), więc po przebudowie paczek pobiorą się nowe. Po zmianie three.js, czcionek albo ikon podnieś `WERSJA` w `sw.js`. Nowy plik w `js/` trzeba dopisać do listy `PLIKI_STRONY` w `sw.js` — przypomni o tym test.
+- **Ikona na ekranie głównym.** Na telefonie: menu przeglądarki → *Dodaj do ekranu głównego* (Android) albo *Udostępnij → Do ekranu początkowego* (iPhone). Atlas otwiera się wtedy jak aplikacja (`manifest.webmanifest`, `icons/`).
+- **Podgląd linku.** Po wklejeniu linku na Messengerze, Discordzie czy Facebooku pokazuje się obrazek `og.jpg` z opisem. Adres obrazka musi być pełny — przy innym hostingu zmień `og:url` i `og:image` w `index.html`.
+
 ## Testy
 
 Przy każdej zmianie w repozytorium i każdej propozycji zmian (pull request) GitHub sam uruchamia testy (`.github/workflows/testy.yml`). Wynik widać w zakładce *Actions* i przy propozycji zmian: zielony ✓ albo czerwony ✗ z opisem, co jest nie tak.
 
-- **Sprawdzenie treści** (`tools/check_content.mjs`, wystarczy Node.js): czy `content.js`, `content-miesnie.js` i pliki z punktami dają się wczytać (zgubiony cudzysłów albo przecinek jest wskazany z numerem wiersza), czy każdy kręg i mięsień ma nazwy i opisy, czy klucze kręgów i kości nie mają literówek, czy są wszystkie pliki modeli i czcionek, i czy strona nie odwołuje się do zewnętrznych serwerów.
-- **Test w przeglądarce** (`tools/smoke_test.py`, Python + Playwright): otwiera każdy moduł, przechodzi przez wszystkie rodzaje pytań w quizie i tryb poprawiania punktów, także w widoku telefonu, i sprawdza, czy nie ma błędów.
+- **Sprawdzenie treści** (`tools/check_content.mjs`, wystarczy Node.js): czy `content.js`, `content-miesnie.js` i pliki z punktami dają się wczytać (zgubiony cudzysłów albo przecinek jest wskazany z numerem wiersza), czy każdy kręg i mięsień ma nazwy i opisy, czy klucze kręgów i kości nie mają literówek, czy są wszystkie pliki modeli, czcionek i ikon, czy `sw.js` zna wszystkie pliki strony, i czy strona nie odwołuje się do zewnętrznych serwerów.
+- **Test w przeglądarce** (`tools/smoke_test.py`, Python + Playwright): otwiera każdy moduł, przechodzi przez wszystkie rodzaje pytań w quizie i tryb poprawiania punktów, zapisuje moduł i otwiera go bez internetu, sprawdza widok telefonu i to, czy nie ma błędów.
 
 Lokalnie:
 
@@ -168,10 +175,13 @@ Wszystkie teksty, czyli nazwy kręgów, cechy, uwagi dla masażysty, przyczepy m
 
 | Plik / folder | Co to jest |
 |---|---|
-| `index.html`, `styles.css`, `app.js` | Strona (three.js, bez frameworków i bez budowania) |
+| `index.html`, `styles.css` | Strona (three.js, bez frameworków i bez budowania) |
+| `app.js` | Wejście: wczytuje moduły z `js/` i uruchamia atlas |
+| `js/` | Kod strony podzielony na moduły (szczegóły niżej) |
+| `sw.js`, `manifest.webmanifest`, `icons/` | Praca bez internetu i instalacja na telefonie |
+| `og.jpg` | Obrazek podglądu linku |
 | `content.js` | Opisy kręgów i nazwy części kości |
 | `content-miesnie.js` | Opisy mięśni i ich przyczepów |
-| `miesnie.js` | Część strony obsługująca moduł mięśni (panel, lista mięśni, etykiety) |
 | `landmarks.js` | Położenie etykiet wyznaczone automatycznie |
 | `landmarks-fix.js` | Ręczne poprawki etykiet i lista sprawdzonych kręgów (tworzy go tryb „Popraw punkty”) |
 | `models/pakiety/` | Model podzielony na małe paczki, które strona pobiera na żądanie: przegląd odcinków, pełne kręgi, pary żeber (`spis.js` — lista z rozmiarami) |
@@ -188,6 +198,26 @@ Wszystkie teksty, czyli nazwy kręgów, cechy, uwagi dla masażysty, przyczepy m
 | `tools/muscles.py` | Buduje paczki mięśni (`models/pakiety/miesnie/`) i kości tła (`kosci-tla.pak`) |
 | `Dockerfile`, `compose.yaml`, `docker/` | Uruchomienie strony w kontenerze (nginx) |
 | `CONTRIBUTING.md` | Jak zgłaszać i wprowadzać poprawki |
+
+### Moduły w `js/`
+
+| Plik | Za co odpowiada |
+|---|---|
+| `stan.js` | Stan aplikacji, stałe (kolejność kręgów, lista modułów), wspólne zbiory siatek. Nie zależy od innych plików strony |
+| `widok.js` | Renderer, scena, kamera, sterowanie, materiały, kadrowanie. Zależy tylko od `stan.js` |
+| `petla.js` | Pętla rysowania: rysowanie na żądanie, rozdzielczość zależna od ruchu, płynne przybliżanie, licznik `&debug` |
+| `paczki.js` | Pobieranie paczek modeli, dekodowanie formatu `.pak`, poziomy szczegółów |
+| `malowanie.js` | Kolory z motywu, malowanie kości, żeber i mięśni, podświetlanie przyczepów, jakość materiałów |
+| `punkty.js` | Punkty etykiet: automatyczne, poprawione i dodane ręcznie; nazwy części |
+| `etykiety.js` | Etykiety na modelu: wybór, zasłanianie, rozkład w kolumnach |
+| `celowanie.js` | Wybór myszką i palcem, podświetlanie pod kursorem (na uproszczonych bryłach) |
+| `panel.js` | Lewa kolumna (kręgi albo mięśnie) i panel z opisem |
+| `quiz.js` | Quiz: rodzaje pytań, odpowiedzi, wynik |
+| `edytor.js` | Tryb „Popraw lub dodaj punkty”, eksport `landmarks-fix.js`, zgłoszenia |
+| `moduly.js` | Wybór modułu, zapis na urządzeniu, zasłona wczytywania, adres strony, przyciski i klawiatura |
+| `miesnie.js` | Część modułu mięśni niezależna od 3D (lista, panel, etykiety, przyczepy) |
+
+Moduły z górnego poziomu korzystają tylko ze `stan.js` i `widok.js`; pozostałe zależności są wywoływane dopiero w funkcjach, dlatego kolejność wczytywania nie ma znaczenia. Uruchomienie (podpięcie przycisków, pętla) jest w `app.js`.
 
 ## Odtworzenie modelu z danych źródłowych
 
@@ -218,8 +248,10 @@ Publikacja źródłowa:
 
 **Czcionki** (`fonts/`) — Archivo, Hanken Grotesk i JetBrains Mono, licencja SIL Open Font License 1.1 (pliki `fonts/OFL-*.txt`). Są w repozytorium, więc strona nie łączy się z Google Fonts.
 
-**Kod strony i skrypty** (`index.html`, `styles.css`, `app.js`, `miesnie.js`, `tools/`) — licencja MIT (`LICENSE`).
+**Kod strony i skrypty** (`index.html`, `styles.css`, `app.js`, `js/`, `sw.js`, `tools/`) — licencja MIT (`LICENSE`).
 
 **Opisy** (`content.js`, `content-miesnie.js`) — licencja CC BY-SA 4.0.
+
+**Obrazek podglądu** (`og.jpg`) zawiera render modeli BodyParts3D, więc jest na licencji CC BY-SA 2.1 JP. Ikony (`icons/`) — MIT, jak kod.
 
 Dziękujemy autorom BodyParts3D za udostępnienie ich pracy.
