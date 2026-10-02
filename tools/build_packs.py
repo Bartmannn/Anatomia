@@ -283,11 +283,27 @@ def main():
             rov.append((nm, su, sf, e))
     put('zebra-przeglad', rov)
 
+    write_index()
+
+
+def write_index():
+    """spis.js: wszystkie paczki z models/pakiety (także z tools/muscles.py) z rozmiarem i liczbą trójkątów."""
+    spis = {}
+    for r, _, fs in os.walk(OUT):
+        for f in sorted(fs):
+            if not f.endswith('.pak'): continue
+            path = os.path.join(r, f)
+            pid = os.path.relpath(path, OUT)[:-4].replace(os.sep, '/')
+            raw = gzip.decompress(open(path, 'rb').read())
+            hl = struct.unpack('<I', raw[4:8])[0]
+            head = json.loads(raw[8:8 + hl])
+            spis[pid] = {'bajty': os.path.getsize(path), 'trojkaty': sum(m['t'] for m in head['meshes'])}
+    order = lambda k: (0 if k.startswith('przeglad') else 1 if k.startswith('kregi/') else 2 if k.startswith('zebra') else 3, k)
     with open(os.path.join(OUT, 'spis.js'), 'w', encoding='utf-8') as fh:
-        fh.write('// Wygenerowane przez tools/build_packs.py: paczki w models/pakiety/<nazwa>.pak,\n')
+        fh.write('// Wygenerowane przez tools/build_packs.py (write_index): paczki w models/pakiety/<nazwa>.pak,\n')
         fh.write('// rozmiar po kompresji (bajty) i liczba trójkątów. Modele: BodyParts3D (DBCLS), CC BY-SA 2.1 JP.\n')
-        fh.write('export const PACKS = {\n' + ''.join(f'  {json.dumps(k)}: {json.dumps(v)},\n' for k, v in spis.items()) + '};\n')
-    print('razem', sum(v['bajty'] for v in spis.values()))
+        fh.write('export const PACKS = {\n' + ''.join(f'  {json.dumps(k)}: {json.dumps(spis[k])},\n' for k in sorted(spis, key=order)) + '};\n')
+    print('spis.js:', len(spis), 'paczek, razem', sum(v['bajty'] for v in spis.values()), 'B')
 
 
 if __name__ == '__main__':

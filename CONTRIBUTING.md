@@ -20,9 +20,9 @@ Podaj, **który kręg** (np. Th7) i **co jest nie tak**. Jeśli to kwestia meryt
 
 ## 2. Popraw tekst opisu (bez instalowania czegokolwiek)
 
-Wszystkie teksty są w jednym pliku: [`content.js`](content.js).
+Teksty o kościach są w pliku [`content.js`](content.js), a o mięśniach w [`content-miesnie.js`](content-miesnie.js).
 
-1. Otwórz plik [`content.js`](content.js) na GitHubie i kliknij ikonę ołówka (*Edit this file*).
+1. Otwórz plik [`content.js`](content.js) (albo `content-miesnie.js`) na GitHubie i kliknij ikonę ołówka (*Edit this file*).
 2. Znajdź tekst do poprawy, np. przez `Ctrl+F`, i zmień go.
 3. Na dole strony (albo po kliknięciu *Commit changes…*) krótko opisz zmianę i podaj źródło.
 4. Kliknij *Propose changes*, a potem *Create pull request*. Przejrzę zmianę i ją dołączę.
@@ -77,4 +77,4 @@ Strona to czysty HTML, CSS i JavaScript (three.js), bez budowania. Uruchomienie 
 
 ## Licencja wkładu
 
-Wysyłając poprawkę, zgadzasz się na jej udostępnienie na licencji danego pliku: opisy w `content.js` na CC BY-SA 4.0, punkty etykiet na CC BY-SA 2.1 JP (jak modele), kod na MIT.
+Wysyłając poprawkę, zgadzasz się na jej udostępnienie na licencji danego pliku: opisy w `content.js` i `content-miesnie.js` na CC BY-SA 4.0, punkty etykiet na CC BY-SA 2.1 JP (jak modele), kod na MIT.

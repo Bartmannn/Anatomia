@@ -1,6 +1,6 @@
-# Anatomia — atlas kręgosłupa 3D
+# Anatomia — atlas 3D dla techników masażystów
 
-Interaktywny, trójwymiarowy atlas kręgosłupa, który działa w przeglądarce. Model można obracać, przybliżać i klikać. Każdy kręg ma nazwy swoich części, opis budowy, uwagi „dla masażysty” i wybrane przyczepy mięśni.
+Interaktywny, trójwymiarowy atlas kręgosłupa i mięśni grzbietu, który działa w przeglądarce. Model można obracać, przybliżać i klikać. Każdy kręg ma nazwy swoich części, opis budowy i uwagi „dla masażysty”, a każdy mięsień — przyczepy (zaznaczone na kościach), działanie i unerwienie.
 
 **Strona:** https://bartmannn.github.io/Anatomia/
 
@@ -14,7 +14,8 @@ Atlas mogą swobodnie wykorzystywać uczniowie i nauczyciele. Uwagi i poprawki s
 
 ## Co potrafi
 
-- **Trzy moduły do wyboru:** *Cały kręgosłup*, *Pojedyncze kręgi* (jeden kręg naraz, w pełnej szczegółowości) i *Kręgi piersiowe i żebra*. Strona pobiera tylko wybrany moduł.
+- **Moduły do wyboru.** Kości: *Cały kręgosłup*, *Pojedyncze kręgi* (jeden kręg naraz, w pełnej szczegółowości) i *Kręgi piersiowe i żebra*. Mięśnie: *Mięśnie grzbietu*. Strona pobiera tylko wybrany moduł.
+- **Mięśnie grzbietu warstwami.** Na razie warstwa powierzchowna: mięsień czworoboczny (części zstępująca, poprzeczna i wstępująca) i najszerszy grzbietu. Po wybraniu mięśnia jego przyczepy podświetlają się na kościach (kręgi, łopatka, obojczyk, kość ramienna, potyliczna, biodrowa, żebra), a po najechaniu na część w opisie — tylko przyczepy tej części. Warstwy pośrednia i głęboka są w przygotowaniu.
 - **Model 3D kręgosłupa:** 24 kręgi (C1–L5), kość krzyżowa i 23 krążki międzykręgowe.
 - **Nazwy części kości** z liniami odniesienia, np. trzon, łuk, otwór kręgowy, wyrostki kolczysty, poprzeczne i stawowe. Kręgi C1 i C2, kość krzyżowa i krążki mają własne nazwy.
 - **Żebra i ich połączenia z kręgami piersiowymi**: dołki żebrowe trzonu (górny i dolny) i wyrostka poprzecznego są zaznaczone kolorem, a po włączeniu przycisku *Żebra* widać, jak układają się w nich głowa i guzek żebra (staw głowy żebra, staw żebrowo-poprzeczny).
@@ -82,6 +83,7 @@ Aktualna przeglądarka z obsługą WebGL: Chrome, Edge, Firefox lub Safari (iOS 
 | Cały kręgosłup | ok. 260 kB | 22–150 kB za każdy wybrany lub mocno przybliżony kręg |
 | Pojedyncze kręgi | 22–150 kB | tyle samo za każdy kolejny kręg |
 | Kręgi piersiowe i żebra | ok. 220 kB | szczegóły kręgu i 2 par żeber przy nim |
+| Mięśnie grzbietu | ok. 590 kB | nic (kości są tłem w wersji uproszczonej) |
 
 Dla porównania pełny model w jednym pliku miał ok. 8 MB.
 
@@ -123,14 +125,16 @@ Poprawki zapisują się w przeglądarce do czasu pobrania pliku. `landmarks.js` 
 
 ## Edycja opisów
 
-Wszystkie teksty, czyli nazwy kręgów, cechy, uwagi dla masażysty, przyczepy mięśni, nazwy części kości i punkty wyczuwalne, są w pliku `content.js`. Można go edytować w zwykłym edytorze tekstu, bez znajomości reszty kodu. Po zapisaniu wystarczy odświeżyć stronę.
+Wszystkie teksty, czyli nazwy kręgów, cechy, uwagi dla masażysty, przyczepy mięśni, nazwy części kości i punkty wyczuwalne, są w pliku `content.js`. Opisy mięśni (przyczepy, działanie, unerwienie, masaż i listy kości do podświetlenia) są w `content-miesnie.js`. Można go edytować w zwykłym edytorze tekstu, bez znajomości reszty kodu. Po zapisaniu wystarczy odświeżyć stronę.
 
 ## Struktura projektu
 
 | Plik / folder | Co to jest |
 |---|---|
 | `index.html`, `styles.css`, `app.js` | Strona (three.js, bez frameworków i bez budowania) |
-| `content.js` | Wszystkie opisy i nazwy części kości |
+| `content.js` | Opisy kręgów i nazwy części kości |
+| `content-miesnie.js` | Opisy mięśni i ich przyczepów |
+| `miesnie.js` | Część strony obsługująca moduł mięśni (panel, lista mięśni, etykiety) |
 | `landmarks.js` | Położenie etykiet wyznaczone automatycznie |
 | `landmarks-fix.js` | Ręczne poprawki etykiet i lista sprawdzonych kręgów (tworzy go tryb „Popraw punkty”) |
 | `models/pakiety/` | Model podzielony na małe paczki, które strona pobiera na żądanie: przegląd odcinków, pełne kręgi, pary żeber (`spis.js` — lista z rozmiarami) |
@@ -142,12 +146,13 @@ Wszystkie teksty, czyli nazwy kręgów, cechy, uwagi dla masażysty, przyczepy m
 | `tools/landmarks.py` | Wyznacza z geometrii kości punkty do `landmarks.js` |
 | `tools/ribs.py` | Buduje `models/zebra.glb` i wyznacza stawy żebrowo-kręgowe do `landmarks-ribs.js` |
 | `tools/build_packs.py` | Dzieli oba modele na paczki w `models/pakiety/` i przygotowuje wersje uproszczone |
+| `tools/muscles.py` | Buduje paczki mięśni (`models/pakiety/miesnie/`) i kości tła (`kosci-tla.pak`) |
 | `Dockerfile`, `compose.yaml`, `docker/` | Uruchomienie strony w kontenerze (nginx) |
 | `CONTRIBUTING.md` | Jak zgłaszać i wprowadzać poprawki |
 
 ## Odtworzenie modelu z danych źródłowych
 
-Potrzebne są Python 3 z bibliotekami `numpy` i `scipy` oraz pliki STL kręgów i żeber z repozytorium [BodyParts3D](https://github.com/Kevin-Mattheus-Moerman/BodyParts3D) (folder `assets/BodyParts3D_data/stl`). Listę użytych plików (identyfikatory FMA) znajdziesz na początku skryptów.
+Potrzebne są Python 3 z bibliotekami `numpy` i `scipy` oraz pliki STL kręgów, żeber, mięśni i kości tła z repozytorium [BodyParts3D](https://github.com/Kevin-Mattheus-Moerman/BodyParts3D) (folder `assets/BodyParts3D_data/stl`), najlepiej wszystkie w jednym folderze. Listę użytych plików (identyfikatory FMA) znajdziesz na początku skryptów.
 
 ```
 pip install numpy scipy
@@ -155,6 +160,7 @@ python tools/build_glb.py <folder_z_plikami_stl> models/kregoslup.glb
 python tools/landmarks.py <folder_z_plikami_stl> landmarks.js
 python tools/ribs.py <folder_z_plikami_stl>
 python tools/build_packs.py
+python tools/muscles.py <folder_z_plikami_stl>
 ```
 
 Ostatni krok (ok. minuty) trzeba powtórzyć po każdej zmianie `models/kregoslup.glb` lub `models/zebra.glb`.
@@ -163,7 +169,7 @@ Ostatni krok (ok. minuty) trzeba powtórzyć po każdej zmianie `models/kregoslu
 
 **Modele 3D** — BodyParts3D, © The Database Center for Life Science (DBCLS), licencja [CC BY-SA 2.1 JP](https://creativecommons.org/licenses/by-sa/2.1/jp/deed.en).
 Dane pobrane z repozytorium [Kevin-Mattheus-Moerman/BodyParts3D](https://github.com/Kevin-Mattheus-Moerman/BodyParts3D) (wersja 3.0 / 20110915, pliki STL przekonwertowane z oryginalnych OBJ).
-Wprowadzone zmiany: wybór kręgów, krążków i żeber, uproszczenie siatek żeber, zmiana układu osi i skali, scalenie wierzchołków, obliczenie normalnych, kwantyzacja i zapis do formatu glTF (GLB), podział na paczki z wersjami uproszczonymi i kompresja. Pliki `models/kregoslup.glb`, `models/zebra.glb`, `models/pakiety/`, `landmarks.js`, `landmarks-ribs.js` i `landmarks-fix.js` (współrzędne na tych samych modelach) są udostępniane na tej samej licencji CC BY-SA 2.1 JP.
+Wprowadzone zmiany: wybór kręgów, krążków, żeber, mięśni grzbietu i kości obręczy barkowej, kości ramiennej, biodrowej i potylicznej, uproszczenie siatek żeber, zmiana układu osi i skali, scalenie wierzchołków, obliczenie normalnych, kwantyzacja i zapis do formatu glTF (GLB), podział na paczki z wersjami uproszczonymi i kompresja. Pliki `models/kregoslup.glb`, `models/zebra.glb`, `models/pakiety/`, `landmarks.js`, `landmarks-ribs.js` i `landmarks-fix.js` (współrzędne na tych samych modelach) są udostępniane na tej samej licencji CC BY-SA 2.1 JP.
 
 Publikacja źródłowa:
 > Mitsuhashi N, Fujieda K, Tamura T, Kawamoto S, Takagi T, Okubo K. *BodyParts3D: 3D structure database for anatomical concepts.* Nucleic Acids Res. 2009;37(Database issue):D782–5. https://doi.org/10.1093/nar/gkn613
@@ -171,8 +177,8 @@ Publikacja źródłowa:
 
 **three.js** — © three.js authors, licencja MIT (`vendor/three/LICENSE`).
 
-**Kod strony i skrypty** (`index.html`, `styles.css`, `app.js`, `tools/`) — licencja MIT (`LICENSE`).
+**Kod strony i skrypty** (`index.html`, `styles.css`, `app.js`, `miesnie.js`, `tools/`) — licencja MIT (`LICENSE`).
 
-**Opisy** (`content.js`) — licencja CC BY-SA 4.0.
+**Opisy** (`content.js`, `content-miesnie.js`) — licencja CC BY-SA 4.0.
 
 Dziękujemy autorom BodyParts3D za udostępnienie ich pracy.

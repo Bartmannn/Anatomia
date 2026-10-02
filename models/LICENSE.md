@@ -10,10 +10,10 @@ Wymagane oznaczenie autorstwa:
 
 Źródło plików STL: https://github.com/Kevin-Mattheus-Moerman/BodyParts3D (assets/BodyParts3D_data/stl, wersja 3.0 / 20110915).
 
-Zmiany: wybór części (kręgi C1–L5, kość krzyżowa, krążki międzykręgowe, 24 żebra), uproszczenie siatek żeber, wycięcie powierzchni dołków żebrowych, zmiana układu osi i skali,
+Zmiany: wybór części (kręgi C1–L5, kość krzyżowa, krążki międzykręgowe, 24 żebra, mięśnie grzbietu, łopatki, obojczyki, kości ramienne, biodrowe i potyliczna), uproszczenie siatek żeber, wycięcie powierzchni dołków żebrowych, zmiana układu osi i skali,
 scalenie wierzchołków, obliczenie normalnych, kwantyzacja, zapis do glTF 2.0 (GLB) skryptami `tools/build_glb.py` i `tools/ribs.py`.
 Paczki `pakiety/*.pak` (skrypt `tools/build_packs.py`): podział na kręgi i pary żeber, wersje uproszczone (przegląd),
-kwantyzacja do 0,02 mm i kompresja (format opisany w skrypcie).
+kwantyzacja do 0,02 mm i kompresja (format opisany w skrypcie). Mięśnie i kości tła: `tools/muscles.py` (uproszczenie siatek, punkty etykiet).
 
 Te pliki są udostępniane na tej samej licencji: CC BY-SA 2.1 JP.
 

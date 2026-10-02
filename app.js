@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { PACKS } from './models/pakiety/spis.js';
+import * as MUS from './miesnie.js';
 import { REGIONS, PARTS, DISC, PART_LABELS, PART_LABELS_SPECIAL, PALPATION } from './content.js';
 import { LANDMARKS } from './landmarks.js';
 import { FIXES, REVIEWED } from './landmarks-fix.js';
@@ -41,6 +42,8 @@ function readColors() {
     bone: new THREE.Color(dark ? '#d9d2c4' : '#ebe5d8'),
     disc: new THREE.Color(dark ? '#7f99ad' : '#a8bccb'),
     facet: new THREE.Color(cs.getPropertyValue('--facet').trim() || '#0f7f8a'),
+    muscle: new THREE.Color(cs.getPropertyValue('--muscle').trim() || '#b8432f'),
+    muscleSoft: new THREE.Color(cs.getPropertyValue('--muscle-soft').trim() || '#c98478'),
   };
   for (const r of REGION_KEYS) document.documentElement.style.setProperty(`--rc-${r}`, cs.getPropertyValue(`--${r.toLowerCase()}`));
 }
@@ -58,19 +61,27 @@ const state = {
   focusPart: null,
   edit: { part: null, slot: 0 },
   ribs: false,
+  layers: Object.fromEntries(MUS.READY_LAYERS.map((n) => [n, true])),   // widoczne warstwy mięśni
+  attach: true,           // podświetlanie przyczepów na kościach
+  lastBone: 'C7',         // ostatnio wybrany kręg (po powrocie z modułu mięśni)
   module: null,           // 'kregoslup' | 'kregi' | 'zebra' (null = jeszcze nie wybrano)
 };
 
 /* ---------- Moduły: co oglądamy i co trzeba pobrać ---------- */
 const TH_KEYS = ORDER.filter((k) => k.startsWith('Th'));
 const MODULES = {
-  kregoslup: { name: 'Cały kręgosłup', desc: 'Wszystkie kręgi i krążki. Szczegóły kręgu pobierają się po wybraniu go albo przybliżeniu.',
+  kregoslup: { group: 'Kości', kind: 'bones', name: 'Cały kręgosłup', desc: 'Wszystkie kręgi i krążki. Szczegóły kręgu pobierają się po wybraniu go albo przybliżeniu.',
     base: ['przeglad-C', 'przeglad-Th', 'przeglad-L', 'przeglad-S'], keys: ORDER },
-  kregi: { name: 'Pojedyncze kręgi', desc: 'Jeden kręg naraz, w pełnej szczegółowości. Pobiera tylko oglądany kręg.',
+  kregi: { group: 'Kości', kind: 'bones', name: 'Pojedyncze kręgi', desc: 'Jeden kręg naraz, w pełnej szczegółowości. Pobiera tylko oglądany kręg.',
     base: [], keys: ORDER },
-  zebra: { name: 'Kręgi piersiowe i żebra', desc: 'Th1–Th12 z żebrami, dołki żebrowe i stawy żebrowo-kręgowe.',
+  zebra: { group: 'Kości', kind: 'bones', name: 'Kręgi piersiowe i żebra', desc: 'Th1–Th12 z żebrami, dołki żebrowe i stawy żebrowo-kręgowe.',
     base: ['przeglad-Th', 'zebra-przeglad'], keys: TH_KEYS },
+  grzbiet: { group: 'Mięśnie', kind: 'muscles', name: 'Mięśnie grzbietu',
+    desc: 'Warstwa powierzchowna: czworoboczny i najszerszy grzbietu, z przyczepami zaznaczonymi na kościach.',
+    base: ['przeglad-C', 'przeglad-Th', 'przeglad-L', 'przeglad-S', 'kosci-tla', 'zebra-przeglad', ...MUS.READY_LAYERS.map(MUS.layerPack)],
+    keys: MUS.MUSCLE_KEYS },
 };
+const muscleMode = () => MODULES[state.module]?.kind === 'muscles';
 const modKeys = () => MODULES[state.module]?.keys || ORDER;
 const single = () => state.module === 'kregi';
 // widok z bliska jednego kręgu (pozostałe przezroczyste albo ukryte)
@@ -78,7 +89,18 @@ const closeUp = () => (state.isolate && state.mode === 'atlas') || state.mode ==
 const currentKey = () => (state.mode === 'quiz' ? state.quiz?.target : state.selected) || state.selected;
 
 /* ---------- Ruler ---------- */
+let rulerKind = null;
 function buildRuler() {
+  const kind = muscleMode() ? 'muscles' : 'bones';
+  if (kind === rulerKind) return;
+  rulerKind = kind;
+  rulerEl.classList.toggle('mus', kind === 'muscles');
+  rulerEl.setAttribute('aria-label', kind === 'muscles' ? 'Mięśnie' : 'Kręgi');
+  if (kind === 'muscles') {
+    rulerEl.innerHTML = MUS.navHTML(esc);
+    rulerEl.querySelectorAll('button[data-key]').forEach((b) => b.addEventListener('click', () => select(b.dataset.key, true)));
+    return;
+  }
   const groups = { C: [], Th: [], L: [], S: [] };
   ORDER.forEach((k) => groups[regionOf(k)].push(k));
   rulerEl.innerHTML = '';
@@ -102,7 +124,7 @@ function buildRuler() {
 }
 function syncRuler() {
   const keys = new Set(modKeys());
-  rulerEl.querySelectorAll('.group').forEach((g) => { g.hidden = !ORDER.some((k) => regionOf(k) === g.dataset.region && keys.has(k)); });
+  rulerEl.querySelectorAll('.group[data-region]').forEach((g) => { g.hidden = !ORDER.some((k) => regionOf(k) === g.dataset.region && keys.has(k)); });
   rulerEl.querySelectorAll('button').forEach((b) => {
     const k = b.id.slice(2);
     b.setAttribute('aria-current', String(state.mode !== 'quiz' && k === state.selected));
@@ -171,10 +193,10 @@ function matcap() {
   return matcapTex;
 }
 function newMat(kind) {
-  const extra = kind === 'rib' ? { side: THREE.DoubleSide }
+  const extra = kind === 'rib' || kind === 'muscle' ? { side: THREE.DoubleSide }
     : kind === 'facet' ? { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 } : {};
   if (perf.quality === 'fast') return new THREE.MeshMatcapMaterial({ matcap: matcap(), ...extra });
-  return new THREE.MeshStandardMaterial({ roughness: kind === 'disc' ? 0.55 : kind === 'facet' ? 0.45 : 0.82, metalness: 0, ...extra });
+  return new THREE.MeshStandardMaterial({ roughness: kind === 'disc' ? 0.55 : kind === 'facet' ? 0.45 : kind === 'muscle' ? 0.6 : 0.82, metalness: 0, ...extra });
 }
 
 const key = new THREE.DirectionalLight(0xffffff, 1.6);
@@ -192,7 +214,12 @@ controls.dampingFactor = 0.08;
 controls.minDistance = 0.6;
 controls.maxDistance = 30;
 
-const parts = {};   // key -> mesh
+const parts = {};   // key -> mesh (kręgi i krążki)
+const muscleMeshes = [];   // części mięśni (obie strony)
+const ctxMeshes = [];      // kości tła: łopatka, obojczyk, kość ramienna, biodrowa, potyliczna
+const byName = {};         // nazwa siatki -> mesh (mięśnie i kości tła)
+const objectsOf = (k) => (parts[k] ? [parts[k]] : muscleMeshes.filter((m) => m.userData.muscle === k));
+const hasKey = (k) => objectsOf(k).length > 0;
 const root = new THREE.Group();
 scene.add(root);
 
@@ -219,7 +246,7 @@ let zoomTarget = null;   // płynne przybliżanie kółkiem myszy
 function boxOf(keys) {
   const box = new THREE.Box3();
   // ukryte części (inny moduł, wyłączone krążki) nie wpływają na kadr
-  keys.forEach((k) => parts[k] && (parts[k].visible || keys.length === 1) && box.expandByObject(parts[k]));
+  for (const k of keys) for (const o of objectsOf(k)) if (o.visible || keys.length === 1) box.union(o.geometry.boundingBox);
   return box;
 }
 const isoPad = () => (renderer.domElement.clientWidth < 520 ? 2.4 : 1.9);
@@ -228,7 +255,7 @@ const closeFrame = (k, dir = null) => frame([k], dir, isoPad() * (state.ribs && 
 let pendingFrame = null;
 function frameWhenReady(key, fn) {
   pendingFrame = null;
-  if (parts[key]) fn(); else pendingFrame = { key, fn };
+  if (hasKey(key)) fn(); else pendingFrame = { key, fn };
 }
 function frame(keys, dir, pad = 1.1) {
   zoomTarget = null;
@@ -269,7 +296,54 @@ function moduleVisible(k) {
   if (state.module === 'zebra') return regionOf(k) === 'Th';
   return true;
 }
+function setFade(m, faded, op = 0.09) {
+  if (m.material.transparent !== faded) m.material.needsUpdate = true;
+  m.material.transparent = faded;
+  m.material.opacity = faded ? op : 1;
+  m.material.depthWrite = !faded;
+}
+// Moduł mięśni: kości jako tło, przyczepy wybranego mięśnia (albo jego części) na kolor dołków
+function paintMuscles() {
+  const sel = state.selected;
+  const att = state.attach ? MUS.attachSet(sel, state.focusPart) : null;
+  const iso = state.isolate && state.mode === 'atlas';
+  const plain = (m, on, base = COLORS.bone) => {
+    m.material.color.copy(on ? COLORS.facet : base);
+    if (m.material.emissive) m.material.emissive.copy(BLACK);
+    setFade(m, false);
+  };
+  for (const [k, m] of Object.entries(parts)) {
+    const disc = k.startsWith('D_');
+    m.visible = !disc || state.showDiscs;
+    plain(m, !!att?.vertebrae.has(k), disc ? COLORS.disc : COLORS.bone);
+  }
+  for (const m of ctxMeshes) { m.visible = true; plain(m, !!att?.bones.has(m.userData.bone)); }
+  for (const m of muscleMeshes) {
+    const e = m.userData;
+    m.visible = !!state.layers[e.layer];
+    const isSel = e.muscle === sel;
+    tmp.copy(isSel ? COLORS.muscle : COLORS.muscleSoft);
+    if (isSel && state.focusPart && state.focusPart !== e.part) tmp.lerp(COLORS.muscleSoft, 0.65);
+    const hov = e.muscle === state.hovered && !isSel;
+    if (m.material.emissive) { m.material.emissive.copy(hov ? COLORS.muscle : BLACK); m.material.emissiveIntensity = 0.25; }
+    else if (hov) tmp.lerp(COLORS.muscle, 0.4);
+    m.material.color.copy(tmp);
+    setFade(m, iso && !isSel, 0.12);
+  }
+  for (const mat of [ribMat, ribMatHi]) if (mat.clippingPlanes?.length) { mat.clippingPlanes = null; mat.needsUpdate = true; }
+  ribMat.color.copy(COLORS.bone);
+  ribMatHi.color.copy(COLORS.facet);
+  for (const m of ribMeshes) {
+    const e = m.userData;
+    m.visible = e.kind === 'rib' && state.ribs;
+    if (e.kind === 'rib') m.material = att?.ribs.has(e.rib) ? ribMatHi : ribMat;
+  }
+  invalidate();
+}
 function paint() {
+  if (muscleMode()) { paintMuscles(); return; }
+  for (const m of muscleMeshes) m.visible = false;
+  for (const m of ctxMeshes) m.visible = false;
   const sel = state.mode === 'quiz' ? state.quiz?.target : state.selected;
   for (const [k, m] of Object.entries(parts)) {
     const isDisc = k.startsWith('D_');
@@ -452,15 +526,18 @@ function ensurePack(id, opts = {}) {
 }
 function addGeometry({ name, extras, geometry }, low) {
   (low ? lowGeo : highGeo)[name] = geometry;
-  let mesh = parts[name] || ribByName[name];
+  let mesh = parts[name] || ribByName[name] || byName[name];
   if (!mesh) {
     const kind = extras.kind;
     const bone = kind === 'bone' || kind === 'disc';
-    mesh = new THREE.Mesh(geometry, bone ? newMat(kind) : kind === 'rib' ? ribMat : facetMat);
+    const own = bone || kind === 'muscle' || kind === 'ctxbone';      // własny materiał (własny kolor)
+    mesh = new THREE.Mesh(geometry, own ? newMat(kind === 'ctxbone' ? 'bone' : kind) : kind === 'rib' ? ribMat : facetMat);
     mesh.name = name;
     mesh.userData = { ...extras };
     mesh.visible = false;               // o widoczności decyduje paint()
     if (bone) parts[name] = mesh;
+    else if (kind === 'muscle') { muscleMeshes.push(mesh); byName[name] = mesh; mesh.renderOrder = 2; }
+    else if (kind === 'ctxbone') { ctxMeshes.push(mesh); byName[name] = mesh; }
     else { mesh.renderOrder = kind === 'rib' ? 0 : 1; ribMeshes.push(mesh); ribByName[name] = mesh; }
     root.add(mesh);
   }
@@ -488,7 +565,7 @@ function refreshPanel() {
 function afterPack() {
   occl.clear();
   paint();
-  if (pendingFrame && parts[pendingFrame.key]) { const { fn } = pendingFrame; pendingFrame = null; fn(); }
+  if (pendingFrame && hasKey(pendingFrame.key)) { const { fn } = pendingFrame; pendingFrame = null; fn(); }
   if (state.mode !== 'quiz' && panelRibs !== ribsOn(state.selected)) refreshPanel();
   updateLoader();
   scheduleLod(60);   // np. pobranie sąsiadów, gdy wybrany kręg już jest
@@ -503,12 +580,13 @@ function updateLod() {
   if (!state.module) return;
   const need = new Set(MODULES[state.module].base);
   if (state.ribs && !single()) need.add('zebra-przeglad');
+  if (muscleMode()) for (const n of MUS.READY_LAYERS) need.add(MUS.layerPack(n));
   const sel = currentKey();
-  const allowed = new Set(modKeys());
+  const allowed = new Set(muscleMode() ? [] : modKeys());   // w module mięśni kręgi są tylko tłem (przegląd)
   // w quizie na całym kręgosłupie wystarczy podświetlony przegląd; w „Pojedynczych kręgach” trzeba pobrać kręg
   if (allowed.has(sel.replace('D_', '')) && (state.mode !== 'quiz' || single())) need.add(packForKey(sel));
-  if (state.ribs && state.mode !== 'quiz' && state.selected.startsWith('Th')) for (const n of relatedRibs(state.selected)) need.add(`zebra/${n}`);
-  if (!single()) {
+  if (state.ribs && state.mode !== 'quiz' && state.selected.startsWith('Th') && !muscleMode()) for (const n of relatedRibs(state.selected)) need.add(`zebra/${n}`);
+  if (!single() && !muscleMode()) {
     const W = renderer.domElement.clientWidth, H = renderer.domElement.clientHeight;
     const big = [];
     const consider = (obj, id, minPx, dim) => {
@@ -528,7 +606,7 @@ function updateLod() {
   const pre = new Set();
   // sąsiedzi dopiero, gdy potrzebne paczki są już pobrane (żeby nie zabierały im łącza)
   const needDone = [...need].every((id) => packs.get(id)?.done || !PACKS[id]);
-  if (needDone && !saveData() && state.mode === 'atlas') {
+  if (needDone && !saveData() && state.mode === 'atlas' && !muscleMode()) {
     const keys = modKeys();
     const i = keys.indexOf(sel.replace('D_', ''));
     for (const j of [i + 1, i - 1]) if (keys[j]) pre.add(packForKey(keys[j]));
@@ -666,6 +744,11 @@ function occluded(id, p) {
 
 let labelMode = 'palp';
 function labelItems() {
+  if (muscleMode()) {
+    if (!state.labels || state.mode !== 'atlas' || !muscleMeshes.length) return { items: [], ref: null };
+    const items = MUS.labelItems(muscleMeshes, state.selected, state.focusPart, camera.position);
+    return { items, ref: projectedRect(modKeys()), kind: 'parts' };
+  }
   if (!Object.keys(parts).length) return { items: [], ref: null };
   const k = state.selected;
   if (state.mode === 'edit') {
@@ -865,9 +948,22 @@ function bindParts() {
   });
 }
 
+function renderMuscle(k) {
+  panelEl.style.setProperty('--rc', 'var(--muscle)');
+  document.documentElement.style.setProperty('--rc', 'var(--muscle)');
+  bigcodeEl.textContent = '';
+  panelEl.innerHTML = MUS.panelHTML(k, esc, metaBlock);
+  panelEl.querySelectorAll('.prow').forEach((r) => {
+    const on = () => { state.focusPart = r.dataset.part; paint(); };
+    const off = () => { state.focusPart = null; paint(); };
+    r.addEventListener('mouseenter', on); r.addEventListener('focus', on);
+    r.addEventListener('mouseleave', off); r.addEventListener('blur', off);
+  });
+}
 function renderPart(k) {
   invalidate();
   panelRibs = ribsOn(k);
+  if (muscleMode()) { renderMuscle(k); return; }
   const reg = regionOf(k);
   const R = REGIONS[reg];
   panelEl.style.setProperty('--rc', `var(--${reg.toLowerCase()})`);
@@ -918,7 +1014,8 @@ function select(k, doFrame) {
   updateLod();
   paint();
   updateLoader();
-  if (doFrame || single()) {
+  if (muscleMode()) { if (doFrame) frameWhenReady(k, () => frame([k], null, state.isolate ? 1.4 : 1.15)); }
+  else if (doFrame || single()) {
     const keys = k.startsWith('D_') ? [k.slice(2)] : [k];
     if (closeUp()) frameWhenReady(k, () => closeFrame(k));
     else { pendingFrame = null; frame(neighbors(keys[0], 3)); }
@@ -976,14 +1073,19 @@ function answer(k) {
   $('#next').hidden = false;
   $('#next').focus();
 }
-function setMode(mode) {
-  state.mode = mode;
+function syncModeButtons() {
+  const mode = state.mode;
   document.querySelectorAll('.modes button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === mode)));
   rulerEl.style.opacity = mode === 'quiz' ? '.35' : '';
   rulerEl.style.pointerEvents = mode === 'quiz' ? 'none' : '';
   rulerEl.toggleAttribute('inert', mode === 'quiz');
   $('#isolate').disabled = mode !== 'atlas';
   document.body.classList.toggle('editing', mode === 'edit');
+}
+function setMode(mode) {
+  if (mode !== 'atlas' && muscleMode()) return;
+  state.mode = mode;
+  syncModeButtons();
   if (mode === 'quiz') {
     state.quiz = state.quiz || { good: 0, total: 0 };
     newQuestion();
@@ -1239,6 +1341,8 @@ function activeProxies(bonesOnly) {
   const list = [];
   for (const m of Object.values(parts)) if (m.visible && m.material.opacity > 0.5 && m.userData.proxy) list.push(m.userData.proxy);
   if (!bonesOnly) for (const m of ribMeshes) if (m.visible && m.userData.proxy) list.push(m.userData.proxy);
+  for (const m of muscleMeshes) if (m.visible && m.material.opacity > 0.5 && m.userData.proxy) list.push(m.userData.proxy);
+  for (const m of ctxMeshes) if (m.visible && m.userData.proxy) list.push(m.userData.proxy);
   return list;
 }
 // Pierwsze trafienie, z pominięciem części żeber odciętych w widoku „Tylko wybrany”.
@@ -1260,8 +1364,13 @@ function pick(ev) {
   const r = renderer.domElement.getBoundingClientRect();
   ptr.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
   ray.setFromCamera(ptr, camera);
+  if (muscleMode()) {                     // w module mięśni wybiera się tylko mięśnie (kości są tłem)
+    const t = firstProxyHit(ray, false)?.object.userData.target;
+    return t?.userData.kind === 'muscle' ? t.userData.muscle : null;
+  }
   const hit = firstProxyHit(ray, true);
-  return hit?.object.userData.target.name || null;
+  const t = hit?.object.userData.target;
+  return t && parts[t.name] ? t.name : null;
 }
 renderer.domElement.addEventListener('pointerdown', (e) => { downAt = [e.clientX, e.clientY]; });
 renderer.domElement.addEventListener('pointerup', (e) => {
@@ -1307,6 +1416,19 @@ function toggle(id, prop) {
     scheduleLod(0);
   });
 }
+// Moduł mięśni: przełączniki warstw (każda warstwa to osobna paczka) i podświetlania przyczepów
+function renderLayerChips() {
+  const box = $('#layers');
+  box.innerHTML = MUS.READY_LAYERS.map((n) => `<button type="button" class="chip" data-layer="${n}" aria-pressed="${!!state.layers[n]}"><span class="box"></span>${MUS.LAYERS[n].short}</button>`).join('');
+  box.querySelectorAll('[data-layer]').forEach((b) => b.addEventListener('click', () => {
+    const n = +b.dataset.layer;
+    state.layers[n] = !state.layers[n];
+    b.setAttribute('aria-pressed', String(state.layers[n]));
+    occl.clear();
+    paint();
+  }));
+}
+toggle('#attach', 'attach');
 toggle('#discs', 'showDiscs');
 toggle('#tint', 'tint');
 toggle('#isolate', 'isolate');
@@ -1351,7 +1473,7 @@ const validKey = (k) => ORDER.includes(k) || (/^D_/.test(k) && ORDER.includes(k.
 function parseHash() {
   const h = decodeURIComponent(location.hash.slice(1)).replace(/[&?]?debug\b/, '');
   const [a, b] = h.split('/');
-  if (MODULES[a]) return { mod: a, key: validKey(b) ? b : null };
+  if (MODULES[a]) return { mod: a, key: validKey(b) || MUS.MUSCLES[b] ? b : null };
   if (validKey(a)) return { mod: null, key: a };   // stare linki: #C7
   return {};
 }
@@ -1364,6 +1486,7 @@ const ICONS = {
   kregoslup: '<svg viewBox="0 0 40 56" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6">' +
     Array.from({ length: 9 }, (_, i) => `<rect x="${15 + Math.sin(i / 2.6) * 4}" y="${3 + i * 5.6}" width="${8 + i * 0.6}" height="3.6" rx=".6"/>`).join('') + '</g></svg>',
   kregi: '<svg viewBox="0 0 40 56" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6"><ellipse cx="20" cy="19" rx="10" ry="7.5"/><path d="M12 25 L8 31 M28 25 L32 31 M14 27 Q20 33 26 27 M20 33 L20 47"/><circle cx="20" cy="28.5" r="2.6"/></g></svg>',
+  grzbiet: '<svg viewBox="0 0 40 56" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 4 L20 52" stroke-dasharray="2 2.5"/><path d="M15 6 L20 5 L25 6 L35 13 L36 17 L20 30 L4 17 L5 13 Z" fill="currentColor" fill-opacity=".18"/><path d="M20 30 L20 46 L10 50 L7 30 Z M20 30 L20 46 L30 50 L33 30 Z" fill="currentColor" fill-opacity=".08"/></g></svg>',
   zebra: '<svg viewBox="0 0 40 56" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6">' +
     Array.from({ length: 5 }, (_, i) => `<rect x="17" y="${6 + i * 9}" width="6" height="4.5" rx=".6"/><path d="M17 ${9 + i * 9} Q5 ${10 + i * 9} 4 ${19 + i * 9} M23 ${9 + i * 9} Q35 ${10 + i * 9} 36 ${19 + i * 9}"/>`).join('') + '</g></svg>',
 };
@@ -1382,14 +1505,14 @@ function showPicker() {
       ${first ? '' : '<button type="button" class="pk-close" id="pkClose" aria-label="Zamknij">×</button>'}
     </div>
     <p class="pk-lead">Pobierane jest tylko to, co wybierzesz. Na start wystarcza model uproszczony; pełny kręg (${moduleSize('kregi').big}) dochodzi, gdy go wybierzesz albo przybliżysz.</p>
-    <div class="pk-list">${Object.entries(MODULES).map(([id, m]) => {
+    ${[...new Set(Object.values(MODULES).map((m) => m.group))].map((g) => `<div class="pk-group"><h3 class="pk-gtitle">${g}</h3><div class="pk-list">${Object.entries(MODULES).filter(([, m]) => m.group === g).map(([id, m]) => {
       const sz = moduleSize(id);
       return `<button type="button" class="pk-card" data-mod="${id}" aria-current="${state.module === id}">
         <span class="pk-icon">${ICONS[id]}</span>
         <span class="pk-text"><b>${m.name}</b><span>${m.desc}</span></span>
         <span class="pk-size"><b>${sz.big}</b><span>${sz.small}</span></span>
       </button>`;
-    }).join('')}</div>
+    }).join('')}</div></div>`).join('')}
     <p class="pk-foot">${net.bytes ? `Pobrano w tej sesji: <b>${kB(net.bytes)}</b> · ` : ''}${saveData() ? 'Oszczędzanie danych włączone: bez pobierania z wyprzedzeniem.' : 'Sąsiednie kręgi pobierają się w tle, chyba że w telefonie włączysz oszczędzanie danych.'}</p>
   </div>`;
   pickerEl.hidden = false;
@@ -1439,17 +1562,29 @@ function setModule(mod, key = null) {
   $('#modname').textContent = MODULES[mod].name;
   document.body.dataset.module = mod;
   const keys = modKeys();
+  const mus = muscleMode();
+  if (mus && state.mode !== 'atlas') { state.mode = 'atlas'; syncModeButtons(); }
+  if (!mus && keys.includes(state.lastBone.replace('D_', ''))) state.selected = state.lastBone;
   if (key && keys.includes(key.replace('D_', ''))) state.selected = key;
-  if (!keys.includes(state.selected.replace('D_', ''))) state.selected = mod === 'zebra' ? 'Th7' : 'C7';
+  if (!keys.includes(state.selected.replace('D_', ''))) state.selected = mus ? keys[0] : mod === 'zebra' ? 'Th7' : 'C7';
   if (single() && state.selected.startsWith('D_')) state.selected = state.selected.slice(2);
+  state.focusPart = null;
   if (state.isolate) { state.isolate = false; $('#isolate').setAttribute('aria-pressed', 'false'); }
   $('#isolate').hidden = single();
-  $('#discs').hidden = single();
-  $('.brand .sub').textContent = mod === 'zebra' ? 'Atlas 3D · 12 kręgów · 24 żebra' : mod === 'kregi' ? 'Atlas 3D · jeden kręg naraz' : 'Atlas 3D · 25 kości · 23 krążki';
+  $('#discs').hidden = single() || mus;
+  $('#tint').hidden = mus;
+  $('#attach').hidden = !mus;
+  $('#layers').hidden = !mus;
+  if (mus) renderLayerChips();
+  document.querySelector('.modes [data-mode="quiz"]').hidden = mus;   // quiz z mięśni — później
+  buildRuler();
+  $('.brand h1').textContent = mus ? 'Mięśnie' : 'Kręgosłup';
+  $('.stage .hint').innerHTML = `Przeciągnij, aby obrócić · kółko lub dwa palce, aby przybliżyć<br>${mus ? 'Kliknij mięsień, aby go wybrać' : 'Kliknij kość, aby ją wybrać'} · strzałki ↑ ↓`;
+  $('.brand .sub').textContent = mus ? 'Atlas 3D · grzbiet · warstwa powierzchowna' : mod === 'zebra' ? 'Atlas 3D · 12 kręgów · 24 żebra' : mod === 'kregi' ? 'Atlas 3D · jeden kręg naraz' : 'Atlas 3D · 25 kości · 23 krążki';
   for (const id of MODULES[mod].base) {
     ensurePack(id, { keep: true, onProgress: (g) => { baseProgress[id] = g; updateLoader(); } }).catch(() => {});
   }
-  setRibs(mod === 'zebra', false);   // także updateLod(), paint() i panel
+  setRibs(mod === 'zebra' || mus, false);   // także updateLod(), paint() i panel
   syncRuler();
   updateLoader();
   const snap = !framedOnce;
@@ -1461,7 +1596,8 @@ function setModule(mod, key = null) {
     Promise.all(MODULES[mod].base.map((id) => ensurePack(id))).then(() => {
       if (state.module !== mod) return;
       paint();
-      if (state.mode === 'edit' || state.isolate) closeFrame(state.selected); else frame(modKeys(), VIEWS.three);
+      if (mus) frame([...modKeys(), ...ORDER], VIEWS.back, 1.12);
+      else if (state.mode === 'edit' || state.isolate) closeFrame(state.selected); else frame(modKeys(), VIEWS.three);
       done();
     }).catch((e) => { if (e?.name !== 'AbortError') console.warn(e); });
   }
@@ -1477,7 +1613,7 @@ camera.position.set(9, 0.8, -5);
   const { mod, key } = parseHash();
   let stored = null;
   try { stored = localStorage.getItem(MOD_KEY); } catch (e) { /* no storage */ }
-  if (key) state.selected = key;
+  if (key && validKey(key)) state.selected = key;
   renderPart(state.selected);
   syncRuler();
   const start = mod || (key ? 'kregoslup' : stored);
@@ -1582,6 +1718,7 @@ function setQuality(q) {
   const [a, b, c] = [ribMat, ribMatHi, facetMat];
   ribMat = newMat('rib'); ribMatHi = newMat('rib'); facetMat = newMat('facet');
   for (const m of ribMeshes) if (m.userData.kind !== 'rib') m.material = facetMat;
+  for (const m of [...muscleMeshes, ...ctxMeshes]) { const old = m.material; m.material = newMat(m.userData.kind === 'muscle' ? 'muscle' : 'bone'); old.dispose(); }
   a.dispose(); b.dispose(); c.dispose();
   paint();
   updateDebug(true);
@@ -1636,7 +1773,7 @@ function updateDebug(force = false) {
   const sec = Math.max((now - dbgAt) / 1000, 0.001);
   const fps = (perf.renders - dbgR) / sec, loop = (perf.frames - dbgF) / sec;
   dbgAt = now; dbgR = perf.renders; dbgF = perf.frames;
-  const fullTris = Object.values(parts).concat(ribMeshes).filter((m) => m.visible).reduce((a, m) => a + (m.geometry.index?.count || 0) / 3, 0);
+  const fullTris = Object.values(parts).concat(ribMeshes, muscleMeshes, ctxMeshes).filter((m) => m.visible).reduce((a, m) => a + (m.geometry.index?.count || 0) / 3, 0);
   dbgEl.innerHTML = `<b>${fps.toFixed(0)}</b> kl./s rysowane · pętla ${loop.toFixed(0)}/s<br>
     render ${perf.renderMs.toFixed(1)} ms · JS ${perf.jsMs.toFixed(1)} ms<br>
     trójkąty ${((perf.tris || 0) / 1000).toFixed(0)} tys. (widoczne ${(fullTris / 1000).toFixed(0)} tys.) · wywołania ${perf.calls || 0}<br>
@@ -1646,6 +1783,7 @@ function updateDebug(force = false) {
 }
 if (DEBUG) {
   window.__atlasPerf = perf; window.__atlasCam = camera;
+  window.__atlasPick = (x, y) => { const r = renderer.domElement.getBoundingClientRect(); ptr.set(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1); ray.setFromCamera(ptr, camera); return firstProxyHit(ray, false)?.object.userData.target.name; };
   // porównanie: N promieni przez pełne siatki vs uproszczone bryły
   window.__atlasBench = (N = 200) => {
     const rc = new THREE.Raycaster();

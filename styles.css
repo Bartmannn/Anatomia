@@ -533,3 +533,35 @@ body.editing .hint { display: none; }
 @media (max-width: 640px) {
   .picker { position: fixed; z-index: 50; background: var(--ground); padding: 20px 16px 28px; }
 }
+
+/* ---------- Mięśnie ---------- */
+:root { --muscle: #b4412f; --muscle-soft: #cf9a90; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --muscle: #d8644f; --muscle-soft: #8f5f57; } }
+:root[data-theme="dark"] { --muscle: #d8644f; --muscle-soft: #8f5f57; }
+.chipgroup { display: inline-flex; gap: 8px; }
+.pk-group { display: grid; gap: 8px; }
+.pk-gtitle { margin: 4px 0 0; font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+
+/* Lewa kolumna w module mięśni: nazwy zamiast kodów kręgów */
+body[data-module="grzbiet"] .main { grid-template-columns: 148px minmax(0, 1fr) minmax(300px, 380px); }
+.ruler.mus .group { gap: 2px; }
+.ruler.mus button { font-family: var(--font-body); font-size: 13px; line-height: 1.25; padding: 4px 6px; white-space: normal; }
+.ruler.mus button::after { display: none; }
+.ruler.mus .mgroup:has(button) { border-left-color: var(--muscle); }
+.ruler.mus .mgroup:not(:has(button)) { border-left-color: var(--line); }
+.ruler.mus .mgroup:not(:has(button)) .glabel { color: var(--muted); }
+.mpart { padding: 10px 0 2px; border-top: 1px solid var(--line); }
+.mpart:first-child { border-top: 0; padding-top: 0; }
+.mpart h4 { margin: 0 0 6px; font-size: 15px; }
+.mpart h4 i { font-weight: 400; color: var(--muted); font-size: 13px; }
+.mdl { margin: 0; display: grid; gap: 6px; }
+.mrow dt { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.mrow dd { margin: 0; }
+.attach-note { margin: 6px 0 0; color: var(--muted); }
+.mpart:focus-visible, .mpart:hover { outline: none; }
+.mpart:hover h4, .mpart:focus h4 { color: var(--muscle); }
+@media (max-width: 1000px) { body[data-module="grzbiet"] .main { grid-template-columns: 120px minmax(0, 1fr); } }
+@media (max-width: 640px) {
+  body[data-module="grzbiet"] .main { grid-template-columns: minmax(0, 1fr); }
+  .ruler.mus .mgroup:not(:has(button)) { display: none; }
+}
