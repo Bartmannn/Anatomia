@@ -100,6 +100,24 @@ Strona jest przygotowana z myślą o telefonach:
 
 Dopisz `&debug` na końcu adresu (np. `http://localhost:8000/#kregoslup/C7&debug`), żeby zobaczyć licznik: klatki na sekundę, czas rysowania, liczbę trójkątów, aktualną rozdzielczość i przełącznik jakości.
 
+## Testy
+
+Przy każdej zmianie w repozytorium i każdej propozycji zmian (pull request) GitHub sam uruchamia testy (`.github/workflows/testy.yml`). Wynik widać w zakładce *Actions* i przy propozycji zmian: zielony ✓ albo czerwony ✗ z opisem, co jest nie tak.
+
+- **Sprawdzenie treści** (`tools/check_content.mjs`, wystarczy Node.js): czy `content.js`, `content-miesnie.js` i pliki z punktami dają się wczytać (zgubiony cudzysłów albo przecinek jest wskazany z numerem wiersza), czy każdy kręg i mięsień ma nazwy i opisy, czy klucze kręgów i kości nie mają literówek, czy są wszystkie pliki modeli i czcionek, i czy strona nie odwołuje się do zewnętrznych serwerów.
+- **Test w przeglądarce** (`tools/smoke_test.py`, Python + Playwright): otwiera każdy moduł, przechodzi przez wszystkie rodzaje pytań w quizie i tryb poprawiania punktów, także w widoku telefonu, i sprawdza, czy nie ma błędów.
+
+Lokalnie:
+
+```
+node tools/check_content.mjs
+pip install playwright
+python -m playwright install chromium
+python tools/smoke_test.py
+```
+
+Warto w ustawieniach repozytorium (*Settings → Branches → Add rule* dla gałęzi `main`) zaznaczyć *Require status checks to pass* i wybrać test „testy” — wtedy propozycji zmian z błędem nie da się zatwierdzić.
+
 ## Publikacja na GitHub Pages
 
 1. W repozytorium na GitHubie wejdź w *Settings → Pages*.
@@ -161,6 +179,8 @@ Wszystkie teksty, czyli nazwy kręgów, cechy, uwagi dla masażysty, przyczepy m
 | `models/zebra.glb` | 24 żebra i powierzchnie dołków żebrowych w formacie glTF (~2,8 MB); źródło paczek |
 | `landmarks-ribs.js` | Punkty połączeń żeber z kręgami (dołki, głowa, szyjka i guzek żebra) |
 | `vendor/three/` | Biblioteka three.js r170 |
+| `fonts/` | Czcionki strony (woff2) z licencjami |
+| `tools/check_content.mjs`, `tools/smoke_test.py`, `.github/workflows/testy.yml` | Testy: sprawdzenie treści i strony w przeglądarce |
 | `tools/build_glb.py` | Zamienia pliki STL z BodyParts3D na `models/kregoslup.glb` |
 | `tools/landmarks.py` | Wyznacza z geometrii kości punkty do `landmarks.js` |
 | `tools/ribs.py` | Buduje `models/zebra.glb` i wyznacza stawy żebrowo-kręgowe do `landmarks-ribs.js` |
@@ -195,6 +215,8 @@ Publikacja źródłowa:
 > Archiwum danych: https://doi.org/10.18908/lsdba.nbdc00837-000
 
 **three.js** — © three.js authors, licencja MIT (`vendor/three/LICENSE`).
+
+**Czcionki** (`fonts/`) — Archivo, Hanken Grotesk i JetBrains Mono, licencja SIL Open Font License 1.1 (pliki `fonts/OFL-*.txt`). Są w repozytorium, więc strona nie łączy się z Google Fonts.
 
 **Kod strony i skrypty** (`index.html`, `styles.css`, `app.js`, `miesnie.js`, `tools/`) — licencja MIT (`LICENSE`).
 

@@ -28,6 +28,7 @@ Teksty o kościach są w pliku [`content.js`](content.js), a o mięśniach w [`c
 2. Znajdź tekst do poprawy, np. przez `Ctrl+F`, i zmień go.
 3. Na dole strony (albo po kliknięciu *Commit changes…*) krótko opisz zmianę i podaj źródło.
 4. Kliknij *Propose changes*, a potem *Create pull request*. Przejrzę zmianę i ją dołączę.
+5. Po chwili przy propozycji pojawi się wynik automatycznego testu. Zielony ✓ — wszystko w porządku. Czerwony ✗ — kliknij *Details*: test pokaże plik, numer wiersza i co poprawić (np. zgubiony cudzysłów). Popraw to w tej samej propozycji (znowu ikona ołówka), test uruchomi się ponownie.
 
 Kilka zasad, żeby strona się nie zepsuła:
 
