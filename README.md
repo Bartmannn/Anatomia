@@ -80,7 +80,8 @@ Aktualna przeglądarka z obsługą WebGL: Chrome, Edge, Firefox lub Safari. Przy
 Strona jest przygotowana z myślą o telefonach:
 
 - **Rysowanie na żądanie.** Nowa klatka powstaje tylko, gdy coś się zmienia. W spoczynku karta nie obciąża procesora ani karty graficznej.
-- **Rozdzielczość zależna od ruchu.** Przy szybkim obracaniu obraz jest rysowany w 75% albo 50% rozdzielczości, a po zatrzymaniu od razu wraca pełna ostrość. Słabsze urządzenia dostają dodatkowo niższy pułap, wyliczany z czasu klatki.
+- **Rozdzielczość zależna od ruchu.** Przy szybkim obracaniu obraz jest rysowany w 75% albo 50% rozdzielczości (do osobnego bufora, więc zmiana poziomu nie przebudowuje płótna), a po zatrzymaniu wraca pełna ostrość. Słabsze urządzenia dostają dodatkowo niższy pułap, wyliczany z czasu klatki.
+- **Płynne przybliżanie kółkiem.** Każdy „ząbek” kółka myszy jest rozkładany na kilka klatek zamiast skoku o kilka procent naraz.
 - **Tańszy materiał na telefonach.** Na ekranach dotykowych (i automatycznie, gdy urządzenie nie nadąża) zamiast realistycznego materiału używany jest matcap, czyli oświetlenie zapisane w jednej teksturze.
 - **Szybkie celowanie.** Trafienia kursorem i zasłanianie etykiet są liczone na uproszczonych bryłach (ok. 8× mniej trójkątów), a podświetlanie pod kursorem najwyżej raz na klatkę.
 

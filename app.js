@@ -100,6 +100,7 @@ const perf = {
   base: Math.min(window.devicePixelRatio || 1, COARSE ? 1.5 : 2),   // najwyższa używana gęstość pikseli
   lvl: 0,              // 0 = pełna, 1 = 75%, 2 = 50% (zależnie od prędkości obrotu)
   lowerSince: 0,       // od kiedy prędkość pozwala wrócić do ostrzejszego poziomu
+  loweredAt: 0,        // kiedy ostatnio obniżono rozdzielczość (min. 300 ms na niższym poziomie)
   cap: 1,              // pułap z pomiaru wydajności urządzenia (0.6–1)
   current: 0,          // aktualnie ustawiony pixel ratio
   quality: COARSE ? 'fast' : 'high',
@@ -194,6 +195,7 @@ const VIEWS = {
   top:   new THREE.Vector3(0.0001, 1, -0.45),
 };
 let tween = null;
+let zoomTarget = null;   // płynne przybliżanie kółkiem myszy
 function boxOf(keys) {
   const box = new THREE.Box3();
   keys.forEach((k) => parts[k] && box.expandByObject(parts[k]));
@@ -202,6 +204,7 @@ function boxOf(keys) {
 const isoPad = () => (renderer.domElement.clientWidth < 520 ? 2.4 : 1.9);
 const closeFrame = (k, dir = null) => frame([k], dir, isoPad() * (state.ribs && k.startsWith('Th') ? 2.1 : 1));
 function frame(keys, dir, pad = 1.1) {
+  zoomTarget = null;
   const box = boxOf(keys);
   if (box.isEmpty()) return;
   const size = box.getSize(new THREE.Vector3());
@@ -424,7 +427,7 @@ let occlAt = 0;
 const occRay = new THREE.Raycaster();
 function occluded(id, p) {
   const now = performance.now();
-  if (occl.has(id) && now - occlAt < 120) return occl.get(id);
+  if (occl.has(id) && (now - occlAt < 120 || perf.lvl === 2)) return occl.get(id);   // przy szybkim ruchu bez przeliczania
   const target = new THREE.Vector3(...p);
   const dir = target.clone().sub(camera.position);
   const dist = dir.length();
@@ -436,6 +439,7 @@ function occluded(id, p) {
   return res;
 }
 
+let labelMode = 'palp';
 function labelItems() {
   if (!Object.keys(parts).length) return { items: [], ref: null };
   const k = state.selected;
@@ -457,7 +461,10 @@ function labelItems() {
   }
   if (!state.labels || state.mode !== 'atlas') return { items: [], ref: null };
   const rect = projectedRect([k]);
-  const big = rect && (state.isolate || (rect.y1 - rect.y0) > (renderer.domElement.clientWidth < 520 ? 70 : 95));
+  // histereza: z nazw części na punkty wyczuwalne wracamy dopiero przy wyraźnie mniejszym kręgu
+  const thr = (renderer.domElement.clientWidth < 520 ? 70 : 95) * (labelMode === 'parts' ? 0.8 : 1);
+  const big = rect && (state.isolate || (rect.y1 - rect.y0) > thr);
+  labelMode = big ? 'parts' : 'palp';
   if (big) {
     const items = [];
     const L = lm(k);
@@ -1130,6 +1137,59 @@ if (window.ATLAS_MODEL_B64) {
   }, onError);
 }
 
+/* ---------- Obniżona rozdzielczość bez przebudowy płótna ---------- */
+// Poziomy 75% i 50% rysujemy do mniejszych buforów pośrednich i rozciągamy na ekran jednym prostokątem.
+// Płótno zachowuje rozmiar, więc szybkie przełączanie poziomów nie powoduje kosztownej przebudowy bufora ekranu.
+const lowRT = [null, null, null];
+const blitScene = new THREE.Scene();
+const blitCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+// NoBlending: bufor pośredni ma już kolory pomnożone przez alfę, tak jak oczekuje płótno
+const blitMat = new THREE.MeshBasicMaterial({ blending: THREE.NoBlending, depthTest: false, depthWrite: false });
+blitScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), blitMat));
+const _buf = new THREE.Vector2();
+function renderFrame() {
+  const scale = LEVELS[perf.lvl];
+  if (scale >= 0.999) {
+    renderer.render(scene, camera);
+    perf.tris = renderer.info.render.triangles; perf.calls = renderer.info.render.calls;
+    return;
+  }
+  renderer.getDrawingBufferSize(_buf);
+  const w = Math.max(1, Math.round(_buf.x * scale)), h = Math.max(1, Math.round(_buf.y * scale));
+  let rt = lowRT[perf.lvl];
+  if (!rt) rt = lowRT[perf.lvl] = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType });
+  else if (rt.width !== w || rt.height !== h) rt.setSize(w, h);
+  renderer.setRenderTarget(rt);
+  renderer.render(scene, camera);
+  perf.tris = renderer.info.render.triangles; perf.calls = renderer.info.render.calls;
+  renderer.setRenderTarget(null);
+  blitMat.map = rt.texture;
+  renderer.render(blitScene, blitCam);
+}
+
+/* ---------- Płynne przybliżanie kółkiem ---------- */
+// OrbitControls przybliża kółkiem skokami (ok. 5% na „ząbek”), co wygląda jak klatkowanie.
+// Przejmujemy kółko i dochodzimy do docelowej odległości płynnie; gest szczypania na telefonie zostaje bez zmian.
+renderer.domElement.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  const px = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+  const cur = zoomTarget ?? camera.position.distanceTo(controls.target);
+  zoomTarget = THREE.MathUtils.clamp(cur * Math.exp(px * 0.0012), controls.minDistance, controls.maxDistance);
+  tween = null;
+  invalidate();
+}, { capture: true, passive: false });
+const _dir = new THREE.Vector3();
+function stepZoom(dt) {
+  if (zoomTarget === null) return false;
+  const cur = camera.position.distanceTo(controls.target);
+  const next = cur + (zoomTarget - cur) * (1 - Math.exp(-dt * 14));
+  _dir.copy(camera.position).sub(controls.target).normalize();
+  camera.position.copy(controls.target).addScaledVector(_dir, next);
+  if (Math.abs(next - zoomTarget) < zoomTarget * 0.002) zoomTarget = null;
+  return true;
+}
+
 /* ---------- Pętla: rysowanie na żądanie + rozdzielczość zależna od ruchu ---------- */
 const prevQ = new THREE.Quaternion();
 const prevP = new THREE.Vector3();
@@ -1139,15 +1199,15 @@ function motionSpeed(dt) {
   const lin = prevP.distanceTo(camera.position) / Math.max(camera.position.distanceTo(controls.target), 1e-3);
   prevQ.copy(camera.quaternion);
   prevP.copy(camera.position);
-  return (ang + lin) / Math.max(dt, 1e-3);
+  return (ang + lin * 0.6) / Math.max(dt, 1e-3);
 }
 function updateResolution(now, speed, dt, rendered) {
   // 1) poziom z prędkości: w dół od razu, w górę dopiero po 150 ms spokoju (histereza)
   const target = speed > 3 ? 2 : speed > 0.8 ? 1 : 0;
-  if (target > perf.lvl) { perf.lvl = target; perf.lowerSince = 0; }
+  if (target > perf.lvl) { perf.lvl = target; perf.lowerSince = 0; perf.loweredAt = now; }
   else if (target < perf.lvl) {
     if (!perf.lowerSince) perf.lowerSince = now;
-    else if (now - perf.lowerSince > 150) { perf.lvl = target; perf.lowerSince = 0; }
+    else if (now - perf.lowerSince > 150 && now - perf.loweredAt > 300) { perf.lvl = target; perf.lowerSince = 0; }
   } else perf.lowerSince = 0;
   // 2) pułap z wydajności: mierzony tylko wtedy, gdy rysujemy klatka po klatce
   if (rendered && speed > 0.05) {
@@ -1184,6 +1244,7 @@ renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1);
   const t0 = performance.now();
   if (tween) { stepTween(dt); needsRender = true; }
+  if (stepZoom(dt)) needsRender = true;
   if (controls.update()) needsRender = true;     // zwraca true, dopóki kamera się rusza (też bezwładność)
   processHover();
   const speed = motionSpeed(dt);
@@ -1199,7 +1260,7 @@ renderer.setAnimationLoop(() => {
   if (needsRender) {
     needsRender = false;
     const r0 = performance.now();
-    renderer.render(scene, camera);
+    renderFrame();
     const r1 = performance.now();
     layoutLabels();
     perf.renderMs = perf.renderMs * 0.8 + (r1 - r0) * 0.2;
@@ -1226,12 +1287,11 @@ function updateDebug(force = false) {
   const sec = Math.max((now - dbgAt) / 1000, 0.001);
   const fps = (perf.renders - dbgR) / sec, loop = (perf.frames - dbgF) / sec;
   dbgAt = now; dbgR = perf.renders; dbgF = perf.frames;
-  const info = renderer.info.render;
   const fullTris = Object.values(parts).concat(ribMeshes).filter((m) => m.visible).reduce((a, m) => a + (m.geometry.index?.count || 0) / 3, 0);
   dbgEl.innerHTML = `<b>${fps.toFixed(0)}</b> kl./s rysowane · pętla ${loop.toFixed(0)}/s<br>
     render ${perf.renderMs.toFixed(1)} ms · JS ${perf.jsMs.toFixed(1)} ms<br>
-    trójkąty ${(info.triangles / 1000).toFixed(0)} tys. (widoczne ${(fullTris / 1000).toFixed(0)} tys.) · wywołania ${info.calls}<br>
-    rozdz. ${perf.current.toFixed(2)}× (poziom ${Math.round(LEVELS[perf.lvl] * 100)}%, pułap ${Math.round(perf.cap * 100)}%) · prędkość ${perf.speed.toFixed(2)}<br>
+    trójkąty ${((perf.tris || 0) / 1000).toFixed(0)} tys. (widoczne ${(fullTris / 1000).toFixed(0)} tys.) · wywołania ${perf.calls || 0}<br>
+    rozdz. ${(perf.current * LEVELS[perf.lvl]).toFixed(2)}× (poziom ${Math.round(LEVELS[perf.lvl] * 100)}%, pułap ${Math.round(perf.cap * 100)}%) · prędkość ${perf.speed.toFixed(2)}<br>
     celowanie: ${((perf.proxyTris || 0) / 1000).toFixed(0)} tys. tr. zamiast pełnych<br>
     jakość: <button type="button" data-q="high" aria-pressed="${perf.quality === 'high'}">wysoka</button> <button type="button" data-q="fast" aria-pressed="${perf.quality === 'fast'}">szybka</button>`;
 }
