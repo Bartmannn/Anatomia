@@ -7,6 +7,8 @@ tak jak w build_glb.py i ribs.py), więc najprościej trzymać wszystkie pliki S
 Co powstaje:
   models/pakiety/kosci-tla.pak          kości, do których przyczepiają się mięśnie grzbietu (uproszczone)
   models/pakiety/miesnie/warstwa-<n>.pak mięśnie danej warstwy (obie strony), uproszczone
+
+Argumenty po folderze (opcjonalne): numery warstw do zbudowania, np. `2` — bez nich budowane jest wszystko.
   models/pakiety/spis.js                 odświeżona lista paczek (build_packs.write_index)
 
 Każda siatka mięśnia ma w extras: kind='muscle', muscle, part, side (L/R), layer, fma
@@ -50,9 +52,19 @@ LAYERS = {
         ('latissimus_R', 'FMA13358', 5200, {'muscle': 'latissimus', 'part': 'all', 'side': 'R'}),
         ('latissimus_L', 'FMA13359', 5200, {'muscle': 'latissimus', 'part': 'all', 'side': 'L'}),
     ],
+    2: [  # warstwa pośrednia
+        ('rhomboid_major_R', 'FMA13381', 2000, {'muscle': 'rhomboid', 'part': 'major', 'side': 'R'}),
+        ('rhomboid_major_L', 'FMA13382', 2000, {'muscle': 'rhomboid', 'part': 'major', 'side': 'L'}),
+        ('rhomboid_minor_R', 'FMA13383', 900, {'muscle': 'rhomboid', 'part': 'minor', 'side': 'R'}),
+        ('rhomboid_minor_L', 'FMA13384', 900, {'muscle': 'rhomboid', 'part': 'minor', 'side': 'L'}),
+        ('levator_scapulae_R', 'FMA32540', 1600, {'muscle': 'levator_scapulae', 'part': 'all', 'side': 'R'}),
+        ('levator_scapulae_L', 'FMA32541', 1600, {'muscle': 'levator_scapulae', 'part': 'all', 'side': 'L'}),
+        ('serratus_post_sup_R', 'FMA13403', 1800, {'muscle': 'serratus_post', 'part': 'sup', 'side': 'R'}),
+        ('serratus_post_sup_L', 'FMA13404', 1800, {'muscle': 'serratus_post', 'part': 'sup', 'side': 'L'}),
+        ('serratus_post_inf_R', 'FMA13405', 2400, {'muscle': 'serratus_post', 'part': 'inf', 'side': 'R'}),
+        ('serratus_post_inf_L', 'FMA13406', 2400, {'muscle': 'serratus_post', 'part': 'inf', 'side': 'L'}),
+    ],
     # Do zrobienia (pliki są w paczce źródłowej anatomia-miesnie-zrodla.zip):
-    # 2 (pośrednia): równoległoboczny większy FMA13381/13382, mniejszy FMA13383/13384, dźwigacz łopatki FMA32540/32541,
-    #    zębaty tylny górny FMA13403/13404, zębaty tylny dolny FMA13405/13406
     # 3 (głęboka): biodrowo-żebrowy FMA22740–22745, najdłuższy FMA22751/22753/22754/22756/22757/22758,
     #    kolcowy FMA22779–22782, płatowaty FMA22726–22729
 }
@@ -93,9 +105,12 @@ def main():
             print(f'  {name}: {len(f)} -> {len(sf)}', flush=True)
         return out
 
-    size, tris = write_pack(os.path.join(OUT, 'kosci-tla.pak'), build(BONES, 'ctxbone'))
-    print('kosci-tla', size, tris)
+    only = {int(x) for x in sys.argv[2:]}
+    if not only:
+        size, tris = write_pack(os.path.join(OUT, 'kosci-tla.pak'), build(BONES, 'ctxbone'))
+        print('kosci-tla', size, tris)
     for n, items in LAYERS.items():
+        if only and n not in only: continue
         size, tris = write_pack(os.path.join(OUT, 'miesnie', f'warstwa-{n}.pak'), build(items, 'muscle', n))
         print(f'miesnie/warstwa-{n}', size, tris)
     write_index()

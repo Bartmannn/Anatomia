@@ -15,7 +15,7 @@ Atlas mogą swobodnie wykorzystywać uczniowie i nauczyciele. Uwagi i poprawki s
 ## Co potrafi
 
 - **Moduły do wyboru.** Kości: *Cały kręgosłup*, *Pojedyncze kręgi* (jeden kręg naraz, w pełnej szczegółowości) i *Kręgi piersiowe i żebra*. Mięśnie: *Mięśnie grzbietu*. Strona pobiera tylko wybrany moduł.
-- **Mięśnie grzbietu warstwami.** Na razie warstwa powierzchowna: mięsień czworoboczny (części zstępująca, poprzeczna i wstępująca) i najszerszy grzbietu. Po wybraniu mięśnia jego przyczepy podświetlają się na kościach (kręgi, łopatka, obojczyk, kość ramienna, potyliczna, biodrowa, żebra), a po najechaniu na część w opisie — tylko przyczepy tej części. Warstwy pośrednia i głęboka są w przygotowaniu.
+- **Mięśnie grzbietu warstwami.** Warstwa powierzchowna: mięsień czworoboczny (części zstępująca, poprzeczna i wstępująca) i najszerszy grzbietu. Warstwa pośrednia: mięśnie równoległoboczne (większy i mniejszy), dźwigacz łopatki i mięśnie zębate tylne (górny i dolny). Po wybraniu mięśnia z głębszej warstwy warstwy nad nim stają się przezroczyste. Po wybraniu mięśnia jego przyczepy podświetlają się na kościach (kręgi, łopatka, obojczyk, kość ramienna, potyliczna, biodrowa, żebra), a po najechaniu na część w opisie — tylko przyczepy tej części. Warstwa głęboka (prostownik grzbietu) jest w przygotowaniu.
 - **Model 3D kręgosłupa:** 24 kręgi (C1–L5), kość krzyżowa i 23 krążki międzykręgowe.
 - **Nazwy części kości** z liniami odniesienia, np. trzon, łuk, otwór kręgowy, wyrostki kolczysty, poprzeczne i stawowe. Kręgi C1 i C2, kość krzyżowa i krążki mają własne nazwy.
 - **Żebra i ich połączenia z kręgami piersiowymi**: dołki żebrowe trzonu (górny i dolny) i wyrostka poprzecznego są zaznaczone kolorem, a po włączeniu przycisku *Żebra* widać, jak układają się w nich głowa i guzek żebra (staw głowy żebra, staw żebrowo-poprzeczny).
@@ -83,7 +83,7 @@ Aktualna przeglądarka z obsługą WebGL: Chrome, Edge, Firefox lub Safari (iOS 
 | Cały kręgosłup | ok. 260 kB | 22–150 kB za każdy wybrany lub mocno przybliżony kręg |
 | Pojedyncze kręgi | 22–150 kB | tyle samo za każdy kolejny kręg |
 | Kręgi piersiowe i żebra | ok. 220 kB | szczegóły kręgu i 2 par żeber przy nim |
-| Mięśnie grzbietu | ok. 590 kB | nic (kości są tłem w wersji uproszczonej) |
+| Mięśnie grzbietu | ok. 590 kB | ok. 85 kB po włączeniu warstwy pośredniej |
 
 Dla porównania pełny model w jednym pliku miał ok. 8 MB.
 

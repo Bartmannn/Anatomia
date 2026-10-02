@@ -6,7 +6,7 @@ export { MUSCLES, LAYERS };
 export const MUSCLE_KEYS = Object.keys(MUSCLES);
 export const layerPack = (n) => `miesnie/warstwa-${n}`;
 export const READY_LAYERS = Object.entries(LAYERS).filter(([, l]) => !l.soon).map(([n]) => +n);
-const short = (name) => name.replace(/^Mięsień /, '');
+const short = (name) => name.replace(/^Mię(sień|śnie) /, '');
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 // Przyczepy wybranego mięśnia (albo jednej jego części) — do podświetlenia kości
@@ -82,11 +82,12 @@ export function rangeText(keys) {
 }
 
 // Etykiety: po jednej na część mięśnia, po stronie bliższej kamerze
-export function labelItems(meshes, selected, focusPart, camPos) {
+// maxLayer: głębsze warstwy (przykryte przez widoczne wyżej) nie dostają etykiet
+export function labelItems(meshes, selected, focusPart, camPos, maxLayer = Infinity) {
   const groups = new Map();
   for (const m of meshes) {
     const e = m.userData;
-    if (!m.visible || !e.lbl || m.material.opacity < 0.5) continue;
+    if (!m.visible || !e.lbl || m.material.opacity < 0.5 || e.layer > maxLayer) continue;
     const id = `${e.muscle}:${e.part}`;
     const d = (e.lbl[0] - camPos.x) ** 2 + (e.lbl[1] - camPos.y) ** 2 + (e.lbl[2] - camPos.z) ** 2;
     const g = groups.get(id);
@@ -100,7 +101,8 @@ export function labelItems(meshes, selected, focusPart, camPos) {
     const many = Object.keys(M.parts).length > 1;
     items.push({
       id: `m:${id}`, p: e.lbl, part: e.part, key: e.muscle,
-      title: many ? `${cap(short(M.name))}, ${P.name.toLowerCase()}` : cap(short(M.name)),
+      // części z własną nazwą mięśnia (np. równoległoboczny mniejszy) vs części jednego mięśnia (czworoboczny, część zstępująca)
+      title: !many ? cap(short(M.name)) : /^Mięsień /.test(P.name) ? cap(short(P.name)) : `${cap(short(M.name))}, ${P.name.toLowerCase()}`,
       sub: many ? P.latin : M.latin,
       focus: e.muscle === selected && (!focusPart || focusPart === e.part),
     });

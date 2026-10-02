@@ -61,7 +61,7 @@ const state = {
   focusPart: null,
   edit: { part: null, slot: 0 },
   ribs: false,
-  layers: Object.fromEntries(MUS.READY_LAYERS.map((n) => [n, true])),   // widoczne warstwy mięśni
+  layers: Object.fromEntries(MUS.READY_LAYERS.map((n, i) => [n, i === 0])),   // widoczne warstwy mięśni (głębsze po włączeniu)
   attach: true,           // podświetlanie przyczepów na kościach
   lastBone: 'C7',         // ostatnio wybrany kręg (po powrocie z modułu mięśni)
   module: null,           // 'kregoslup' | 'kregi' | 'zebra' (null = jeszcze nie wybrano)
@@ -77,8 +77,8 @@ const MODULES = {
   zebra: { group: 'Kości', kind: 'bones', name: 'Kręgi piersiowe i żebra', desc: 'Th1–Th12 z żebrami, dołki żebrowe i stawy żebrowo-kręgowe.',
     base: ['przeglad-Th', 'zebra-przeglad'], keys: TH_KEYS },
   grzbiet: { group: 'Mięśnie', kind: 'muscles', name: 'Mięśnie grzbietu',
-    desc: 'Warstwa powierzchowna: czworoboczny i najszerszy grzbietu, z przyczepami zaznaczonymi na kościach.',
-    base: ['przeglad-C', 'przeglad-Th', 'przeglad-L', 'przeglad-S', 'kosci-tla', 'zebra-przeglad', ...MUS.READY_LAYERS.map(MUS.layerPack)],
+    desc: 'Warstwami, z przyczepami zaznaczonymi na kościach. Na start warstwa powierzchowna; głębsze pobierają się po włączeniu.',
+    base: ['przeglad-C', 'przeglad-Th', 'przeglad-L', 'przeglad-S', 'kosci-tla', 'zebra-przeglad', MUS.layerPack(MUS.READY_LAYERS[0])],
     keys: MUS.MUSCLE_KEYS },
 };
 const muscleMode = () => MODULES[state.module]?.kind === 'muscles';
@@ -307,6 +307,7 @@ function paintMuscles() {
   const sel = state.selected;
   const att = state.attach ? MUS.attachSet(sel, state.focusPart) : null;
   const iso = state.isolate && state.mode === 'atlas';
+  const selLayer = MUS.MUSCLES[sel]?.layer;
   const plain = (m, on, base = COLORS.bone) => {
     m.material.color.copy(on ? COLORS.facet : base);
     if (m.material.emissive) m.material.emissive.copy(BLACK);
@@ -328,7 +329,9 @@ function paintMuscles() {
     if (m.material.emissive) { m.material.emissive.copy(hov ? COLORS.muscle : BLACK); m.material.emissiveIntensity = 0.25; }
     else if (hov) tmp.lerp(COLORS.muscle, 0.4);
     m.material.color.copy(tmp);
-    setFade(m, iso && !isSel, 0.12);
+    // wybrany mięsień leży głębiej: warstwy nad nim prześwitują, żeby było go widać (i dało się go kliknąć)
+    const above = selLayer && e.layer < selLayer;
+    setFade(m, (iso && !isSel) || above, iso && !isSel ? 0.12 : 0.16);
   }
   for (const mat of [ribMat, ribMatHi]) if (mat.clippingPlanes?.length) { mat.clippingPlanes = null; mat.needsUpdate = true; }
   ribMat.color.copy(COLORS.bone);
@@ -580,7 +583,11 @@ function updateLod() {
   if (!state.module) return;
   const need = new Set(MODULES[state.module].base);
   if (state.ribs && !single()) need.add('zebra-przeglad');
-  if (muscleMode()) for (const n of MUS.READY_LAYERS) need.add(MUS.layerPack(n));
+  if (muscleMode()) {
+    // warstwa pobiera się dopiero, gdy jest włączona albo wybrano mięsień z tej warstwy
+    const selLayer = MUS.MUSCLES[state.selected]?.layer;
+    for (const n of MUS.READY_LAYERS) if (state.layers[n] || n === selLayer) need.add(MUS.layerPack(n));
+  }
   const sel = currentKey();
   const allowed = new Set(muscleMode() ? [] : modKeys());   // w module mięśni kręgi są tylko tłem (przegląd)
   // w quizie na całym kręgosłupie wystarczy podświetlony przegląd; w „Pojedynczych kręgach” trzeba pobrać kręg
@@ -746,7 +753,9 @@ let labelMode = 'palp';
 function labelItems() {
   if (muscleMode()) {
     if (!state.labels || state.mode !== 'atlas' || !muscleMeshes.length) return { items: [], ref: null };
-    const items = MUS.labelItems(muscleMeshes, state.selected, state.focusPart, camera.position);
+    const shown = MUS.READY_LAYERS.filter((n) => state.layers[n]);
+    const maxLayer = Math.max(MUS.MUSCLES[state.selected]?.layer || 0, shown.length ? Math.min(...shown) : 0);
+    const items = MUS.labelItems(muscleMeshes, state.selected, state.focusPart, camera.position, maxLayer);
     return { items, ref: projectedRect(modKeys()), kind: 'parts' };
   }
   if (!Object.keys(parts).length) return { items: [], ref: null };
@@ -1008,7 +1017,11 @@ function select(k, doFrame) {
   if (state.mode === 'quiz') return;
   if (!modKeys().includes(k.replace('D_', ''))) return;
   if (single() && k.startsWith('D_')) k = k.slice(2);
+  if (k !== state.selected) state.focusPart = null;
   state.selected = k;
+  if (!muscleMode()) state.lastBone = k;
+  const ml = MUS.MUSCLES[k]?.layer;
+  if (muscleMode() && ml && !state.layers[ml]) { state.layers[ml] = true; syncLayerChips(); }
   if (state.mode === 'edit') { state.edit = { part: null, slot: 0 }; renderEditor(); } else renderPart(k);
   syncRuler();
   updateLod();
@@ -1425,8 +1438,12 @@ function renderLayerChips() {
     state.layers[n] = !state.layers[n];
     b.setAttribute('aria-pressed', String(state.layers[n]));
     occl.clear();
+    updateLod();
     paint();
   }));
+}
+function syncLayerChips() {
+  document.querySelectorAll('#layers [data-layer]').forEach((b) => b.setAttribute('aria-pressed', String(!!state.layers[+b.dataset.layer])));
 }
 toggle('#attach', 'attach');
 toggle('#discs', 'showDiscs');
@@ -1580,7 +1597,7 @@ function setModule(mod, key = null) {
   buildRuler();
   $('.brand h1').textContent = mus ? 'Mięśnie' : 'Kręgosłup';
   $('.stage .hint').innerHTML = `Przeciągnij, aby obrócić · kółko lub dwa palce, aby przybliżyć<br>${mus ? 'Kliknij mięsień, aby go wybrać' : 'Kliknij kość, aby ją wybrać'} · strzałki ↑ ↓`;
-  $('.brand .sub').textContent = mus ? 'Atlas 3D · grzbiet · warstwa powierzchowna' : mod === 'zebra' ? 'Atlas 3D · 12 kręgów · 24 żebra' : mod === 'kregi' ? 'Atlas 3D · jeden kręg naraz' : 'Atlas 3D · 25 kości · 23 krążki';
+  $('.brand .sub').textContent = mus ? `Atlas 3D · grzbiet · warstwy 1–${MUS.READY_LAYERS.at(-1)}` : mod === 'zebra' ? 'Atlas 3D · 12 kręgów · 24 żebra' : mod === 'kregi' ? 'Atlas 3D · jeden kręg naraz' : 'Atlas 3D · 25 kości · 23 krążki';
   for (const id of MODULES[mod].base) {
     ensurePack(id, { keep: true, onProgress: (g) => { baseProgress[id] = g; updateLoader(); } }).catch(() => {});
   }
