@@ -1,11 +1,11 @@
 // Etykiety na modelu: wybór punktów, zasłanianie i rozkład w kolumnach.
 import * as THREE from 'three';
 import * as MUS from './miesnie.js';
-import { PALPATION } from '../content.js';
+import { PALPATION } from './tresci.js';
 import { firstProxyHit } from './celowanie.js';
 import { editableParts } from './edytor.js';
 import { SIDE_SHORT, isPaired, lm, partDef, partList, slotChanged } from './punkty.js';
-import { $, closeUp, modKeys, muscleMeshes, muscleMode, parts, state, ui } from './stan.js';
+import { $, closeUp, modKeys, muscleMeshes, muscleMode, parts, skullMode, state, ui } from './stan.js';
 import { camera, perf, project, projectedRect, renderer } from './widok.js';
 
 /* ---------- Labels (names of bone parts, palpable landmarks) ---------- */
@@ -70,7 +70,8 @@ export function labelItems() {
   const rect = projectedRect([k]);
   // histereza: z nazw części na punkty wyczuwalne wracamy dopiero przy wyraźnie mniejszym kręgu
   const thr = (renderer.domElement.clientWidth < 520 ? 70 : 95) * (ui.labelMode === 'parts' ? 0.8 : 1);
-  const big = rect && (closeUp() || (rect.y1 - rect.y0) > thr);
+  // czaszka: zawsze części wybranej kości (kości są duże na ekranie albo — małe — i tak warto znać ich części)
+  const big = rect && (closeUp() || skullMode() || (rect.y1 - rect.y0) > thr);
   ui.labelMode = big ? 'parts' : 'palp';
   if (big) {
     const items = [];
@@ -86,7 +87,8 @@ export function labelItems() {
     return { items, ref: rect, kind: 'parts' };
   }
   if (closeUp()) return { items: [], ref: null };
-  const items = PALPATION.filter((l) => parts[l.key]?.visible !== false && lm(l.key)[l.part]).map((l) => ({
+  const keys = new Set(modKeys());
+  const items = PALPATION.filter((l) => keys.has(l.key) && parts[l.key]?.visible !== false && lm(l.key)[l.part]).map((l) => ({
     id: `palp:${l.key}`, p: lm(l.key)[l.part].find(Boolean), title: l.label, sub: l.note, palp: true, key: l.key,
   }));
   return { items, ref: projectedRect(modKeys()), kind: 'palp' };

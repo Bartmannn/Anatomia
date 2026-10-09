@@ -2,7 +2,9 @@
 import * as FIX from '../landmarks-fix.js';
 import { LANDMARKS } from '../landmarks.js';
 import { PART_LABELS, PART_LABELS_SPECIAL } from '../content.js';
+import { SKULL_LANDMARKS } from '../landmarks-czaszka.js';
 import { RIB_LANDMARKS, RIB_LINKS } from '../landmarks-ribs.js';
+import { SKULL_LABELS, isSkull } from './czaszka.js';
 import { ribsOn } from './malowanie.js';
 import { regionOf } from './stan.js';
 
@@ -31,10 +33,10 @@ export function extrasOf(k) {
   return out;
 }
 export const extraDef = (k, id) => (id.startsWith('x_') ? extrasOf(k)[id] || null : null);
-export const isPaired = (k, part) => PAIRED.has(part) || !!extraDef(k, part)?.pair;
+export const isPaired = (k, part) => (isSkull(k) ? !!SKULL_LABELS[k]?.[part]?.pair : PAIRED.has(part)) || !!extraDef(k, part)?.pair;
 export function resetLocal() { local = { fixes: {}, reviewed: {}, extra: {} }; }
 export function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify(local)); } catch (e) { /* no storage */ } }
-export const autoLm = (k) => ({ ...(LANDMARKS[k] || {}), ...(RIB_LANDMARKS[k] || {}) });
+export const autoLm = (k) => (isSkull(k) ? { ...(SKULL_LANDMARKS[k] || {}) } : { ...(LANDMARKS[k] || {}), ...(RIB_LANDMARKS[k] || {}) });
 export function lm(k) {
   const out = autoLm(k);
   for (const src of [FIXES[k], local.fixes[k]]) {
@@ -57,6 +59,7 @@ export function partDef(k, part) {
     const d = extraDef(k, part);
     return d ? { name: d.name, latin: d.latin || '', def: d.def || '', palp: !!d.palp, extra: true } : null;
   }
+  if (isSkull(k)) { const d = SKULL_LABELS[k]?.[part]; return d ? { ...d } : null; }
   const S = PART_LABELS_SPECIAL;
   const reg = regionOf(k);
   const group = k.startsWith('D_') ? S.D : k === 'S' ? S.S : null;
@@ -76,7 +79,11 @@ export function partDef(k, part) {
 
 export const PART_ORDER = ['dens', 'body', 'arcus_ant', 'fovea_dentis', 'massa_lat', 'arcus_post', 'pedicle', 'lamina', 'foramen',
   'spinous', 'transverse', 'art_sup', 'art_inf', 'fov_sup', 'fov_inf', 'fov_tp', 'rib_head', 'rib_neck', 'rib_tub', 'rib_head_next', 'promontorium', 'canal', 'ala', 'auricular', 'crista_mediana', 'apex', 'anulus', 'nucleus'];
-export const partRank = (p) => { const i = PART_ORDER.indexOf(p); return i < 0 ? 999 : i; };   // dodane punkty na końcu
+// kolejność części w opisie; dodane punkty na końcu
+export const partRank = (p, k = null) => {
+  const order = k && isSkull(k) ? Object.keys(SKULL_LABELS[k] || {}) : PART_ORDER;
+  const i = order.indexOf(p); return i < 0 ? 999 : i;
+};
 export const RIB_VIEW_PARTS = new Set(['body', 'transverse', 'fov_sup', 'fov_inf', 'fov_tp', 'rib_head', 'rib_neck', 'rib_tub', 'rib_head_next']);
 export function partList(k, forLabels = false) {
   const L = lm(k);
@@ -84,7 +91,7 @@ export function partList(k, forLabels = false) {
   return Object.keys(L)
     .filter((p) => !forLabels || (withRibs ? RIB_VIEW_PARTS.has(p) : !p.startsWith('rib_')))
     .filter((p) => forLabels || !p.startsWith('rib_') || withRibs)
-    .sort((a, b) => partRank(a) - partRank(b))
+    .sort((a, b) => partRank(a, k) - partRank(b, k))
     .map((p) => ({ part: p, def: partDef(k, p) })).filter((x) => x.def?.name);
 }
 

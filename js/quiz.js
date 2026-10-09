@@ -1,22 +1,25 @@
 // Quiz: rodzaje pytań, odpowiedzi i wynik.
 import * as THREE from 'three';
 import * as MUS from './miesnie.js';
-import { PARTS } from '../content.js';
+import * as CZ from './czaszka.js';
+import { PARTS } from './tresci.js';
 import { paint } from './malowanie.js';
-import { updateLoader } from './moduly.js';
+import { boneDir, updateLoader } from './moduly.js';
 import { updateLod } from './paczki.js';
 import { esc, metaBlock } from './panel.js';
 import { lm, partDef } from './punkty.js';
-import { $, ORDER, bigcodeEl, modKeys, muscleMode, panelEl, single, state } from './stan.js';
+import { $, ORDER, bigcodeEl, modKeys, muscleMode, panelEl, single, skullMode, state } from './stan.js';
 import { VIEWS, boxOf, closeFrame, frame, frameWhenReady, neighbors, view } from './widok.js';
 
 /* ---------- Quiz ---------- */
 // Rodzaje pytań zależą od modułu: kości albo mięśnie
 export const QUIZ_TYPES = {
   bones: [['kreg', 'Który kręg?'], ['czesc', 'Która część?']],
+  skull: [['kosc', 'Która kość?'], ['czesc', 'Która część?']],
   muscles: [['miesien', 'Który mięsień?'], ['przyczepy', 'Czyje przyczepy?']],
 };
-export const quizKind = () => (muscleMode() ? 'muscles' : 'bones');
+export const quizKind = () => (muscleMode() ? 'muscles' : skullMode() ? 'skull' : 'bones');
+const whichBone = (t) => t === 'kreg' || t === 'kosc';
 export const pickRand = (a) => a[Math.floor(Math.random() * a.length)];
 export const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 // części kręgu z punktem i nazwą (bez części żeber), do pytań „Która część?”
@@ -36,9 +39,9 @@ export function newQuestion() {
   const types = QUIZ_TYPES[quizKind()];
   if (!types.some(([t]) => t === q.type)) { q.type = types[0][0]; q.good = 0; q.total = 0; }
   let target, opts, part = null, point = null;
-  if (q.type === 'kreg') {
+  if (whichBone(q.type)) {
     const keys = modKeys();
-    target = pickRand(keys);
+    target = pickRand(keys.filter((k) => !CZ.HIDDEN_BONES.has(k)));
     const i = keys.indexOf(target);
     const pool = keys.filter((k) => k !== target && Math.abs(keys.indexOf(k) - i) <= 4);
     opts = [target];
@@ -66,6 +69,7 @@ export function newQuestion() {
   if (q.type === 'czesc') frameWhenReady(target, () => framePoint(target, point));
   else if (q.type === 'miesien') frameWhenReady(target, () => frame([target], VIEWS.back, 1.35));
   else if (q.type === 'przyczepy') { view.pendingFrame = null; frame([...modKeys(), ...ORDER], VIEWS.back, 1.12); }
+  else if (skullMode()) { view.pendingFrame = null; frame(modKeys(), boneDir(target), 1.05); }
   else if (single()) frameWhenReady(target, () => closeFrame(target, VIEWS.three));
   else { view.pendingFrame = null; frame(neighbors(target, 3), VIEWS.three); }
 }
@@ -80,7 +84,7 @@ export function framePoint(k, p) {
 export function quizOption(k) {
   const q = state.quiz;
   if (q.type === 'czesc') { const d = partDef(q.target, k); return [d?.name || k, d?.latin || '']; }
-  if (q.type === 'kreg') return [PARTS[k].name, PARTS[k].short];
+  if (whichBone(q.type)) return [PARTS[k].name, PARTS[k].short];
   const M = MUS.MUSCLES[k];
   return [M.name, `W${M.layer}`];
 }
@@ -91,6 +95,7 @@ export function renderQuiz() {
   panelEl.style.setProperty('--rc', 'var(--focus)');
   const question = {
     kreg: single() ? 'Który to kręg? Rozpoznaj go po kształcie.' : 'Który to kręg? Jest podświetlony na modelu.',
+    kosc: 'Która to kość? Jest podświetlona na modelu.',
     czesc: `Jak nazywa się zaznaczona część? To ${q.target ? esc(PARTS[q.target]?.name.toLowerCase() || '') : ''} (${esc(PARTS[q.target]?.short || '')}).`,
     miesien: 'Który mięsień jest podświetlony?',
     przyczepy: 'Na kościach świecą przyczepy jednego mięśnia. Który to mięsień?',
@@ -128,10 +133,10 @@ export function answer(k) {
   });
   const head = ok ? '<strong>Dobrze.</strong>' : '<strong>Nie tym razem.</strong>';
   let text;
-  if (q.type === 'kreg') {
+  if (whichBone(q.type)) {
     const P = PARTS[q.target];
-    text = `To ${esc(P.name)} (${P.short}). ${esc(P.massage)}`;
-    bigcodeEl.textContent = P.short === 'S1–S5' ? 'S' : P.short;
+    text = `To ${esc(P.name.toLowerCase())} (${esc(P.short)}). ${esc(P.massage)}`;
+    bigcodeEl.textContent = CZ.isSkull(q.target) ? '' : P.short === 'S1–S5' ? 'S' : P.short;
   } else if (q.type === 'czesc') {
     const d = partDef(q.target, q.part);
     text = `To ${esc(d.name.toLowerCase())}${d.latin ? ` (${esc(d.latin)})` : ''}. ${esc(d.def || '')}`;

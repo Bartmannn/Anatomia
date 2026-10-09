@@ -1,6 +1,7 @@
 // Tryb „Popraw lub dodaj punkty”: poprawianie, dodawanie i eksport punktów, zgłoszenia.
 import * as THREE from 'three';
-import { REGIONS, PARTS } from '../content.js';
+import { REGIONS, PARTS } from './tresci.js';
+import { SKULL_LABELS, SKULL_ORDER, isSkull } from './czaszka.js';
 import { ptr, ray } from './celowanie.js';
 import { occl } from './etykiety.js';
 import { paint, ribsOn } from './malowanie.js';
@@ -14,6 +15,7 @@ import { camera, invalidate, renderer } from './widok.js';
 
 export function editableParts(k) { return [...builtinParts(k), ...Object.keys(extrasOf(k))]; }
 export function builtinParts(k) {
+  if (isSkull(k)) return Object.keys(SKULL_LABELS[k] || {});
   if (k.startsWith('D_')) return ['anulus', 'nucleus'];
   if (k === 'S') return ['promontorium', 'canal', 'art_sup', 'ala', 'auricular', 'crista_mediana', 'apex'];
   if (k === 'C1') return ['arcus_ant', 'fovea_dentis', 'massa_lat', 'arcus_post', 'foramen', 'transverse'];
@@ -62,10 +64,10 @@ export const REPO_ISSUES = 'https://github.com/Bartmannn/Anatomia/issues/new';
 export const issueUrl = (title, body) => `${REPO_ISSUES}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
 export function reportUrl(k, id = null) {
   const where = k.startsWith('D_') ? `krążek ${discLabel(k)}` : `${PARTS[k]?.name || k} (${k})`;
-  if (!id) return issueUrl(`Brakujący lub błędny punkt: ${k}`, `Kręg / krążek: ${where}\n\nCzego brakuje albo co jest nie tak (nazwa części, opis, położenie):\n\n\nŹródło (podręcznik, notatki z zajęć):\n`);
+  if (!id) return issueUrl(`Brakujący lub błędny punkt: ${k}`, `Kość / krążek: ${where}\n\nCzego brakuje albo co jest nie tak (nazwa części, opis, położenie):\n\n\nŹródło (podręcznik, notatki z zajęć):\n`);
   const d = extraDef(k, id);
   const pts = (d.pts || []).map((p, i) => (p ? `${d.pair ? SIDE_NAMES[i] + ': ' : ''}[${p.join(', ')}]` : null)).filter(Boolean).join('; ') || 'jeszcze nie wskazany';
-  return issueUrl(`Propozycja punktu: ${d.name} (${k})`, `Kręg / krążek: ${where}\nNazwa: ${d.name}\nNazwa łacińska: ${d.latin || '—'}\nOpis: ${d.def || '—'}\nParzysty: ${d.pair ? 'tak' : 'nie'} · wyczuwalny: ${d.palp ? 'tak' : 'nie'}\nPołożenie (współrzędne modelu): ${pts}\n\nŹródło (podręcznik, notatki z zajęć):\n`);
+  return issueUrl(`Propozycja punktu: ${d.name} (${k})`, `Kość / krążek: ${where}\nNazwa: ${d.name}\nNazwa łacińska: ${d.latin || '—'}\nOpis: ${d.def || '—'}\nParzysty: ${d.pair ? 'tak' : 'nie'} · wyczuwalny: ${d.palp ? 'tak' : 'nie'}\nPołożenie (współrzędne modelu): ${pts}\n\nŹródło (podręcznik, notatki z zajęć):\n`);
 }
 export function placePoint(ev) {
   const r = renderer.domElement.getBoundingClientRect();
@@ -102,15 +104,16 @@ export function mergedFixes() {
 export function exportText() {
   const rev = { ...REVIEWED, ...local.reviewed };
   for (const k of Object.keys(rev)) if (!rev[k]) delete rev[k];
-  const order = (o) => Object.fromEntries(Object.entries(o).sort((a, b) => [...ORDER, ...ORDER.map((x) => 'D_' + x)].indexOf(a[0]) - [...ORDER, ...ORDER.map((x) => 'D_' + x)].indexOf(b[0])));
+  const all = [...ORDER, ...ORDER.map((x) => 'D_' + x), ...SKULL_ORDER];
+  const order = (o) => Object.fromEntries(Object.entries(o).sort((a, b) => all.indexOf(a[0]) - all.indexOf(b[0])));
   const fx = order(mergedFixes());
   const lines = Object.entries(fx).map(([k, v]) => `  ${JSON.stringify(k)}: ${JSON.stringify(v)},`).join('\n');
   const ex = {};
   for (const k of new Set([...Object.keys(EXTRA), ...Object.keys(local.extra)])) { const e = extrasOf(k); if (Object.keys(e).length) ex[k] = e; }
   const exLines = Object.entries(order(ex)).map(([k, v]) => `  ${JSON.stringify(k)}: {\n${Object.entries(v).map(([id, d]) => `    ${JSON.stringify(id)}: ${JSON.stringify(d)},`).join('\n')}\n  },`).join('\n');
   return `// Ręczne poprawki punktów etykiet. Plik tworzy tryb „Popraw punkty” na stronie (przycisk „Pobierz landmarks-fix.js”).
-// Współrzędne w układzie models/kregoslup.glb (1 jednostka = 10 cm). null = punkt usunięty.
-// REVIEWED: data sprawdzenia punktów danego kręgu.
+// Współrzędne w układzie modeli (1 jednostka = 10 cm). null = punkt usunięty.
+// REVIEWED: data sprawdzenia punktów danego kręgu albo kości.
 // EXTRA: punkty dodane ręcznie (części, których brakowało). name — nazwa (można ją tu poprawić), latin, def — opis,
 //        pair — parzysty ([lewa, prawa]), palp — wyczuwalny pod palcami, pts — współrzędne.
 export const FIXES = {${lines ? '\n' + lines + '\n' : ''}};
@@ -137,8 +140,8 @@ export function renderEditor() {
   const reg = regionOf(k);
   panelEl.style.setProperty('--rc', `var(--${reg.toLowerCase()})`);
   document.documentElement.style.setProperty('--rc', `var(--${reg.toLowerCase()})`);
-  const title = k.startsWith('D_') ? `Krążek ${discLabel(k)}` : `${PARTS[k].name} · ${PARTS[k].short}`;
-  bigcodeEl.textContent = k.startsWith('D_') ? discLabel(k) : (k === 'S' ? 'S' : k);
+  const title = k.startsWith('D_') ? `Krążek ${discLabel(k)}` : isSkull(k) ? PARTS[k].name : `${PARTS[k].name} · ${PARTS[k].short}`;
+  bigcodeEl.textContent = isSkull(k) ? '' : k.startsWith('D_') ? discLabel(k) : (k === 'S' ? 'S' : k);
   const L = lm(k);
   const rv = reviewedOf(k);
   const { part: ap, slot: as } = state.edit;
@@ -182,7 +185,7 @@ export function renderEditor() {
       <h2>${esc(title)}</h2>
       <p class="latin">Zmiany zapisują się w tej przeglądarce. Na koniec pobierz plik i podmień go w repozytorium.</p>
     </div>
-    <label class="check"><input type="checkbox" id="rev" ${rv ? 'checked' : ''}> <span>Sprawdziłem punkty tego ${k.startsWith('D_') ? 'krążka' : 'kręgu'}${rv ? ` <small>(${esc(rv)})</small>` : ''}</span></label>
+    <label class="check"><input type="checkbox" id="rev" ${rv ? 'checked' : ''}> <span>Sprawdziłem punkty ${k.startsWith('D_') ? 'tego krążka' : isSkull(k) ? 'tej kości' : 'tego kręgu'}${rv ? ` <small>(${esc(rv)})</small>` : ''}</span></label>
     <div><h3>Jak poprawić punkt</h3><ol class="steps">
       <li>Wybierz część (przy parzystych — stronę lewą lub prawą, czyli stronę ciała). Na modelu jej etykieta zostanie obwiedziona.</li>
       <li>Obróć model tak, żeby widzieć to miejsce, i kliknij na kości w miejscu, gdzie powinien być punkt.</li>
@@ -196,7 +199,7 @@ export function renderEditor() {
     </div>
     <div class="export">
       <h3>Zapis do projektu</h3>
-      <p>${n ? `Niezapisane w pliku zmiany: <b>${n}</b> ${n === 1 ? 'kręg' : 'kręgi/krążki'}.` : 'Wszystkie poprawki są już w pliku landmarks-fix.js.'}</p>
+      <p>${n ? `Niezapisane w pliku zmiany: <b>${n}</b> ${n === 1 ? 'kość' : 'kości/krążki'}.` : 'Wszystkie poprawki są już w pliku landmarks-fix.js.'}</p>
       <div class="ebtns">
         <button type="button" class="btn" id="dl">Pobierz landmarks-fix.js</button>
         <button type="button" class="chip" id="copy">Kopiuj zawartość</button>

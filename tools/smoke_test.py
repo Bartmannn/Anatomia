@@ -61,7 +61,8 @@ def main():
         ctx.close()
 
         for hash_, name in [('#kregoslup/C7', 'Cały kręgosłup'), ('#kregi/L4', 'Pojedyncze kręgi'),
-                            ('#zebra/Th7', 'Kręgi piersiowe i żebra'), ('#grzbiet/trapezius', 'Mięśnie grzbietu')]:
+                            ('#zebra/Th7', 'Kręgi piersiowe i żebra'), ('#czaszka/temporal', 'Czaszka'),
+                            ('#grzbiet/trapezius', 'Mięśnie grzbietu')]:
             print(name)
             ctx, page, errs, packs = open_page(hash_)
             wait_loaded(page)
@@ -82,6 +83,23 @@ def main():
             page.wait_for_timeout(1000)
             check(not errs, 'brak błędów w konsoli' + (f': {errs[:3]}' if errs else ''))
             ctx.close()
+
+        print('Czaszka: szwy, kolory kości, punkty')
+        ctx, page, errs, _ = open_page('#czaszka/parietal')
+        wait_loaded(page)
+        n = page.evaluate("import('./js/stan.js').then((s) => s.lineMeshes.filter((m) => m.visible).length)")
+        check(n > 0, f'szwy i kresa skroniowa na modelu ({n} odcinków)')
+        page.click('#tint')
+        page.wait_for_timeout(500)
+        page.click('#r-mandible')
+        page.wait_for_timeout(2500)
+        check(page.inner_text('#panel h2').strip() == 'Żuchwa', 'wybór kości z listy')
+        check(page.locator('.lbl:not([hidden])').count() >= 6, 'etykiety części żuchwy')
+        page.click('[data-action=edit]')
+        page.wait_for_timeout(1500)
+        check(page.locator('.erow').count() >= 6, 'poprawianie punktów czaszki')
+        check(not errs, 'brak błędów w konsoli' + (f': {errs[:3]}' if errs else ''))
+        ctx.close()
 
         print('Tryb poprawiania punktów')
         ctx, page, errs, _ = open_page('#kregoslup/Th7')

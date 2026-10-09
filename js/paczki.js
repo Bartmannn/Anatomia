@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { PACKS } from '../models/pakiety/spis.js';
 import * as MUS from './miesnie.js';
+import * as CZ from './czaszka.js';
 import { buildProxy, proxyOf } from './celowanie.js';
 import { occl } from './etykiety.js';
 import { facetMat, paint, relatedRibs, ribMat, ribsOn } from './malowanie.js';
@@ -12,14 +13,14 @@ import { $, MODULES, byName, ctxMeshes, currentKey, hasKey, modKeys, muscleMeshe
 import { invalidate, newMat, projectedBox, renderer, root, view } from './widok.js';
 
 /* ---------- Paczki modeli: pobieranie na żądanie ---------- */
-// Format paczek opisuje tools/build_packs.py. Przegląd (przeglad-*, zebra-przeglad) to siatki uproszczone,
-// a kregi/<kręg> i zebra/<n> — pełne, pobierane dopiero, gdy kręg jest wybrany albo duży na ekranie.
+// Format paczek opisuje tools/build_packs.py. Przegląd (przeglad-*, zebra-przeglad, czaszka-przeglad) to siatki uproszczone,
+// a kregi/<kręg>, zebra/<n> i czaszka/<kość> — pełne, pobierane dopiero, gdy kość jest wybrana albo duża na ekranie.
 export const lowGeo = {}, highGeo = {};
 export const packs = new Map();            // id -> { p, ctrl, done, keep, low }
 export const net = { bytes: 0 };
 export const wantHigh = new Set();
-export const isOverview = (id) => id.startsWith('przeglad') || id === 'zebra-przeglad';
-export const packForKey = (k) => `kregi/${k.startsWith('D_') ? k.slice(2) : k}`;
+export const isOverview = (id) => id.startsWith('przeglad') || id === 'zebra-przeglad' || id === CZ.SKULL_OVERVIEW;
+export const packForKey = (k) => (CZ.isSkull(k) ? CZ.skullPack(k) : `kregi/${k.startsWith('D_') ? k.slice(2) : k}`);
 export const saveData = () => { const c = navigator.connection; return !!(c && (c.saveData || /(^|-)2g$/.test(c.effectiveType || ''))); };
 export const kB = (b) => `${b >= 1e6 ? (b / 1e6).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(b / 1000)) + ' kB'}`;
 
@@ -204,6 +205,7 @@ export function updateLod() {
   wantHigh.clear();
   for (const id of need) {
     if (id.startsWith('kregi/')) { const k = id.slice(6); wantHigh.add(k); wantHigh.add('D_' + k); }
+    else if (id.startsWith('czaszka/')) wantHigh.add(id.slice(8));
     else if (id.startsWith('zebra/')) { const n = id.slice(6); wantHigh.add(`rib_L${n}`); wantHigh.add(`rib_R${n}`); }
   }
   for (const m of Object.values(parts)) useGeometry(m);

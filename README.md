@@ -1,6 +1,6 @@
 # Anatomia — atlas 3D dla techników masażystów
 
-Interaktywny, trójwymiarowy atlas kręgosłupa i mięśni grzbietu, który działa w przeglądarce. Model można obracać, przybliżać i klikać. Każdy kręg ma nazwy swoich części, opis budowy i uwagi „dla masażysty”, a każdy mięsień — przyczepy (zaznaczone na kościach), działanie i unerwienie.
+Interaktywny, trójwymiarowy atlas kręgosłupa, czaszki i mięśni grzbietu, który działa w przeglądarce. Model można obracać, przybliżać i klikać. Każdy kręg i każda kość czaszki ma nazwy swoich części, opis budowy i uwagi „dla masażysty”, a każdy mięsień — przyczepy (zaznaczone na kościach), działanie i unerwienie.
 
 **Strona:** https://bartmannn.github.io/Anatomia/
 
@@ -14,7 +14,8 @@ Atlas mogą swobodnie wykorzystywać uczniowie i nauczyciele. Uwagi i poprawki s
 
 ## Co potrafi
 
-- **Moduły do wyboru.** Kości: *Cały kręgosłup*, *Pojedyncze kręgi* (jeden kręg naraz, w pełnej szczegółowości) i *Kręgi piersiowe i żebra*. Mięśnie: *Mięśnie grzbietu*. Strona pobiera tylko wybrany moduł.
+- **Moduły do wyboru.** Kości: *Cały kręgosłup*, *Pojedyncze kręgi* (jeden kręg naraz, w pełnej szczegółowości), *Kręgi piersiowe i żebra* i *Czaszka*. Mięśnie: *Mięśnie grzbietu*. Strona pobiera tylko wybrany moduł.
+- **Czaszka:** kości mózgoczaszki (czołowa, ciemieniowe, potyliczna, skroniowe, klinowa, sitowa) i twarzoczaszki (nosowe, łzowe, jarzmowe, szczęki, żuchwa, lemiesz, podniebienne, małżowiny nosowe dolne) oraz 28 zębów. Na modelu są szwy (wieńcowy, strzałkowy, węgłowy, łuskowe) i kresa skroniowa (linia przerywana); po najechaniu na szew w opisie świeci on na modelu. Przycisk *Kolory kości* koloruje każdą kość inaczej, jak w atlasie. Kości leżące głęboko (np. sitową, lemiesz) najlepiej oglądać z włączonym *Tylko wybrany*.
 - **Mięśnie grzbietu warstwami.** Warstwa powierzchowna: mięsień czworoboczny (części zstępująca, poprzeczna i wstępująca) i najszerszy grzbietu. Warstwa pośrednia: mięśnie równoległoboczne (większy i mniejszy), dźwigacz łopatki i mięśnie zębate tylne (górny i dolny). Warstwa głęboka: prostownik grzbietu — mięśnie biodrowo-żebrowy, najdłuższy i kolcowy (z częściami lędźwiową, piersiową, szyjną i głowową) — oraz mięśnie płatowate głowy i szyi. Po wybraniu mięśnia z głębszej warstwy warstwy nad nim stają się przezroczyste. Po wybraniu mięśnia jego przyczepy podświetlają się na kościach (kręgi, łopatka, obojczyk, kość ramienna, potyliczna, biodrowa, żebra), a po najechaniu na część w opisie — tylko przyczepy tej części. Najgłębszych mięśni (poprzeczno-kolcowych, np. wielodzielnego) jeszcze nie ma.
 - **Model 3D kręgosłupa:** 24 kręgi (C1–L5), kość krzyżowa i 23 krążki międzykręgowe.
 - **Nazwy części kości** z liniami odniesienia, np. trzon, łuk, otwór kręgowy, wyrostki kolczysty, poprzeczne i stawowe. Kręgi C1 i C2, kość krzyżowa i krążki mają własne nazwy.
@@ -22,12 +23,12 @@ Atlas mogą swobodnie wykorzystywać uczniowie i nauczyciele. Uwagi i poprawki s
 - **Punkty wyczuwalne pod palcami** w widoku całego kręgosłupa: C2, C7, Th3, Th7, L4, S2.
 - **Opisy każdego kręgu:** cechy budowy, wskazówki dla masażysty (palpacja, na co uważać), przyczepy mięśni.
 - **Widoki** przód, bok, tył i góra. Można też pokazać tylko wybrany kręg, pokolorować odcinki albo ukryć krążki.
-- **Quiz** z kilkoma rodzajami pytań: *Który kręg?* (podświetlony kręg, a w module *Pojedyncze kręgi* — sam kształt), *Która część?* (zaznaczony punkt na kręgu), *Który mięsień?* i *Czyje przyczepy?* (świecą tylko przyczepy na kościach).
+- **Quiz** z kilkoma rodzajami pytań: *Który kręg?* (podświetlony kręg, a w module *Pojedyncze kręgi* — sam kształt), *Która kość?* (czaszka), *Która część?* (zaznaczony punkt na kręgu lub kości), *Który mięsień?* i *Czyje przyczepy?* (świecą tylko przyczepy na kościach).
 - **Tryb „Popraw lub dodaj punkty”** do ręcznego poprawiania położenia etykiet i dodawania brakujących części, a także przycisk **Zgłoś brak lub błąd** (opis niżej).
-- **Linki do konkretnego widoku**, np. `…/Anatomia/#kregi/Th7` (moduł / kręg) — wygodne do wysłania w grupie.
+- **Linki do konkretnego widoku**, np. `…/Anatomia/#kregi/Th7` (moduł / kręg) albo `…/Anatomia/#czaszka/temporal` — wygodne do wysłania w grupie.
 - Działa na komputerze i na telefonie, w jasnym i ciemnym motywie, także **bez internetu** (po zapisaniu modułu) i jako ikona na ekranie głównym telefonu.
 
-W modelu nie ma kości guzicznej, bo nie ma jej w użytym zbiorze danych.
+W modelu nie ma kości guzicznej, kości gnykowej ani trzecich zębów trzonowych (zębów mądrości), bo nie ma ich w użytym zbiorze danych albo nie zostały jeszcze dodane.
 
 ## Uruchomienie
 
@@ -83,6 +84,7 @@ Aktualna przeglądarka z obsługą WebGL: Chrome, Edge, Firefox lub Safari (iOS 
 | Cały kręgosłup | ok. 260 kB | 22–150 kB za każdy wybrany lub mocno przybliżony kręg |
 | Pojedyncze kręgi | 22–150 kB | tyle samo za każdy kolejny kręg |
 | Kręgi piersiowe i żebra | ok. 220 kB | szczegóły kręgu i 2 par żeber przy nim |
+| Czaszka | ok. 290 kB | 7–190 kB za każdą wybraną lub mocno przybliżoną kość |
 | Mięśnie grzbietu | ok. 590 kB | ok. 85 kB za warstwę pośrednią i 130 kB za głęboką (po włączeniu) |
 
 Dla porównania pełny model w jednym pliku miał ok. 8 MB.
@@ -111,7 +113,7 @@ Dopisz `&debug` na końcu adresu (np. `http://localhost:8000/#kregoslup/C7&debug
 
 Przy każdej zmianie w repozytorium i każdej propozycji zmian (pull request) GitHub sam uruchamia testy (`.github/workflows/testy.yml`). Wynik widać w zakładce *Actions* i przy propozycji zmian: zielony ✓ albo czerwony ✗ z opisem, co jest nie tak.
 
-- **Sprawdzenie treści** (`tools/check_content.mjs`, wystarczy Node.js): czy `content.js`, `content-miesnie.js` i pliki z punktami dają się wczytać (zgubiony cudzysłów albo przecinek jest wskazany z numerem wiersza), czy każdy kręg i mięsień ma nazwy i opisy, czy klucze kręgów i kości nie mają literówek, czy są wszystkie pliki modeli, czcionek i ikon, czy `sw.js` zna wszystkie pliki strony, i czy strona nie odwołuje się do zewnętrznych serwerów.
+- **Sprawdzenie treści** (`tools/check_content.mjs`, wystarczy Node.js): czy `content.js`, `content-miesnie.js`, `content-czaszka.js` i pliki z punktami dają się wczytać (zgubiony cudzysłów albo przecinek jest wskazany z numerem wiersza), czy każdy kręg, kość czaszki i mięsień ma nazwy i opisy, czy każda część czaszki ma punkt (parzysta — dwa), czy klucze kręgów i kości nie mają literówek, czy są wszystkie pliki modeli, czcionek i ikon, czy `sw.js` zna wszystkie pliki strony, i czy strona nie odwołuje się do zewnętrznych serwerów.
 - **Test w przeglądarce** (`tools/smoke_test.py`, Python + Playwright): otwiera każdy moduł, przechodzi przez wszystkie rodzaje pytań w quizie i tryb poprawiania punktów, zapisuje moduł i otwiera go bez internetu, sprawdza widok telefonu i to, czy nie ma błędów.
 
 Lokalnie:
@@ -139,11 +141,11 @@ Chcesz poprawić opis albo położenie etykiety? Do większości poprawek nie tr
 
 ## Poprawianie punktów etykiet
 
-Etykiety części kręgów są wyznaczane automatycznie z kształtu kości (skrajne punkty, promienie przez otwór kręgowy), więc każdy kręg warto sprawdzić:
+Etykiety części kręgów i kości czaszki są wyznaczane automatycznie z kształtu kości (skrajne punkty, przekroje, promienie przez otwory, miejsca styku kości), więc każdą kość warto sprawdzić:
 
-1. Wybierz kręg i w panelu kliknij **Popraw punkty**.
+1. Wybierz kręg lub kość i w panelu kliknij **Popraw lub dodaj punkty**.
 2. Wybierz część (przy parzystych także stronę: lewą lub prawą — to strona ciała, nie ekranu) i kliknij na kości w miejscu, gdzie powinien być punkt. Dopracuj położenie strzałkami (1 mm, z Shift 5 mm). PgUp/PgDn przesuwa punkt w głąb.
-3. Gdy wszystkie punkty kręgu są dobre, zaznacz **Sprawdziłem punkty tego kręgu**. Uczniowie zobaczą przy nim informację, że etykiety sprawdzono ręcznie.
+3. Gdy wszystkie punkty są dobre, zaznacz **Sprawdziłem punkty tego kręgu** (tej kości). Uczniowie zobaczą przy nim informację, że etykiety sprawdzono ręcznie.
 4. Kliknij **Pobierz landmarks-fix.js**, podmień plik w folderze projektu i zrób commit.
 
 ### Brakujący punkt
@@ -164,12 +166,13 @@ Poprawki zapisują się w przeglądarce do czasu pobrania pliku. `landmarks.js` 
 | Nazwy części nietypowych kręgów i ich wyjątki (C1, C2, C3–C5, Th1, Th10–Th12, odcinek lędźwiowy, kość krzyżowa, krążki) | `content.js` → `PART_LABELS_SPECIAL` |
 | Punkty wyczuwalne pod palcami w widoku całego kręgosłupa (C2, C7, Th3, Th7, L4, S2) | `content.js` → `PALPATION` |
 | Opisy kręgów (nazwa kręgu, cechy, uwagi dla masażysty) | `content.js` → `PARTS` |
+| Kości czaszki: opisy, nazwy części i szwów, które części są parzyste (`pair`) i wyczuwalne (`palp`) | `content-czaszka.js` → `SKULL_PARTS`, `SKULL_LABELS` |
 | Mięśnie, ich części i przyczepy | `content-miesnie.js` |
 | Punkty dodane ręcznie | `landmarks-fix.js` → `EXTRA` (pole `name`) albo w trybie „Popraw lub dodaj punkty” → *Nazwa i opis tego punktu* |
 
 Każdy wpis ma `name` (nazwa polska), `latin` (łacińska) i `def` (opis). Zmiana nazwy w `PART_LABELS` działa we wszystkich kręgach naraz, a wpis w `PART_LABELS_SPECIAL` tylko w wybranym. Położenia punktów to osobna sprawa — są w `landmarks.js` i `landmarks-fix.js`.
 
-Wszystkie teksty, czyli nazwy kręgów, cechy, uwagi dla masażysty, przyczepy mięśni, nazwy części kości i punkty wyczuwalne, są w pliku `content.js`. Opisy mięśni (przyczepy, działanie, unerwienie, masaż i listy kości do podświetlenia) są w `content-miesnie.js`. Można go edytować w zwykłym edytorze tekstu, bez znajomości reszty kodu. Po zapisaniu wystarczy odświeżyć stronę.
+Wszystkie teksty o kręgosłupie, czyli nazwy kręgów, cechy, uwagi dla masażysty, przyczepy mięśni, nazwy części kości i punkty wyczuwalne, są w pliku `content.js`. Teksty o czaszce są w `content-czaszka.js`. Opisy mięśni (przyczepy, działanie, unerwienie, masaż i listy kości do podświetlenia) są w `content-miesnie.js`. Można go edytować w zwykłym edytorze tekstu, bez znajomości reszty kodu. Po zapisaniu wystarczy odświeżyć stronę.
 
 ## Struktura projektu
 
@@ -182,9 +185,11 @@ Wszystkie teksty, czyli nazwy kręgów, cechy, uwagi dla masażysty, przyczepy m
 | `og.jpg` | Obrazek podglądu linku |
 | `content.js` | Opisy kręgów i nazwy części kości |
 | `content-miesnie.js` | Opisy mięśni i ich przyczepów |
+| `content-czaszka.js` | Opisy kości czaszki, ich części i szwów |
 | `landmarks.js` | Położenie etykiet wyznaczone automatycznie |
+| `landmarks-czaszka.js` | Punkty etykiet czaszki i przebieg szwów oraz kresy skroniowej (wyznaczone automatycznie) |
 | `landmarks-fix.js` | Ręczne poprawki etykiet i lista sprawdzonych kręgów (tworzy go tryb „Popraw punkty”) |
-| `models/pakiety/` | Model podzielony na małe paczki, które strona pobiera na żądanie: przegląd odcinków, pełne kręgi, pary żeber (`spis.js` — lista z rozmiarami) |
+| `models/pakiety/` | Model podzielony na małe paczki, które strona pobiera na żądanie: przegląd odcinków, pełne kręgi, pary żeber, czaszka (przegląd i pojedyncze kości), mięśnie (`spis.js` — lista z rozmiarami) |
 | `models/kregoslup.glb` | Pełny model kręgosłupa w standardowym formacie glTF (~5,4 MB); źródło paczek, strona go nie pobiera |
 | `models/zebra.glb` | 24 żebra i powierzchnie dołków żebrowych w formacie glTF (~2,8 MB); źródło paczek |
 | `landmarks-ribs.js` | Punkty połączeń żeber z kręgami (dołki, głowa, szyjka i guzek żebra) |
@@ -196,6 +201,7 @@ Wszystkie teksty, czyli nazwy kręgów, cechy, uwagi dla masażysty, przyczepy m
 | `tools/ribs.py` | Buduje `models/zebra.glb` i wyznacza stawy żebrowo-kręgowe do `landmarks-ribs.js` |
 | `tools/build_packs.py` | Dzieli oba modele na paczki w `models/pakiety/` i przygotowuje wersje uproszczone |
 | `tools/muscles.py` | Buduje paczki mięśni (`models/pakiety/miesnie/`) i kości tła (`kosci-tla.pak`) |
+| `tools/czaszka.py` | Buduje paczki czaszki (`czaszka-przeglad.pak`, `czaszka/`) i wyznacza punkty, szwy i kresę skroniową do `landmarks-czaszka.js` |
 | `Dockerfile`, `compose.yaml`, `docker/` | Uruchomienie strony w kontenerze (nginx) |
 | `CONTRIBUTING.md` | Jak zgłaszać i wprowadzać poprawki |
 
@@ -203,7 +209,7 @@ Wszystkie teksty, czyli nazwy kręgów, cechy, uwagi dla masażysty, przyczepy m
 
 | Plik | Za co odpowiada |
 |---|---|
-| `stan.js` | Stan aplikacji, stałe (kolejność kręgów, lista modułów), wspólne zbiory siatek. Nie zależy od innych plików strony |
+| `stan.js` | Stan aplikacji, stałe (kolejność kręgów, lista modułów), wspólne zbiory siatek. Zależy tylko od `miesnie.js` i `czaszka.js` |
 | `widok.js` | Renderer, scena, kamera, sterowanie, materiały, kadrowanie. Zależy tylko od `stan.js` |
 | `petla.js` | Pętla rysowania: rysowanie na żądanie, rozdzielczość zależna od ruchu, płynne przybliżanie, licznik `&debug` |
 | `paczki.js` | Pobieranie paczek modeli, dekodowanie formatu `.pak`, poziomy szczegółów |
@@ -211,17 +217,20 @@ Wszystkie teksty, czyli nazwy kręgów, cechy, uwagi dla masażysty, przyczepy m
 | `punkty.js` | Punkty etykiet: automatyczne, poprawione i dodane ręcznie; nazwy części |
 | `etykiety.js` | Etykiety na modelu: wybór, zasłanianie, rozkład w kolumnach |
 | `celowanie.js` | Wybór myszką i palcem, podświetlanie pod kursorem (na uproszczonych bryłach) |
-| `panel.js` | Lewa kolumna (kręgi albo mięśnie) i panel z opisem |
+| `panel.js` | Lewa kolumna (kręgi, kości czaszki albo mięśnie) i panel z opisem |
 | `quiz.js` | Quiz: rodzaje pytań, odpowiedzi, wynik |
 | `edytor.js` | Tryb „Popraw lub dodaj punkty”, eksport `landmarks-fix.js`, zgłoszenia |
 | `moduly.js` | Wybór modułu, zapis na urządzeniu, zasłona wczytywania, adres strony, przyciski i klawiatura |
 | `miesnie.js` | Część modułu mięśni niezależna od 3D (lista, panel, etykiety, przyczepy) |
+| `czaszka.js` | Część modułu czaszki niezależna od 3D (lista kości, grupy, kolory, kierunki kamery) |
+| `szwy.js` | Szwy czaszki i kresa skroniowa na modelu |
+| `tresci.js` | Wspólny dostęp do opisów kręgosłupa i czaszki |
 
 Moduły z górnego poziomu korzystają tylko ze `stan.js` i `widok.js`; pozostałe zależności są wywoływane dopiero w funkcjach, dlatego kolejność wczytywania nie ma znaczenia. Uruchomienie (podpięcie przycisków, pętla) jest w `app.js`.
 
 ## Odtworzenie modelu z danych źródłowych
 
-Potrzebne są Python 3 z bibliotekami `numpy` i `scipy` oraz pliki STL kręgów, żeber, mięśni i kości tła z repozytorium [BodyParts3D](https://github.com/Kevin-Mattheus-Moerman/BodyParts3D) (folder `assets/BodyParts3D_data/stl`), najlepiej wszystkie w jednym folderze. Listę użytych plików (identyfikatory FMA) znajdziesz na początku skryptów.
+Potrzebne są Python 3 z bibliotekami `numpy` i `scipy` oraz pliki STL kręgów, żeber, mięśni, kości tła i czaszki z repozytorium [BodyParts3D](https://github.com/Kevin-Mattheus-Moerman/BodyParts3D) (folder `assets/BodyParts3D_data/stl`), najlepiej wszystkie w jednym folderze. Listę użytych plików (identyfikatory FMA) znajdziesz na początku skryptów.
 
 ```
 pip install numpy scipy
@@ -230,7 +239,10 @@ python tools/landmarks.py <folder_z_plikami_stl> landmarks.js
 python tools/ribs.py <folder_z_plikami_stl>
 python tools/build_packs.py
 python tools/muscles.py <folder_z_plikami_stl>
+python tools/czaszka.py <folder_z_plikami_stl>
 ```
+
+`tools/czaszka.py <folder> --punkty` przelicza tylko punkty i szwy (kilka sekund), bez przebudowy paczek.
 
 Ostatni krok (ok. minuty) trzeba powtórzyć po każdej zmianie `models/kregoslup.glb` lub `models/zebra.glb`.
 
@@ -238,7 +250,7 @@ Ostatni krok (ok. minuty) trzeba powtórzyć po każdej zmianie `models/kregoslu
 
 **Modele 3D** — BodyParts3D, © The Database Center for Life Science (DBCLS), licencja [CC BY-SA 2.1 JP](https://creativecommons.org/licenses/by-sa/2.1/jp/deed.en).
 Dane pobrane z repozytorium [Kevin-Mattheus-Moerman/BodyParts3D](https://github.com/Kevin-Mattheus-Moerman/BodyParts3D) (wersja 3.0 / 20110915, pliki STL przekonwertowane z oryginalnych OBJ).
-Wprowadzone zmiany: wybór kręgów, krążków, żeber, mięśni grzbietu i kości obręczy barkowej, kości ramiennej, biodrowej i potylicznej, uproszczenie siatek żeber, zmiana układu osi i skali, scalenie wierzchołków, obliczenie normalnych, kwantyzacja i zapis do formatu glTF (GLB), podział na paczki z wersjami uproszczonymi i kompresja. Pliki `models/kregoslup.glb`, `models/zebra.glb`, `models/pakiety/`, `landmarks.js`, `landmarks-ribs.js` i `landmarks-fix.js` (współrzędne na tych samych modelach) są udostępniane na tej samej licencji CC BY-SA 2.1 JP.
+Wprowadzone zmiany: wybór kręgów, krążków, żeber, mięśni grzbietu, kości czaszki i zębów oraz kości obręczy barkowej, kości ramiennej, biodrowej i potylicznej, uproszczenie siatek żeber, zmiana układu osi i skali, scalenie wierzchołków, obliczenie normalnych, kwantyzacja i zapis do formatu glTF (GLB), podział na paczki z wersjami uproszczonymi i kompresja. Pliki `models/kregoslup.glb`, `models/zebra.glb`, `models/pakiety/`, `landmarks.js`, `landmarks-ribs.js`, `landmarks-czaszka.js` i `landmarks-fix.js` (współrzędne na tych samych modelach) są udostępniane na tej samej licencji CC BY-SA 2.1 JP.
 
 Publikacja źródłowa:
 > Mitsuhashi N, Fujieda K, Tamura T, Kawamoto S, Takagi T, Okubo K. *BodyParts3D: 3D structure database for anatomical concepts.* Nucleic Acids Res. 2009;37(Database issue):D782–5. https://doi.org/10.1093/nar/gkn613
@@ -250,7 +262,7 @@ Publikacja źródłowa:
 
 **Kod strony i skrypty** (`index.html`, `styles.css`, `app.js`, `js/`, `sw.js`, `tools/`) — licencja MIT (`LICENSE`).
 
-**Opisy** (`content.js`, `content-miesnie.js`) — licencja CC BY-SA 4.0.
+**Opisy** (`content.js`, `content-miesnie.js`, `content-czaszka.js`) — licencja CC BY-SA 4.0.
 
 **Obrazek podglądu** (`og.jpg`) zawiera render modeli BodyParts3D, więc jest na licencji CC BY-SA 2.1 JP. Ikony (`icons/`) — MIT, jak kod.
 

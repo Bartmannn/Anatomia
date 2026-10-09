@@ -1,15 +1,25 @@
 // Wybór modułu, zasłona wczytywania, adres strony, przyciski paska i klawiatura.
 import { PACKS } from '../models/pakiety/spis.js';
+import * as THREE from 'three';
 import * as MUS from './miesnie.js';
-import { PARTS } from '../content.js';
+import * as CZ from './czaszka.js';
+import { PARTS } from './tresci.js';
 import { nudge, renderEditor } from './edytor.js';
 import { occl } from './etykiety.js';
 import { paint } from './malowanie.js';
 import { ensurePack, kB, net, netStatus, packForKey, packUrl, packs, saveData, scheduleLod, updateLod } from './paczki.js';
 import { buildRuler, esc, refreshPanel, renderPart, syncRuler } from './panel.js';
 import { newQuestion } from './quiz.js';
-import { $, DEBUG, MODULES, ORDER, closeUp, currentKey, modKeys, muscleMode, parts, rulerEl, single, state, ui } from './stan.js';
+import { $, DEBUG, MODULES, ORDER, closeUp, currentKey, modKeys, muscleMode, parts, rulerEl, single, skullMode, state, ui } from './stan.js';
 import { VIEWS, closeFrame, frame, frameWhenReady, neighbors, stepTween, view } from './widok.js';
+
+/* ---------- Czaszka: kadr na kość ---------- */
+export const boneDir = (k) => new THREE.Vector3(...(CZ.BONE_VIEW[k] || [0.8, 0.15, 0.6])).normalize();
+// duże kości: cała czaszka z kierunku, z którego widać kość; małe: zbliżenie na samą kość
+export function frameSkull(k) {
+  if (CZ.SMALL_BONES.has(k)) frameWhenReady(k, () => frame([k], boneDir(k), 3.2));
+  else { view.pendingFrame = null; frame(modKeys(), boneDir(k), 1.05); }
+}
 
 export function toggleRibs() { setRibs(!state.ribs); }
 export function setRibs(on, reframe = true) {
@@ -40,6 +50,7 @@ export function select(k, doFrame) {
   else if (doFrame || single()) {
     const keys = k.startsWith('D_') ? [k.slice(2)] : [k];
     if (closeUp()) frameWhenReady(k, () => closeFrame(k));
+    else if (skullMode()) frameSkull(k);
     else { view.pendingFrame = null; frame(neighbors(keys[0], 3)); }
   }
   writeHash();
@@ -64,7 +75,7 @@ export function setMode(mode) {
   } else {
     select(state.selected, true);
   }
-  if (mode === 'edit') closeFrame(state.selected, VIEWS.side);
+  if (mode === 'edit') closeFrame(state.selected, skullMode() ? boneDir(state.selected) : VIEWS.side);
   syncRuler();
 }
 
@@ -145,7 +156,7 @@ export function syncLayerChips() {
 export const MOD_KEY = 'atlas-module-v1';
 export const pickerEl = $('#picker');
 export const loaderEl = $('#loader');
-export const validKey = (k) => ORDER.includes(k) || (/^D_/.test(k) && ORDER.includes(k.slice(2)) && k !== 'D_S' && k !== 'D_C1');
+export const validKey = (k) => ORDER.includes(k) || CZ.isSkull(k) || (/^D_/.test(k) && ORDER.includes(k.slice(2)) && k !== 'D_S' && k !== 'D_C1');
 export function parseHash() {
   const h = decodeURIComponent(location.hash.slice(1)).replace(/[&?]?debug\b/, '');
   const [a, b] = h.split('/');
@@ -163,6 +174,7 @@ export const ICONS = {
     Array.from({ length: 9 }, (_, i) => `<rect x="${15 + Math.sin(i / 2.6) * 4}" y="${3 + i * 5.6}" width="${8 + i * 0.6}" height="3.6" rx=".6"/>`).join('') + '</g></svg>',
   kregi: '<svg viewBox="0 0 40 56" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6"><ellipse cx="20" cy="19" rx="10" ry="7.5"/><path d="M12 25 L8 31 M28 25 L32 31 M14 27 Q20 33 26 27 M20 33 L20 47"/><circle cx="20" cy="28.5" r="2.6"/></g></svg>',
   grzbiet: '<svg viewBox="0 0 40 56" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 4 L20 52" stroke-dasharray="2 2.5"/><path d="M15 6 L20 5 L25 6 L35 13 L36 17 L20 30 L4 17 L5 13 Z" fill="currentColor" fill-opacity=".18"/><path d="M20 30 L20 46 L10 50 L7 30 Z M20 30 L20 46 L30 50 L33 30 Z" fill="currentColor" fill-opacity=".08"/></g></svg>',
+  czaszka: '<svg viewBox="0 0 40 56" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 7 C9 7 5 15 5 23 C5 29 8 32 10 34 L11 41 L16 42 L17 46 L23 46 L24 42 L29 41 L30 34 C32 32 35 29 35 23 C35 15 31 7 20 7 Z"/><ellipse cx="14" cy="26" rx="4" ry="3.6" fill="currentColor" fill-opacity=".18"/><ellipse cx="26" cy="26" rx="4" ry="3.6" fill="currentColor" fill-opacity=".18"/><path d="M20 30 L18 35 L22 35 Z M20 7 C21 12 21 15 20 19" stroke-width="1.2"/><path d="M14 46 L14 42 M18 46 L18 42.5 M22 46 L22 42.5 M26 46 L26 42" stroke-width="1"/></g></svg>',
   zebra: '<svg viewBox="0 0 40 56" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6">' +
     Array.from({ length: 5 }, (_, i) => `<rect x="17" y="${6 + i * 9}" width="6" height="4.5" rx=".6"/><path d="M17 ${9 + i * 9} Q5 ${10 + i * 9} 4 ${19 + i * 9} M23 ${9 + i * 9} Q35 ${10 + i * 9} 36 ${19 + i * 9}"/>`).join('') + '</g></svg>',
 };
@@ -245,6 +257,7 @@ export function offlineIds(mod) {
   if (mod === 'kregoslup' || mod === 'kregi') { allOf('kregi/').forEach((id) => ids.add(id)); allOf('zebra/').forEach((id) => ids.add(id)); }
   if (mod === 'kregoslup') ids.add('zebra-przeglad');
   if (mod === 'zebra') { M.keys.forEach((k) => ids.add(packForKey(k))); allOf('zebra/').forEach((id) => ids.add(id)); }
+  if (M.kind === 'skull') allOf('czaszka/').forEach((id) => ids.add(id));
   if (M.kind === 'muscles') allOf('miesnie/').forEach((id) => ids.add(id));
   return [...ids].filter((id) => PACKS[id]);
 }
@@ -301,14 +314,17 @@ export function setModule(mod, key = null) {
   const mus = muscleMode();
   if (mus && state.mode === 'edit') { state.mode = 'atlas'; syncModeButtons(); }
   if (!mus && keys.includes(state.lastBone.replace('D_', ''))) state.selected = state.lastBone;
+  const skull = skullMode();
   if (key && keys.includes(key.replace('D_', ''))) state.selected = key;
-  if (!keys.includes(state.selected.replace('D_', ''))) state.selected = mus ? keys[0] : mod === 'zebra' ? 'Th7' : 'C7';
+  if (!keys.includes(state.selected.replace('D_', ''))) state.selected = mod === 'zebra' ? 'Th7' : keys.includes('C7') ? 'C7' : keys[0];
   if (single() && state.selected.startsWith('D_')) state.selected = state.selected.slice(2);
   state.focusPart = null;
   if (state.isolate) { state.isolate = false; $('#isolate').setAttribute('aria-pressed', 'false'); }
   $('#isolate').hidden = single();
-  $('#discs').hidden = single() || mus;
+  $('#discs').hidden = single() || mus || skull;
+  $('#ribs').hidden = skull;
   $('#tint').hidden = mus;
+  $('#tint .clbl').textContent = skull ? 'Kolory kości' : 'Kolory odcinków';
   $('#attach').hidden = !mus;
   $('#layers').hidden = !mus;
   if (mus) {
@@ -317,9 +333,9 @@ export function setModule(mod, key = null) {
     renderLayerChips();
   }
   buildRuler();
-  $('.brand h1').textContent = mus ? 'Mięśnie' : 'Kręgosłup';
+  $('.brand h1').textContent = mus ? 'Mięśnie' : skull ? 'Czaszka' : 'Kręgosłup';
   $('.stage .hint').innerHTML = `Przeciągnij, aby obrócić · kółko lub dwa palce, aby przybliżyć<br>${mus ? 'Kliknij mięsień, aby go wybrać' : 'Kliknij kość, aby ją wybrać'} · strzałki ↑ ↓`;
-  $('.brand .sub').textContent = mus ? `Atlas 3D · grzbiet · warstwy 1–${MUS.READY_LAYERS.at(-1)}` : mod === 'zebra' ? 'Atlas 3D · 12 kręgów · 24 żebra' : mod === 'kregi' ? 'Atlas 3D · jeden kręg naraz' : 'Atlas 3D · 25 kości · 23 krążki';
+  $('.brand .sub').textContent = mus ? `Atlas 3D · grzbiet · warstwy 1–${MUS.READY_LAYERS.at(-1)}` : skull ? 'Atlas 3D · 22 kości · szwy' : mod === 'zebra' ? 'Atlas 3D · 12 kręgów · 24 żebra' : mod === 'kregi' ? 'Atlas 3D · jeden kręg naraz' : 'Atlas 3D · 25 kości · 23 krążki';
   for (const id of MODULES[mod].base) {
     ensurePack(id, { keep: true, onProgress: (g) => { baseProgress[id] = g; updateLoader(); } }).catch(() => {});
   }
@@ -336,7 +352,9 @@ export function setModule(mod, key = null) {
       if (state.module !== mod) return;
       paint();
       if (mus) frame([...modKeys(), ...ORDER], VIEWS.back, 1.12);
-      else if (state.mode === 'edit' || state.isolate) closeFrame(state.selected); else frame(modKeys(), VIEWS.three);
+      else if (state.mode === 'edit' || state.isolate) closeFrame(state.selected);
+      else if (skull) frameSkull(state.selected);
+      else frame(modKeys(), VIEWS.three);
       done();
     }).catch((e) => { if (e?.name !== 'AbortError') console.warn(e); });
   }

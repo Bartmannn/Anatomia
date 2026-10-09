@@ -3,7 +3,7 @@
 // Użycie:  node tools/check_content.mjs
 //
 // Wyłapuje błędy, które psują stronę albo jej fragment: zgubiony cudzysłów lub przecinek w content.js,
-// brakujące pola (nazwa, opis), literówkę w kluczu kręgu, punkt bez współrzędnych, brakujący plik modelu.
+// brakujące pola (nazwa, opis), literówkę w kluczu kręgu lub kości, punkt bez współrzędnych, brakujący plik modelu.
 // Uruchamia się też automatycznie na GitHubie przy każdej zmianie (.github/workflows/testy.yml).
 import { readFileSync, readdirSync, existsSync, statSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -45,7 +45,9 @@ async function load(file) {
 const ORDER = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'Th1', 'Th2', 'Th3', 'Th4', 'Th5', 'Th6', 'Th7', 'Th8', 'Th9', 'Th10',
   'Th11', 'Th12', 'L1', 'L2', 'L3', 'L4', 'L5', 'S'];
 const DISCS = ORDER.slice(1, -1).map((k) => 'D_' + k);           // krążek pod kręgiem: D_C2 … D_L5
-const KEYS = new Set([...ORDER, ...DISCS]);
+const CZ = await load('content-czaszka.js');
+const SKULL = CZ?.SKULL_ORDER || [];
+const KEYS = new Set([...ORDER, ...DISCS, ...SKULL]);
 const isText = (v) => typeof v === 'string' && v.trim().length > 0;
 const isPoint = (p) => p === null || (Array.isArray(p) && p.length === 3 && p.every((x) => typeof x === 'number' && Number.isFinite(x) && Math.abs(x) < 50));
 
@@ -106,13 +108,39 @@ if (M) {
   }
 }
 
+/* ---------- content-czaszka.js i landmarks-czaszka.js ---------- */
+const CL = await load('landmarks-czaszka.js');
+if (CZ) {
+  const F = 'content-czaszka.js';
+  for (const [g, R] of Object.entries(CZ.SKULL_REGIONS || {})) for (const f of ['name', 'latin', 'count', 'curve', 'text']) if (!isText(R[f])) err(F, `SKULL_REGIONS.${g}: puste pole "${f}"`);
+  for (const k of SKULL) {
+    const P = CZ.SKULL_PARTS?.[k];
+    if (!P) { err(F, `SKULL_PARTS: brak opisu kości "${k}"`); continue; }
+    for (const f of ['name', 'latin', 'short', 'massage', 'muscles']) if (!isText(P[f])) err(F, `SKULL_PARTS.${k}: puste pole "${f}"`);
+    if (!Array.isArray(P.features) || !P.features.length || !P.features.every(isText)) err(F, `SKULL_PARTS.${k}: "features" musi być listą zdań w [ … ]`);
+    if (!CZ.SKULL_REGIONS?.[CZ.SKULL_GROUP?.[k]]) err(F, `SKULL_GROUP.${k}: nieznana grupa (NC albo VC)`);
+  }
+  for (const k of Object.keys(CZ.SKULL_PARTS || {})) if (!SKULL.includes(k)) err(F, `SKULL_PARTS: kość "${k}" nie występuje w SKULL_ORDER`);
+  for (const [k, labels] of Object.entries(CZ.SKULL_LABELS || {})) {
+    if (!SKULL.includes(k)) { err(F, `SKULL_LABELS: nieznana kość "${k}"`); continue; }
+    for (const [p, d] of Object.entries(labels)) {
+      if (!isText(d?.name) || !isText(d?.def)) err(F, `SKULL_LABELS.${k}.${p}: każda część musi mieć "name" i "def"`);
+      const pts = CL?.SKULL_LANDMARKS?.[k]?.[p];
+      if (CL && (!Array.isArray(pts) || !pts.every(isPoint))) err('landmarks-czaszka.js', `brak punktu ${k}.${p} — uruchom tools/czaszka.py albo dodaj punkt w trybie „Popraw punkty”`);
+      else if (CL && pts.length !== (d.pair ? 2 : 1)) err(F, `SKULL_LABELS.${k}.${p}: ${d.pair ? 'część parzysta potrzebuje 2 punktów' : 'część nieparzysta potrzebuje 1 punktu'} (jest ${pts.length}) — zmień "pair" albo przelicz punkty`);
+      if (d.line && CL && !Object.keys(CL.SKULL_LINES || {}).some((n) => n === d.line || n.startsWith(d.line + '_'))) err(F, `SKULL_LABELS.${k}.${p}: nieznana linia "${d.line}"`);
+    }
+  }
+}
+if (CL) for (const [n, line] of Object.entries(CL.SKULL_LINES || {})) if (!Array.isArray(line) || line.length < 4 || !line.every((q) => q && isPoint(q))) err('landmarks-czaszka.js', `SKULL_LINES.${n}: linia musi mieć postać [[x, y, z], …]`);
+
 /* ---------- punkty etykiet ---------- */
 const LM = await load('landmarks.js');
 const RL = await load('landmarks-ribs.js');
 const FX = await load('landmarks-fix.js');
 const checkPoints = (file, obj, path) => {
   for (const [k, parts] of Object.entries(obj || {})) {
-    if (!KEYS.has(k)) { err(file, `${path}: nieznany kręg lub krążek "${k}"`); continue; }
+    if (!KEYS.has(k)) { err(file, `${path}: nieznany kręg, krążek lub kość "${k}"`); continue; }
     for (const [p, pts] of Object.entries(parts || {})) {
       if (pts === null) continue;                                  // punkt usunięty
       if (!Array.isArray(pts) || !pts.every(isPoint)) err(file, `${path}.${k}.${p}: punkty muszą mieć postać [[x, y, z], …]`);
@@ -169,7 +197,7 @@ for (const f of ['fonts/fonts.css', ...[...readFileSync(join(ROOT, 'fonts', 'fon
   else {
     const all = new Set([...strony, ...stale]);
     for (const f of all) if (f !== './' && !existsSync(join(ROOT, f))) err('sw.js', `na liście jest ${f}, ale takiego pliku nie ma`);
-    const wanted = ['app.js', 'index.html', 'styles.css', 'content.js', 'content-miesnie.js', 'landmarks.js', 'landmarks-ribs.js', 'landmarks-fix.js', 'models/pakiety/spis.js',
+    const wanted = ['app.js', 'index.html', 'styles.css', 'content.js', 'content-miesnie.js', 'content-czaszka.js', 'landmarks.js', 'landmarks-ribs.js', 'landmarks-czaszka.js', 'landmarks-fix.js', 'models/pakiety/spis.js',
       ...readdirSync(join(ROOT, 'js')).filter((f) => f.endsWith('.js')).map((f) => 'js/' + f)];
     for (const f of wanted) if (!all.has(f)) err('sw.js', `brak ${f} na liście PLIKI_STRONY — bez tego strona nie zadziała offline`);
   }
