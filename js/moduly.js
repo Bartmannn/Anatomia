@@ -9,8 +9,9 @@ import { occl } from './etykiety.js';
 import { paint } from './malowanie.js';
 import { ensurePack, kB, net, netStatus, packForKey, packUrl, packs, saveData, scheduleLod, updateLod } from './paczki.js';
 import { buildRuler, esc, refreshPanel, renderPart, syncRuler } from './panel.js';
+import { updateDebug } from './petla.js';
 import { newQuestion } from './quiz.js';
-import { $, DEBUG, MODULES, ORDER, closeUp, currentKey, modKeys, muscleMode, parts, rulerEl, single, skullMode, state, ui } from './stan.js';
+import { $, DEBUG, FULL_KEY, MODULES, ORDER, closeUp, currentKey, modKeys, muscleMode, parts, rulerEl, single, skullMode, state, ui } from './stan.js';
 import { VIEWS, closeFrame, frame, frameWhenReady, neighbors, stepTween, view } from './widok.js';
 
 /* ---------- Czaszka: kadr na kość ---------- */
@@ -20,6 +21,16 @@ export function frameSkull(k) {
   if (CZ.SMALL_BONES.has(k)) frameWhenReady(k, () => frame([k], boneDir(k), 3.2));
   else { view.pendingFrame = null; frame(modKeys(), boneDir(k), 1.05); }
 }
+
+// „Dokładne modele”: pełne siatki wszystkich widocznych kości (paczki.js → updateLod), zapamiętane w przeglądarce
+export function setFullDetail(on) {
+  state.fullDetail = on;
+  try { localStorage.setItem(FULL_KEY, on ? '1' : '0'); } catch (e) { /* brak dostępu do pamięci przeglądarki */ }
+  updateLod();
+  updateDebug(true);
+}
+// ile trzeba dopobrać, żeby wszystkie kości modułu były w pełnej szczegółowości
+export const fullDetailSize = () => (muscleMode() ? 0 : modKeys().reduce((a, k) => a + (packs.get(packForKey(k))?.done ? 0 : PACKS[packForKey(k)]?.bajty || 0), 0));
 
 export function toggleRibs() { setRibs(!state.ribs); }
 export function setRibs(on, reframe = true) {
@@ -116,6 +127,8 @@ window.addEventListener('keydown', (e) => {
 });
 
 window.addEventListener('hashchange', () => {
+  // dopisanie albo usunięcie „debug” w adresie: licznik włącza się przy wczytaniu strony
+  if (/(^|[#&?/])debug\b/i.test(location.hash + location.search) !== DEBUG) { location.reload(); return; }
   const { mod, key } = parseHash();
   if (mod && mod !== state.module) setModule(mod, key);
   else if (key && key !== state.selected && state.mode !== 'quiz') select(key, true);
@@ -158,7 +171,7 @@ export const pickerEl = $('#picker');
 export const loaderEl = $('#loader');
 export const validKey = (k) => ORDER.includes(k) || CZ.isSkull(k) || (/^D_/.test(k) && ORDER.includes(k.slice(2)) && k !== 'D_S' && k !== 'D_C1');
 export function parseHash() {
-  const h = decodeURIComponent(location.hash.slice(1)).replace(/[&?]?debug\b/, '');
+  const h = decodeURIComponent(location.hash.slice(1)).replace(/[&?/]?debug\b/i, '');
   const [a, b] = h.split('/');
   if (MODULES[a]) return { mod: a, key: validKey(b) || MUS.MUSCLES[b] ? b : null };
   if (validKey(a)) return { mod: null, key: a };   // stare linki: #C7

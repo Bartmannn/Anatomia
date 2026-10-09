@@ -194,6 +194,11 @@ export function updateLod() {
     big.sort((a, b) => b[0] - a[0]);
     for (const [, id] of big.slice(0, 8)) need.add(id);
   }
+  // „Dokładne modele”: pełne siatki wszystkich widocznych kości i żeber modułu (mięśnie mają tylko jedną wersję)
+  if (state.fullDetail && !muscleMode()) {
+    for (const k of modKeys()) { const m = parts[k]; if (m?.visible) need.add(packForKey(k)); }
+    for (const m of ribMeshes) if (m.visible && m.userData.kind === 'rib') need.add(`zebra/${m.userData.rib}`);
+  }
   const pre = new Set();
   // sąsiedzi dopiero, gdy potrzebne paczki są już pobrane (żeby nie zabierały im łącza)
   const needDone = [...need].every((id) => packs.get(id)?.done || !PACKS[id]);

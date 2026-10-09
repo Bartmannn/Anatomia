@@ -100,7 +100,7 @@ Strona jest przygotowana z myślą o telefonach:
 - **Tańszy materiał na telefonach.** Na ekranach dotykowych (i automatycznie, gdy urządzenie nie nadąża) zamiast realistycznego materiału używany jest matcap, czyli oświetlenie zapisane w jednej teksturze.
 - **Szybkie celowanie.** Trafienia kursorem i zasłanianie etykiet są liczone na uproszczonych bryłach (ok. 8× mniej trójkątów), a podświetlanie pod kursorem najwyżej raz na klatkę.
 
-Dopisz `&debug` na końcu adresu (np. `http://localhost:8000/#kregoslup/C7&debug`), żeby zobaczyć licznik: klatki na sekundę, czas rysowania, liczbę trójkątów, aktualną rozdzielczość i przełącznik jakości.
+Dopisz `&debug` na końcu adresu (np. `http://localhost:8000/#kregoslup/C7&debug`, wielkość liter bez znaczenia), żeby zobaczyć licznik: klatki na sekundę, czas rysowania, liczbę trójkątów, aktualną rozdzielczość, przełącznik jakości oświetlenia i przełącznik **modele: dokładne / automatycznie**. Strona przeładowuje się sama po dopisaniu albo usunięciu `debug`.
 
 ## Bez internetu i na telefonie
 
@@ -144,6 +144,7 @@ Chcesz poprawić opis albo położenie etykiety? Do większości poprawek nie tr
 Etykiety części kręgów i kości czaszki są wyznaczane automatycznie z kształtu kości (skrajne punkty, przekroje, promienie przez otwory, miejsca styku kości), więc każdą kość warto sprawdzić:
 
 1. Wybierz kręg lub kość i w panelu kliknij **Popraw lub dodaj punkty**.
+   Wybrana kość jest zawsze w pełnej szczegółowości. Zaznacz **Dokładne modele wszystkich kości**, żeby pełne siatki miały też kości sąsiednie (wybór zapamiętuje przeglądarka; pobiera ok. 1–2 MB).
 2. Wybierz część (przy parzystych także stronę: lewą lub prawą — to strona ciała, nie ekranu) i kliknij na kości w miejscu, gdzie powinien być punkt. Dopracuj położenie strzałkami (1 mm, z Shift 5 mm). PgUp/PgDn przesuwa punkt w głąb.
 3. Gdy wszystkie punkty są dobre, zaznacz **Sprawdziłem punkty tego kręgu** (tej kości). Uczniowie zobaczą przy nim informację, że etykiety sprawdzono ręcznie.
 4. Kliknij **Pobierz landmarks-fix.js**, podmień plik w folderze projektu i zrób commit.
@@ -211,7 +212,7 @@ Wszystkie teksty o kręgosłupie, czyli nazwy kręgów, cechy, uwagi dla masaży
 |---|---|
 | `stan.js` | Stan aplikacji, stałe (kolejność kręgów, lista modułów), wspólne zbiory siatek. Zależy tylko od `miesnie.js` i `czaszka.js` |
 | `widok.js` | Renderer, scena, kamera, sterowanie, materiały, kadrowanie. Zależy tylko od `stan.js` |
-| `petla.js` | Pętla rysowania: rysowanie na żądanie, rozdzielczość zależna od ruchu, płynne przybliżanie, licznik `&debug` |
+| `petla.js` | Pętla rysowania: rysowanie na żądanie, rozdzielczość zależna od ruchu, płynne przybliżanie, licznik `&debug` z przełącznikiem dokładnych modeli |
 | `paczki.js` | Pobieranie paczek modeli, dekodowanie formatu `.pak`, poziomy szczegółów |
 | `malowanie.js` | Kolory z motywu, malowanie kości, żeber i mięśni, podświetlanie przyczepów, jakość materiałów |
 | `punkty.js` | Punkty etykiet: automatyczne, poprawione i dodane ręcznie; nazwy części |

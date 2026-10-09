@@ -41,6 +41,7 @@ export const state = {
   attach: true,           // podświetlanie przyczepów na kościach
   lastBone: 'C7',         // ostatnio wybrany kręg (po powrocie z modułu mięśni)
   module: null,           // klucz z MODULES (null = jeszcze nie wybrano)
+  fullDetail: false,      // pełne siatki wszystkich widocznych kości (do poprawiania punktów), zapamiętywane w przeglądarce
 };
 
 /* ---------- Moduły: co oglądamy i co trzeba pobrać ---------- */
@@ -80,7 +81,9 @@ export const ribMeshes = [];      // żebra (rib), dołki na kręgach (facet) i 
 export const ribByName = {};
 
 // #debug w adresie pokazuje licznik (kl./s, czas klatki, trójkąty, rozdzielczość, jakość).
-export const DEBUG = /(^|[#&?])debug\b/.test(location.hash + location.search);
+export const DEBUG = /(^|[#&?/])debug\b/i.test(location.hash + location.search);
+export const FULL_KEY = 'atlas-full-detail-v1';
+try { state.fullDetail = localStorage.getItem(FULL_KEY) === '1'; } catch (e) { /* brak dostępu do pamięci przeglądarki */ }
 export const COARSE = matchMedia('(pointer: coarse)').matches;      // telefon / tablet
 
 // stan interfejsu współdzielony między modułami

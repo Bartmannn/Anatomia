@@ -1,10 +1,11 @@
-// Pętla rysowania: rysowanie na żądanie, rozdzielczość zależna od ruchu, płynne przybliżanie, licznik #debug.
+// Pętla rysowania: rysowanie na żądanie, rozdzielczość zależna od ruchu, płynne przybliżanie, licznik #debug (też przełącznik dokładnych modeli).
 import * as THREE from 'three';
 import { firstProxyHit, processHover, ptr, ray } from './celowanie.js';
 import { layoutLabels, occl } from './etykiety.js';
 import { setQuality } from './malowanie.js';
-import { scheduleLod } from './paczki.js';
-import { DEBUG, ctxMeshes, muscleMeshes, parts, ribMeshes, stageEl } from './stan.js';
+import { setFullDetail } from './moduly.js';
+import { scheduleLod, wantHigh } from './paczki.js';
+import { DEBUG, ctxMeshes, muscleMeshes, parts, ribMeshes, stageEl, state } from './stan.js';
 import { LEVELS, R, applyRatio, camera, controls, invalidate, perf, renderer, scene, stepTween, view } from './widok.js';
 
 /* ---------- Obniżona rozdzielczość bez przebudowy płótna ---------- */
@@ -145,7 +146,10 @@ export function updateDebug(force = false) {
     dbgEl.id = 'dbg';
     dbgEl.className = 'dbg';
     stageEl.appendChild(dbgEl);
-    dbgEl.addEventListener('click', (e) => { if (e.target.dataset.q) setQuality(e.target.dataset.q); });
+    dbgEl.addEventListener('click', (e) => {
+      if (e.target.dataset.q) setQuality(e.target.dataset.q);
+      if (e.target.dataset.full) setFullDetail(e.target.dataset.full === '1');
+    });
   }
   const sec = Math.max((now - dbgAt) / 1000, 0.001);
   const fps = (perf.renders - dbgR) / sec, loop = (perf.frames - dbgF) / sec;
@@ -156,7 +160,8 @@ export function updateDebug(force = false) {
     trójkąty ${((perf.tris || 0) / 1000).toFixed(0)} tys. (widoczne ${(fullTris / 1000).toFixed(0)} tys.) · wywołania ${perf.calls || 0}<br>
     rozdz. ${(perf.current * LEVELS[perf.lvl]).toFixed(2)}× (poziom ${Math.round(LEVELS[perf.lvl] * 100)}%, pułap ${Math.round(perf.cap * 100)}%) · prędkość ${perf.speed.toFixed(2)}<br>
     celowanie: ${((perf.proxyTris || 0) / 1000).toFixed(0)} tys. tr. zamiast pełnych<br>
-    jakość: <button type="button" data-q="high" aria-pressed="${perf.quality === 'high'}">wysoka</button> <button type="button" data-q="fast" aria-pressed="${perf.quality === 'fast'}">szybka</button>`;
+    jakość: <button type="button" data-q="high" aria-pressed="${perf.quality === 'high'}">wysoka</button> <button type="button" data-q="fast" aria-pressed="${perf.quality === 'fast'}">szybka</button><br>
+    modele: <button type="button" data-full="1" aria-pressed="${state.fullDetail}">dokładne</button> <button type="button" data-full="0" aria-pressed="${!state.fullDetail}">automatycznie</button> · pełnych siatek ${wantHigh.size}`;
 }
 export function initDebugTools() {
   window.__atlasPerf = perf; window.__atlasCam = camera;

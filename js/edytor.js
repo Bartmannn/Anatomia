@@ -5,7 +5,8 @@ import { SKULL_LABELS, SKULL_ORDER, isSkull } from './czaszka.js';
 import { ptr, ray } from './celowanie.js';
 import { occl } from './etykiety.js';
 import { paint, ribsOn } from './malowanie.js';
-import { setMode } from './moduly.js';
+import { fullDetailSize, setFullDetail, setMode } from './moduly.js';
+import { kB } from './paczki.js';
 import { esc, syncRuler } from './panel.js';
 import { EXTRA, FIXES, REVIEWED, SIDE_NAMES, autoLm, extraDef, extrasOf, fixedIn, isPaired, lm, local, partDef, resetLocal, reviewedOf, saveLocal, slotChanged } from './punkty.js';
 import { $, ORDER, bigcodeEl, discLabel, panelEl, parts, regionOf, ribMeshes, state, ui } from './stan.js';
@@ -185,6 +186,7 @@ export function renderEditor() {
       <h2>${esc(title)}</h2>
       <p class="latin">Zmiany zapisują się w tej przeglądarce. Na koniec pobierz plik i podmień go w repozytorium.</p>
     </div>
+    <label class="check"><input type="checkbox" id="full" ${state.fullDetail ? 'checked' : ''}> <span>Dokładne modele wszystkich kości <small>(wybrana kość jest dokładna zawsze; to dotyczy też sąsiednich${!state.fullDetail && fullDetailSize() ? `, pobierze ok. ${kB(fullDetailSize())}` : ''})</small></span></label>
     <label class="check"><input type="checkbox" id="rev" ${rv ? 'checked' : ''}> <span>Sprawdziłem punkty ${k.startsWith('D_') ? 'tego krążka' : isSkull(k) ? 'tej kości' : 'tego kręgu'}${rv ? ` <small>(${esc(rv)})</small>` : ''}</span></label>
     <div><h3>Jak poprawić punkt</h3><ol class="steps">
       <li>Wybierz część (przy parzystych — stronę lewą lub prawą, czyli stronę ciała). Na modelu jej etykieta zostanie obwiedziona.</li>
@@ -215,6 +217,7 @@ export function renderEditor() {
     renderEditor();
   }));
   panelEl.querySelectorAll('[data-n]').forEach((b) => b.addEventListener('click', () => nudge(...b.dataset.n.split(',').map(Number))));
+  $('#full').addEventListener('change', (e) => { setFullDetail(e.target.checked); renderEditor(); });
   $('#rev').addEventListener('change', (e) => {
     const d = new Date();
     local.reviewed[k] = e.target.checked ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : false;
