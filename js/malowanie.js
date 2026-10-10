@@ -1,11 +1,11 @@
 // Kolory z motywu i malowanie siatek (kręgi, krążki, żebra, mięśnie, przyczepy) oraz jakość materiałów.
 import * as THREE from 'three';
 import * as MUS from './miesnie.js';
-import { BONE_COLORS, SET_GROUPS, isSetBone } from './zestawy.js';
+import { BONE_COLORS, PAIRED_BONES, SET_GROUPS, isSetBone } from './zestawy.js';
 import { RIB_LINKS } from '../landmarks-ribs.js';
 import { updateDebug } from './petla.js';
 import { partDef } from './punkty.js';
-import { MODULES, REGION_KEYS, closeUp, contextKeys, ctxMeshes, currentKey, modKeys, muscleMeshes, muscleMode, parts, regionOf, ribByName, ribMeshes, single, state } from './stan.js';
+import { MODULES, REGION_KEYS, closeUp, contextKeys, ctxMeshes, currentKey, modKeys, muscleMeshes, muscleMode, parts, regionOf, ribByName, ribMeshes, single, soloMode, state } from './stan.js';
 import { paintLines } from './szwy.js';
 import { ensureEnv, invalidate, newMat, perf, renderer, scene } from './widok.js';
 
@@ -98,13 +98,21 @@ export function paintMuscles() {
   }
   invalidate();
 }
+// „Sama kość”: z siatki z obiema kośćmi pary zostaje jedna strona (płaszczyzna x = 0; 0 — lewa, x > 0)
+const SIDE_CLIP = [[new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)], [new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0)]];
+function setClip(m, side) {
+  m.userData.side = side;
+  const want = side == null ? null : SIDE_CLIP[side];
+  if (m.material.clippingPlanes !== want) { m.material.clippingPlanes = want; m.material.needsUpdate = true; }
+}
 export function paint() {
   if (muscleMode()) { paintMuscles(); paintLines(COLORS, null); return; }
   for (const m of muscleMeshes) m.visible = false;
+  const solo = soloMode();          // „Sama kość”: bez tła i bez drugiej kości z pary
   // kości tła modułu (np. kość ramienna przy łopatce): zwykły kolor kości, w widoku z bliska przezroczyste
   const ctxBones = MODULES[state.module]?.ctxBones || [];
   for (const m of ctxMeshes) {
-    m.visible = ctxBones.includes(m.userData.bone);
+    m.visible = ctxBones.includes(m.userData.bone) && !solo;
     if (!m.visible) continue;
     m.material.color.copy(COLORS.bone);
     if (m.material.emissive) m.material.emissive.copy(BLACK);
@@ -131,7 +139,8 @@ export function paint() {
       m.material.emissiveIntensity = 0.18;
     } else if (hov) tmp.lerp(COLORS[reg], 0.3);
     m.material.color.copy(tmp);
-    m.visible = moduleVisible(k) && (!isDisc || state.showDiscs);
+    m.visible = moduleVisible(k) && (!isDisc || state.showDiscs) && (!solo || isSel);
+    setClip(m, solo && isSel && PAIRED_BONES.has(k) ? state.side : null);
     const faded = !isSel && closeUp();
     if (m.material.transparent !== faded) m.material.needsUpdate = true;
     m.material.transparent = faded;

@@ -20,14 +20,14 @@ initControls();
 
 // moduł z adresu (#kregi/Th7), z poprzedniej wizyty albo ekran wyboru
 {
-  const { mod, key } = parseHash();
+  const { mod, key, side } = parseHash();
   let stored = null;
   try { stored = localStorage.getItem(MOD_KEY); } catch (e) { /* brak dostępu do pamięci przeglądarki */ }
   if (key && validKey(key)) state.selected = key;
   renderPart(state.selected);
   syncRuler();
   const start = mod || (key ? 'kregoslup' : stored);
-  if (MODULES[start]) setModule(start, key);
+  if (MODULES[start]) setModule(start, key, side);
   else showPicker();
 }
 

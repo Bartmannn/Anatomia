@@ -28,6 +28,7 @@ export const SET_GROUPS = Object.keys(REGIONS);
 export const SMALL_BONES = joined('small');
 export const INNER_BONES = joined('inner');
 export const HIDDEN_BONES = joined('hidden');
+export const PAIRED_BONES = joined('paired');    // jedna siatka z kośćmi lewą i prawą (łopatki, obojczyki)
 
 // paczki: przegląd zestawu (uproszczony) i pełna kość
 export const OVERVIEWS = new Set(all.map((S) => S.overview));

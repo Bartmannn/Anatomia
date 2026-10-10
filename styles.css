@@ -229,6 +229,7 @@ button { font: inherit; color: inherit; }
   cursor: pointer;
 }
 .seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--ground); }
 .seg button:hover, .chip:hover { background: var(--ground); }
 .chip {
   display: inline-flex;

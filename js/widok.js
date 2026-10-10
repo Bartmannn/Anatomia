@@ -106,9 +106,21 @@ export const VIEWS = {
 export const view = { tween: null, zoomTarget: null, pendingFrame: null };
 export function boxOf(keys) {
   const box = new THREE.Box3();
-  // ukryte części (inny moduł, wyłączone krążki) nie wpływają na kadr
-  for (const k of keys) for (const o of objectsOf(k)) if (o.visible || keys.length === 1) box.union(o.geometry.boundingBox);
+  // ukryte części (inny moduł, wyłączone krążki) nie wpływają na kadr; z kości parzystej w „Sama kość” — tylko widoczna strona
+  for (const k of keys) for (const o of objectsOf(k)) if (o.visible || keys.length === 1) box.union(o.userData.side != null ? halfBox(o, o.userData.side) : o.geometry.boundingBox);
   return box;
+}
+// Pudełko jednej strony siatki, w której są obie kości z pary (0 — lewa strona ciała, x > 0; 1 — prawa)
+export function halfBox(o, side) {
+  const g = o.geometry;
+  const cache = (o.userData.halfBoxes ||= {});
+  const key = `${g.uuid}:${side}`;
+  if (!cache[key]) {
+    const b = new THREE.Box3(), v = new THREE.Vector3(), pos = g.attributes.position;
+    for (let i = 0; i < pos.count; i++) { v.fromBufferAttribute(pos, i); if ((v.x > 0) === (side === 0)) b.expandByPoint(v); }
+    cache[key] = b;
+  }
+  return cache[key];
 }
 export const isoPad = () => (renderer.domElement.clientWidth < 520 ? 2.4 : 1.9);
 export const closeFrame = (k, dir = null) => frame([k], dir, isoPad() * (state.ribs && k.startsWith('Th') ? 2.1 : 1));

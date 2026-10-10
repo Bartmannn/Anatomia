@@ -2,7 +2,7 @@
 import { PACKS } from '../models/pakiety/spis.js';
 import * as THREE from 'three';
 import * as MUS from './miesnie.js';
-import { BONE_VIEW, SETS, SMALL_BONES, isSetBone } from './zestawy.js';
+import { BONE_VIEW, PAIRED_BONES, SETS, SMALL_BONES, isSetBone } from './zestawy.js';
 import { PARTS } from './tresci.js';
 import { nudge, renderEditor } from './edytor.js';
 import { occl } from './etykiety.js';
@@ -11,12 +11,34 @@ import { ensurePack, kB, net, netStatus, packForKey, packUrl, packs, saveData, s
 import { buildRuler, esc, refreshPanel, renderPart, syncRuler } from './panel.js';
 import { updateDebug } from './petla.js';
 import { newQuestion } from './quiz.js';
-import { $, DEBUG, FULL_KEY, MODULES, ORDER, boneSetMode, closeUp, contextKeys, currentKey, modKeys, muscleMode, parts, rulerEl, single, state, ui } from './stan.js';
+import { $, DEBUG, FULL_KEY, MODULES, ORDER, boneSetMode, closeUp, contextKeys, currentKey, modKeys, muscleMode, parts, rulerEl, single, soloMode, state, ui } from './stan.js';
 import { VIEWS, closeFrame, frame, frameWhenReady, neighbors, stepTween, view } from './widok.js';
 
 /* ---------- Zestawy kości (czaszka, obręcz barkowa): kadr na kość ---------- */
 export const boneDir = (k) => new THREE.Vector3(...(BONE_VIEW[k] || [0.8, 0.15, 0.6])).normalize();
 // duże kości: cały zestaw z kierunku, z którego widać kość; małe: zbliżenie na samą kość
+// „Sama kość”: kamera od strony, z której najlepiej widać kość; dla prawej kości z pary kierunek odbity (x — lewa strona ciała)
+export const soloDir = (k) => {
+  const d = boneDir(k);
+  if (PAIRED_BONES.has(k) && state.side === 1) d.x = -d.x;
+  return d;
+};
+export const SIDES = ['lewa', 'prawa'];      // w adresie: #obrecz/scapula/prawa
+// przełącznik „Lewa / Prawa” — tylko w „Sama kość” przy kości z pary
+export function syncSidePick() {
+  const box = $('#sidepick');
+  box.hidden = !(soloMode() && PAIRED_BONES.has(state.selected));
+  box.querySelectorAll('[data-side]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.side === state.side)));
+}
+export function setSide(side) {
+  if (side === state.side) return;
+  state.side = side;
+  occl.clear();
+  syncSidePick();
+  paint();
+  frameWhenReady(state.selected, () => closeFrame(state.selected, soloDir(state.selected)));
+  writeHash();
+}
 export function frameSetBone(k) {
   if (SMALL_BONES.has(k)) frameWhenReady(k, () => frame([k], boneDir(k), 3.2));
   else { view.pendingFrame = null; frame(modKeys(), boneDir(k), 1.05); }
@@ -57,10 +79,11 @@ export function select(k, doFrame) {
   updateLod();
   paint();
   updateLoader();
+  syncSidePick();
   if (muscleMode()) { if (doFrame) frameWhenReady(k, () => frame([k], null, state.isolate ? 1.4 : 1.15)); }
   else if (doFrame || single()) {
     const keys = k.startsWith('D_') ? [k.slice(2)] : [k];
-    if (closeUp()) frameWhenReady(k, () => closeFrame(k));
+    if (closeUp()) frameWhenReady(k, () => closeFrame(k, soloMode() ? soloDir(k) : null));
     else if (boneSetMode()) frameSetBone(k);
     else { view.pendingFrame = null; frame(neighbors(keys[0], 3)); }
   }
@@ -75,6 +98,7 @@ export function syncModeButtons() {
   rulerEl.toggleAttribute('inert', mode === 'quiz');
   $('#isolate').disabled = mode !== 'atlas';
   document.body.classList.toggle('editing', mode === 'edit');
+  syncSidePick();
 }
 export function setMode(mode) {
   if (mode === 'edit' && muscleMode()) return;
@@ -109,6 +133,7 @@ toggle('#tint', 'tint');
 toggle('#isolate', 'isolate');
 toggle('#names', 'labels');
 $('#ribs').addEventListener('click', toggleRibs);
+document.querySelectorAll('#sidepick [data-side]').forEach((b) => b.addEventListener('click', () => setSide(+b.dataset.side)));
 document.querySelectorAll('.modes button').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
 
 window.addEventListener('keydown', (e) => {
@@ -132,9 +157,10 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('hashchange', () => {
   // dopisanie albo usunięcie „debug” w adresie: licznik włącza się przy wczytaniu strony
   if (/(^|[#&?/])debug\b/i.test(location.hash + location.search) !== DEBUG) { location.reload(); return; }
-  const { mod, key } = parseHash();
-  if (mod && mod !== state.module) setModule(mod, key);
+  const { mod, key, side } = parseHash();
+  if (mod && mod !== state.module) setModule(mod, key, side);
   else if (key && key !== state.selected && state.mode !== 'quiz') select(key, true);
+  if (side != null && soloMode()) setSide(side);
 });
 $('#modbtn').addEventListener('click', () => (pickerEl.hidden ? showPicker() : state.module && hidePicker()));
 window.addEventListener('online', () => netStatus());
@@ -175,14 +201,15 @@ export const loaderEl = $('#loader');
 export const validKey = (k) => ORDER.includes(k) || isSetBone(k) || (/^D_/.test(k) && ORDER.includes(k.slice(2)) && k !== 'D_S' && k !== 'D_C1');
 export function parseHash() {
   const h = decodeURIComponent(location.hash.slice(1)).replace(/[&?/]?debug\b/i, '');
-  const [a, b] = h.split('/');
-  if (MODULES[a]) return { mod: a, key: validKey(b) || MUS.MUSCLES[b] ? b : null };
+  const [a, b, c] = h.split('/');
+  const side = SIDES.indexOf(c);       // #obrecz/scapula/prawa — widok „Sama kość”
+  if (MODULES[a]) return { mod: a, key: validKey(b) || MUS.MUSCLES[b] ? b : null, side: side < 0 ? null : side };
   if (validKey(a)) return { mod: null, key: a };   // stare linki: #C7
   return {};
 }
 export function writeHash() {
   if (!state.module) return;
-  const h = `#${state.module}/${state.selected}${DEBUG ? '&debug' : ''}`;
+  const h = `#${state.module}/${state.selected}${soloMode() ? '/' + SIDES[state.side] : ''}${DEBUG ? '&debug' : ''}`;
   if (location.hash !== h) try { history.replaceState(null, '', h); } catch (e) { /* ignore */ }
 }
 export const ICONS = {
@@ -249,7 +276,7 @@ export function updateLoader(err) {
     loaderEl.hidden = false;
     const why = navigator.onLine ? `<small>${esc(err.message || err)}</small>` : 'Brak internetu, a ten moduł nie był jeszcze zapisany na tym urządzeniu.';
     loaderEl.innerHTML = `<div>Nie udało się pobrać modelu.<br>${why}<br><button type="button" class="btn" id="retry">Spróbuj ponownie</button></div>`;
-    $('#retry').addEventListener('click', () => { loaderEl.innerHTML = loaderHTML; setModule(state.module, state.selected); });
+    $('#retry').addEventListener('click', () => { loaderEl.innerHTML = loaderHTML; setModule(state.module, state.selected, soloMode() ? state.side : null); });
     return;
   }
   if (loaderEl.querySelector('#retry')) loaderEl.innerHTML = loaderHTML;
@@ -321,7 +348,8 @@ async function saveOffline(b) {
 }
 
 export let framedOnce = false;
-export function setModule(mod, key = null) {
+// side: 0 / 1 — od razu widok „Sama kość” z lewą albo prawą kością (link #obrecz/scapula/prawa)
+export function setModule(mod, key = null, side = null) {
   if (!MODULES[mod]) return;
   state.module = mod;
   try { localStorage.setItem(MOD_KEY, mod); } catch (e) { /* no storage */ }
@@ -340,8 +368,11 @@ export function setModule(mod, key = null) {
   if (!keys.includes(state.selected.replace('D_', ''))) state.selected = mod === 'zebra' ? 'Th7' : keys.includes('C7') ? 'C7' : keys[0];
   if (single() && state.selected.startsWith('D_')) state.selected = state.selected.slice(2);
   state.focusPart = null;
-  if (state.isolate) { state.isolate = false; $('#isolate').setAttribute('aria-pressed', 'false'); }
+  state.isolate = side != null && !!M.solo;
+  if (state.isolate) state.side = side;
+  $('#isolate').setAttribute('aria-pressed', String(state.isolate));
   $('#isolate').hidden = single();
+  $('#isolate .ilbl').textContent = M.solo ? 'Sama kość' : 'Tylko wybrany';
   $('#discs').hidden = single() || mus || sets;
   $('#ribs').hidden = sets && !M.ribs;
   $('#tint').hidden = mus;
@@ -362,6 +393,7 @@ export function setModule(mod, key = null) {
   }
   setRibs(!!M.ribs || mus, false);   // także updateLod(), paint() i panel
   syncRuler();
+  syncSidePick();
   updateLoader();
   const snap = !framedOnce;
   const done = () => { framedOnce = true; if (snap && view.tween) { view.tween.t = 1; stepTween(0); } };
@@ -373,7 +405,7 @@ export function setModule(mod, key = null) {
       if (state.module !== mod) return;
       paint();
       if (mus) frame([...modKeys(), ...ORDER], VIEWS.back, 1.12);
-      else if (state.mode === 'edit' || state.isolate) closeFrame(state.selected);
+      else if (state.mode === 'edit' || state.isolate) closeFrame(state.selected, soloMode() ? soloDir(state.selected) : null);
       else if (sets) frameSetBone(state.selected);
       else frame(modKeys(), VIEWS.three);
       done();

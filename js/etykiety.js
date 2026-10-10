@@ -77,8 +77,10 @@ export function labelItems() {
   if (big) {
     const items = [];
     const L = lm(k);
+    const side = parts[k]?.userData.side;        // „Sama kość”: widać tylko lewą (0) albo prawą (1) kość z pary
     for (const { part, def } of partList(k, true)) {
-      const pts = L[part].filter(Boolean);
+      if (side != null && L[part].length > 1 && !L[part][side]) continue;
+      const pts = side != null && L[part].length > 1 ? [L[part][side]] : L[part].filter(Boolean);
       // paired structures: label the one nearer to the camera
       const p = pts.length > 1
         ? pts.reduce((a, b) => (camera.position.distanceTo(new THREE.Vector3(...a)) <= camera.position.distanceTo(new THREE.Vector3(...b)) ? a : b))

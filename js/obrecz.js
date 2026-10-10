@@ -10,4 +10,6 @@ export const SET = {
   colors: { scapula: '#3f8f9a', clavicle: '#b0703f' },
   // kierunek kamery (x — lewa strona ciała, y — góra, z — przód): łopatkę widać od tyłu, obojczyk od przodu i z góry
   view: { scapula: [0.35, 0.25, -1], clavicle: [0.3, 0.6, 1] },
+  // siatki z obiema kośćmi pary (lewą i prawą) — w widoku „Sama kość” widać jedną z nich
+  paired: new Set(['scapula', 'clavicle']),
 };

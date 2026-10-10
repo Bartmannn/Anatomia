@@ -42,6 +42,7 @@ export const state = {
   lastBone: 'C7',         // ostatnio wybrany kręg (po powrocie z modułu mięśni)
   module: null,           // klucz z MODULES (null = jeszcze nie wybrano)
   fullDetail: false,      // pełne siatki wszystkich widocznych kości (do poprawiania punktów), zapamiętywane w przeglądarce
+  side: 1,                // „Sama kość”: która z kości parzystych (0 — lewa, 1 — prawa strona ciała)
 };
 
 /* ---------- Moduły: co oglądamy i co trzeba pobrać ---------- */
@@ -49,7 +50,8 @@ export const TH_KEYS = ORDER.filter((k) => k.startsWith('Th'));
 export const C_KEYS = ORDER.filter((k) => k.startsWith('C'));
 // kind: bones (kręgi), set (zestaw kości z zestawy.js), muscles. keys — co można wybrać; title, sub — nagłówek strony.
 // context — kręgi widoczne jako tło (nie do wybrania), ctxBones — kości tła z paczek (np. kość ramienna),
-// ribs — żebra włączone na start, quiz — dozwolone rodzaje pytań (domyślnie wszystkie dla danego kind).
+// ribs — żebra włączone na start, quiz — dozwolone rodzaje pytań (domyślnie wszystkie dla danego kind),
+// solo — „Tylko wybrany” działa jako „Sama kość”: jedna kość (z pary: lewa albo prawa), bez tła.
 export const MODULES = {
   kregoslup: { group: 'Kości', kind: 'bones', name: 'Cały kręgosłup', desc: 'Wszystkie kręgi i krążki. Szczegóły kręgu pobierają się po wybraniu go albo przybliżeniu.',
     title: 'Kręgosłup', sub: 'Atlas 3D · 25 kości · 23 krążki',
@@ -64,7 +66,7 @@ export const MODULES = {
     desc: 'Łopatka i obojczyk na tle żeber i kręgosłupa — widać, na wysokości których kręgów leży łopatka. Pełna szczegółowość kości pobiera się po jej wybraniu.',
     title: 'Obręcz barkowa', sub: 'Atlas 3D · łopatka i obojczyk',
     base: ['przeglad-C', 'przeglad-Th', 'zebra-przeglad', SETS.obrecz.overview], keys: SETS.obrecz.order,
-    context: [...C_KEYS, ...TH_KEYS], ctxBones: ['humerus'], ribs: true, quiz: ['czesc'] },
+    context: [...C_KEYS, ...TH_KEYS], ctxBones: ['humerus'], ribs: true, quiz: ['czesc'], solo: true },
   czaszka: { group: 'Kości', kind: 'set', sets: ['czaszka'], name: 'Czaszka',
     desc: 'Kości mózgo- i twarzoczaszki, szwy i kresa skroniowa. Pełna szczegółowość kości pobiera się po jej wybraniu.',
     title: 'Czaszka', sub: 'Atlas 3D · 22 kości · szwy',
@@ -85,6 +87,8 @@ export const selectable = (k) => modKeys().includes(k.startsWith('D_') ? k.slice
 export const single = () => state.module === 'kregi';
 // widok z bliska jednego kręgu (pozostałe przezroczyste albo ukryte)
 export const closeUp = () => (state.isolate && state.mode === 'atlas') || state.mode === 'edit' || single() || (state.mode === 'quiz' && state.quiz?.type === 'czesc');
+// „Sama kość” (moduły z solo): widać tylko wybraną kość, z kości parzystych jedną stronę
+export const soloMode = () => state.isolate && state.mode === 'atlas' && !!MODULES[state.module]?.solo;
 export const currentKey = () => (state.mode === 'quiz' ? state.quiz?.target : state.selected) || state.selected;
 
 export const parts = {};   // key -> mesh (kręgi i krążki)

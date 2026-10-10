@@ -1,7 +1,7 @@
 // Celowanie i wybór myszką: uproszczone bryły do raycastu, podświetlanie pod kursorem.
 import * as THREE from 'three';
 import { placePoint } from './edytor.js';
-import { clipPlanes, paint, ribMat } from './malowanie.js';
+import { paint } from './malowanie.js';
 import { select } from './moduly.js';
 import { ctxMeshes, muscleMeshes, muscleMode, parts, ribMeshes, selectable, state } from './stan.js';
 import { camera, perf, renderer } from './widok.js';
@@ -63,12 +63,12 @@ export function activeProxies(bonesOnly) {
   for (const m of ctxMeshes) if (m.visible && m.material.opacity > 0.5 && m.userData.proxy) list.push(m.userData.proxy);
   return list;
 }
-// Pierwsze trafienie, z pominięciem części żeber odciętych w widoku „Tylko wybrany”.
+// Pierwsze trafienie, z pominięciem części odciętych płaszczyzną (żebra w „Tylko wybrany”, druga kość z pary w „Sama kość”).
 export function firstProxyHit(rc, bonesOnly = false) {
   const hits = rc.intersectObjects(activeProxies(bonesOnly), false);
-  const clipped = ribMat.clippingPlanes?.length;
   for (const h of hits) {
-    if (clipped && h.object.userData.target.userData.kind === 'rib' && !clipPlanes.every((pl) => pl.distanceToPoint(h.point) >= 0)) continue;
+    const planes = h.object.userData.target.material.clippingPlanes;
+    if (planes?.length && !planes.every((pl) => pl.distanceToPoint(h.point) >= 0)) continue;
     return h;
   }
   return null;
