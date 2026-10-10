@@ -6,7 +6,7 @@ import { RIB_LINKS } from '../landmarks-ribs.js';
 import { renderEditor, reportUrl } from './edytor.js';
 import { paint, ribsOn } from './malowanie.js';
 import { select, setMode, toggleRibs } from './moduly.js';
-import { partList, reviewedOf } from './punkty.js';
+import { activeGroup, groupsOf, partList, reviewedOf } from './punkty.js';
 import { MODULES, ORDER, REGION_KEYS, bigcodeEl, boneSetMode, discLabel, modKeys, muscleMode, panelEl, parts, regionOf, rulerEl, skullMode, state, ui } from './stan.js';
 import { R, invalidate } from './widok.js';
 
@@ -95,16 +95,45 @@ export function partsBlock(k) {
   const status = `<div class="lmstatus${rv ? ' ok' : ''}"><span>${rv ? `Położenie etykiet sprawdzone ręcznie (${esc(rv)}).` : 'Położenie etykiet wyznaczone automatycznie, jeszcze niesprawdzone.'}</span>
     <span class="lmlinks"><button type="button" class="linkbtn" data-action="edit">Popraw lub dodaj punkty</button>
     <a class="linkbtn" href="${esc(reportUrl(k))}" target="_blank" rel="noopener">Zgłoś brak lub błąd</a></span></div>`;
-  return `<div><h3>Części · najedź, aby wskazać na modelu</h3>${status}<dl class="parts">${list.map(({ part, def }) => `
+  const row = ({ part, def }, g = null) => `
     <div class="prow" data-part="${part}" tabindex="0">
-      <dt><i class="pd${def.palp ? ' palp' : ''}" aria-hidden="true"></i>${esc(def.name)}${def.palp ? ' <em>wyczuwalny</em>' : ''}${def.extra ? ' <em class="added">dodany</em>' : ''}</dt>
+      <dt><i class="pd${def.palp ? ' palp' : ''}${g ? ' grouped' : ''}"${g ? ` style="--g: ${g.color}"` : ''} aria-hidden="true"></i>${esc(def.name)}${def.palp ? ' <em>wyczuwalny</em>' : ''}${def.extra ? ' <em class="added">dodany</em>' : ''}</dt>
       <dd>${esc(def.def || '')}${def.note ? ' ' + esc(def.note) : ''}</dd>
-    </div>`).join('')}</dl></div>`;
+    </div>`;
+  // części w zestawach podpisów: nagłówek zestawu przełącza podpisy na modelu
+  const groups = groupsOf(k);
+  const byPart = new Map(list.map((x) => [x.part, x]));
+  const body = groups.length
+    ? groups.map((g) => `<button type="button" class="pgroup" data-lg="${g.id}" style="--g: ${g.color}" aria-pressed="false"><i class="sw" aria-hidden="true"></i>${esc(g.name)}<small>${g.parts.length}</small></button>
+      <dl class="parts">${g.parts.map((p) => row(byPart.get(p), g)).join('')}</dl>`).join('')
+    : `<dl class="parts">${list.map((x) => row(x)).join('')}</dl>`;
+  const head = groups.length ? 'Części · kliknij zestaw, aby go podpisać na modelu' : 'Części · najedź, aby wskazać na modelu';
+  return `<div><h3>${head}</h3>${status}${body}</div>`;
+}
+/* ---------- Zestawy podpisów: pasek nad modelem i nagłówki w panelu ---------- */
+export function setLabelGroup(k, id) {
+  ui.labelGroup[k] = id;
+  ui.peek = null;
+  syncGroups(k);
+  invalidate();
+}
+export function syncGroups(k = state.selected) {
+  const act = activeGroup(k);
+  document.querySelectorAll('[data-lg]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lg === act)));
+}
+export function renderGroupBar(k) {
+  const bar = document.getElementById('lgroups');
+  const groups = groupsOf(k);
+  bar.innerHTML = groups.length ? groups.map((g) => `<button type="button" data-lg="${g.id}" style="--g: ${g.color}"><i class="sw" aria-hidden="true"></i>${esc(g.name)}</button>`).join('') +
+    '<button type="button" data-lg="all">Wszystkie</button>' : '';
+  bar.querySelectorAll('[data-lg]').forEach((b) => b.addEventListener('click', () => setLabelGroup(k, b.dataset.lg)));
+  syncGroups(k);
 }
 export function bindParts() {
   panelEl.querySelector('[data-action=edit]')?.addEventListener('click', () => setMode('edit'));
   panelEl.querySelector('[data-action=ribs]')?.addEventListener('click', toggleRibs);
   panelEl.querySelector('[data-action=isolate]')?.addEventListener('click', () => document.getElementById('isolate').click());
+  panelEl.querySelectorAll('.pgroup').forEach((b) => b.addEventListener('click', () => setLabelGroup(state.selected, b.dataset.lg)));
   panelEl.querySelectorAll('.prow').forEach((r) => {
     // czaszka: wskazany szew albo kresa świeci na modelu (paint), w pozostałych — tylko etykieta (invalidate)
     const redraw = () => (skullMode() ? paint() : invalidate());
@@ -130,6 +159,8 @@ export function renderMuscle(k) {
 export function renderPart(k) {
   invalidate();
   ui.panelRibs = ribsOn(k);
+  ui.peek = null;
+  renderGroupBar(k);
   if (muscleMode()) { renderMuscle(k); return; }
   const reg = regionOf(k);
   const R = REGIONS[reg];
@@ -170,4 +201,5 @@ export function renderPart(k) {
     <div><h3>${esc(R.name)} · ${esc(R.count)}</h3><p class="region-text">${esc(R.text)}</p></div>
     ${metaBlock(fma)}`;
   bindParts();
+  syncGroups(k);
 }

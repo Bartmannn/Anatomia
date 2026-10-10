@@ -112,4 +112,6 @@ export const COARSE = matchMedia('(pointer: coarse)').matches;      // telefon /
 export const ui = {
   panelRibs: null,      // czy panel pokazuje już części żeber
   labelMode: 'palp',    // etykiety: punkty wyczuwalne (palp) albo części kręgu (parts)
+  labelGroup: {},       // kość -> wybrany zestaw podpisów (id albo 'all'); bez wpisu — pierwszy zestaw
+  peek: null,           // część, której podpis widać chwilowo (kursor albo palec na kropce innego zestawu)
 };

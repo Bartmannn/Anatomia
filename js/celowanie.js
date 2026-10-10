@@ -3,8 +3,9 @@ import * as THREE from 'three';
 import { placePoint } from './edytor.js';
 import { paint } from './malowanie.js';
 import { select } from './moduly.js';
-import { ctxMeshes, muscleMeshes, muscleMode, parts, ribMeshes, selectable, state } from './stan.js';
-import { camera, perf, renderer } from './widok.js';
+import { ctxMeshes, muscleMeshes, muscleMode, parts, ribMeshes, selectable, state, ui } from './stan.js';
+import { dotNear } from './etykiety.js';
+import { camera, invalidate, perf, renderer } from './widok.js';
 
 /* ---------- Uproszczone bryły do celowania (raycast) ---------- */
 // Trafienia i zasłanianie etykiet liczymy na siatkach uproszczonych ok. 10× (łączenie wierzchołków co 2,5 mm),
@@ -98,6 +99,9 @@ renderer.domElement.addEventListener('pointerdown', (e) => { downAt = [e.clientX
 renderer.domElement.addEventListener('pointerup', (e) => {
   if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 6) return;
   if (state.mode === 'edit' && state.edit.part) { placePoint(e); return; }
+  // dotknięcie (kliknięcie) kropki bez podpisu: pokazuje jej nazwę, drugie dotknięcie chowa
+  const dot = state.mode === 'atlas' ? dotAt(e) : null;
+  if (dot) { ui.peek = ui.peek === dot ? null : dot; invalidate(); return; }
   const k = pick(e);
   if (k && state.mode !== 'quiz') select(k, false);
 });
@@ -105,11 +109,19 @@ renderer.domElement.addEventListener('pointermove', (e) => {
   if (e.pointerType !== 'mouse' || e.buttons) return;
   hoverEv = e;
 });
-renderer.domElement.addEventListener('pointerleave', () => { hoverEv = null; if (state.hovered) { state.hovered = null; paint(); } });
+renderer.domElement.addEventListener('pointerleave', () => {
+  hoverEv = null;
+  if (ui.peek) { ui.peek = null; invalidate(); }
+  if (state.hovered) { state.hovered = null; paint(); }
+});
 }
+const dotAt = (e) => { const r = renderer.domElement.getBoundingClientRect(); return dotNear(e.clientX - r.left, e.clientY - r.top); };
 export function processHover() {
   if (!hoverEv) return;
   const e = hoverEv; hoverEv = null;
+  // kursor na kropce bez podpisu: jej nazwa widoczna, dopóki kursor jest blisko
+  const dot = state.mode === 'atlas' ? dotAt(e) : null;
+  if (dot !== ui.peek && (dot || ui.peek)) { ui.peek = dot; invalidate(); }
   const k = state.mode !== 'quiz' ? pick(e) : null;
   renderer.domElement.style.cursor = state.mode === 'edit' && state.edit.part ? 'crosshair' : (k ? 'pointer' : '');
   if (k !== state.hovered) {

@@ -34,6 +34,8 @@ export const PAIRED_BONES = joined('paired');    // jedna siatka z kośćmi lew�
 export const OVERVIEWS = new Set(all.map((S) => S.overview));
 export const SET_DIRS = all.map((S) => S.dir);
 export const packOf = (k) => `${SETS[SET_OF[k]].dir}/${k}`;
+// nazwy zestawów podpisów (pole group przy części kości) dla kości k
+export const labelGroupNames = (k) => SETS[SET_OF[k]]?.labelGroups || {};
 
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 // Lewa kolumna: kości zestawów pogrupowane (np. mózgoczaszka i twarzoczaszka)

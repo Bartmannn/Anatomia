@@ -3,9 +3,9 @@ import * as FIX from '../landmarks-fix.js';
 import { LANDMARKS } from '../landmarks.js';
 import { PART_LABELS, PART_LABELS_SPECIAL } from '../content.js';
 import { RIB_LANDMARKS, RIB_LINKS } from '../landmarks-ribs.js';
-import { LABELS, LANDMARKS as SET_LANDMARKS, isSetBone } from './zestawy.js';
+import { LABELS, LANDMARKS as SET_LANDMARKS, isSetBone, labelGroupNames } from './zestawy.js';
 import { ribsOn } from './malowanie.js';
-import { regionOf } from './stan.js';
+import { regionOf, ui } from './stan.js';
 
 /* ---------- Landmarks: automatic points + fixes from file + local edits ---------- */
 // landmarks-fix.js: FIXES (poprawione punkty), REVIEWED (sprawdzone kręgi), EXTRA (punkty dodane ręcznie)
@@ -99,3 +99,27 @@ export const PAIRED = new Set(['pedicle', 'lamina', 'transverse', 'art_sup', 'ar
 // kolejność punktów w parach: [lewa, prawa] (strona ciała, nie ekranu)
 export const SIDE_NAMES = ['lewa', 'prawa'];
 export const SIDE_SHORT = ['L', 'P'];
+
+/* ---------- Zestawy podpisów ---------- */
+// Części kości podzielone na zestawy (pole group w pliku z opisami), w kolejności z pliku. Części bez zestawu
+// (np. punkty dodane ręcznie) trafiają do zestawu „Pozostałe”. Kość bez zestawów: pusta lista.
+export function groupsOf(k) {
+  if (!isSetBone(k) || !Object.values(LABELS[k] || {}).some((d) => d.group)) return [];
+  const names = labelGroupNames(k);
+  const out = new Map();
+  for (const { part } of partList(k)) {
+    const id = LABELS[k]?.[part]?.group || 'inne';
+    if (!out.has(id)) out.set(id, { id, name: names[id] || 'Pozostałe', parts: [] });
+    out.get(id).parts.push(part);
+  }
+  const list = [...out.values()];
+  list.forEach((g, i) => { g.color = `var(--lg${(i % 4) + 1})`; });
+  return list;
+}
+// wybrany zestaw kości k: id zestawu albo 'all' (wszystkie podpisy)
+export function activeGroup(k) {
+  const groups = groupsOf(k);
+  if (!groups.length) return 'all';
+  const g = ui.labelGroup[k];
+  return g === 'all' || groups.some((x) => x.id === g) ? g : groups[0].id;
+}

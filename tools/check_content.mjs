@@ -128,6 +128,7 @@ for (const { C: Z, L: ZL, P, order, groups, content: F, points: FL, script } of 
     if (!order.includes(k)) { err(F, `${P}_LABELS: nieznana kość "${k}"`); continue; }
     for (const [p, d] of Object.entries(labels)) {
       if (!isText(d?.name) || !isText(d?.def)) err(F, `${P}_LABELS.${k}.${p}: każda część musi mieć "name" i "def"`);
+      if (d?.group !== undefined && !Z[`${P}_LABEL_GROUPS`]?.[d.group]) err(F, `${P}_LABELS.${k}.${p}: nieznany zestaw podpisów "${d.group}" (dostępne: ${Object.keys(Z[`${P}_LABEL_GROUPS`] || {}).join(', ') || 'brak — dopisz ' + P + '_LABEL_GROUPS'})`);
       const pts = ZL?.[`${P}_LANDMARKS`]?.[k]?.[p];
       if (ZL && (!Array.isArray(pts) || !pts.every(isPoint))) err(FL, `brak punktu ${k}.${p} — uruchom ${script} albo dodaj punkt w trybie „Popraw punkty”`);
       else if (ZL && pts.length !== (d.pair ? 2 : 1)) err(F, `${P}_LABELS.${k}.${p}: ${d.pair ? 'część parzysta potrzebuje 2 punktów' : 'część nieparzysta potrzebuje 1 punktu'} (jest ${pts.length}) — zmień "pair" albo przelicz punkty`);

@@ -35,42 +35,52 @@ export const OBRECZ_PARTS = {
   },
 };
 
-// Części kości: name, latin, def (opis), palp — wyczuwalna pod palcami, pair — parzysta (dwa punkty: [lewa, prawa])
+// Zestawy podpisów: części kości z dużą liczbą punktów są podzielone na zestawy (pole group przy części).
+// Na modelu podpisany jest jeden zestaw naraz, pozostałe części to kropki w kolorze swojego zestawu.
+// Kolejność tutaj = kolejność przycisków; kolory zestawów są w styles.css (--lg1, --lg2…).
+export const OBRECZ_LABEL_GROUPS = {
+  katy: 'Kąty i brzegi',
+  wyrostki: 'Grzebień i wyrostki',
+  doly: 'Panewka i doły',
+};
+
+// Części kości: name, latin, def (opis), palp — wyczuwalna pod palcami, pair — parzysta (dwa punkty: [lewa, prawa]),
+// group — zestaw podpisów (OBRECZ_LABEL_GROUPS)
 export const OBRECZ_LABELS = {
   scapula: {
-    angle_sup:      { name: 'Kąt górny', latin: 'angulus superior', palp: true, pair: true,
+    angle_sup:      { name: 'Kąt górny', latin: 'angulus superior', group: 'katy', palp: true, pair: true,
                       def: 'Górny róg brzegu przyśrodkowego, na wysokości Th2. Przyczep dźwigacza łopatki. Leży pod mięśniem czworobocznym — wyczuwalny przy rozluźnionych mięśniach.' },
-    angle_inf:      { name: 'Kąt dolny', latin: 'angulus inferior', palp: true, pair: true,
+    angle_inf:      { name: 'Kąt dolny', latin: 'angulus inferior', group: 'katy', palp: true, pair: true,
                       def: 'Najniższy punkt łopatki, przy rękach opuszczonych na wysokości wyrostka kolczystego Th7. Przy unoszeniu ręki przesuwa się w bok (łopatka się obraca).' },
-    margo_med:      { name: 'Brzeg przyśrodkowy', latin: 'margo medialis', palp: true, pair: true,
+    margo_med:      { name: 'Brzeg przyśrodkowy', latin: 'margo medialis', group: 'katy', palp: true, pair: true,
                       def: 'Biegnie wzdłuż kręgosłupa, kilka centymetrów od wyrostków kolczystych. Od tyłu przyczepiają się do niego mięśnie równoległoboczne, od strony żeber — zębaty przedni.' },
-    margo_lat:      { name: 'Brzeg boczny', latin: 'margo lateralis', palp: true, pair: true,
+    margo_lat:      { name: 'Brzeg boczny', latin: 'margo lateralis', group: 'katy', palp: true, pair: true,
                       def: 'Gruby brzeg od panewki do kąta dolnego, zwrócony w stronę pachy. Przyczep mięśni obłych: mniejszego (wyżej) i większego (przy kącie dolnym).' },
-    margo_sup:      { name: 'Brzeg górny', latin: 'margo superior', palp: false, pair: true,
+    margo_sup:      { name: 'Brzeg górny', latin: 'margo superior', group: 'katy', palp: false, pair: true,
                       def: 'Najkrótszy i najcieńszy brzeg, od kąta górnego do wyrostka kruczego. Leży głęboko pod mięśniami.' },
-    notch:          { name: 'Wcięcie łopatki', latin: 'incisura scapulae', palp: false, pair: true,
+    notch:          { name: 'Wcięcie łopatki', latin: 'incisura scapulae', group: 'katy', palp: false, pair: true,
                       def: 'Wcięcie w brzegu górnym przy nasadzie wyrostka kruczego. Zamyka je więzadło poprzeczne łopatki, pod którym przechodzi nerw nadłopatkowy.' },
-    spine:          { name: 'Grzebień łopatki', latin: 'spina scapulae', palp: true, pair: true,
+    spine:          { name: 'Grzebień łopatki', latin: 'spina scapulae', group: 'wyrostki', palp: true, pair: true,
                       def: 'Wał kostny na tylnej powierzchni, biegnący skośnie w górę i w bok. Wyczuwalny pod skórą na całej długości. Przyczep części poprzecznej i wstępującej czworobocznego oraz tylnej części naramiennego.' },
-    trigonum:       { name: 'Trójkąt grzebienia', latin: 'trigonum spinae scapulae', palp: true, pair: true,
+    trigonum:       { name: 'Trójkąt grzebienia', latin: 'trigonum spinae scapulae', group: 'wyrostki', palp: true, pair: true,
                       def: 'Gładkie, trójkątne miejsce, w którym grzebień dochodzi do brzegu przyśrodkowego — przy rękach opuszczonych na wysokości Th3. Punkt orientacyjny przy liczeniu kręgów.' },
-    acromion:       { name: 'Wyrostek barkowy', latin: 'acromion', palp: true, pair: true,
+    acromion:       { name: 'Wyrostek barkowy', latin: 'acromion', group: 'wyrostki', palp: true, pair: true,
                       def: 'Boczne przedłużenie grzebienia, tworzy „dach” nad stawem ramiennym. Najwyżej położony kostny punkt barku. Łączy się z obojczykiem w stawie barkowo-obojczykowym.' },
-    acromial_angle: { name: 'Kąt barkowy', latin: 'angulus acromialis', palp: true, pair: true,
+    acromial_angle: { name: 'Kąt barkowy', latin: 'angulus acromialis', group: 'wyrostki', palp: true, pair: true,
                       def: 'Miejsce, w którym tylny brzeg wyrostka barkowego zakręca w grzebień łopatki. Dobrze wyczuwalny punkt z tyłu barku.' },
-    coracoid:       { name: 'Wyrostek kruczy', latin: 'processus coracoideus', palp: true, pair: true,
+    coracoid:       { name: 'Wyrostek kruczy', latin: 'processus coracoideus', group: 'wyrostki', palp: true, pair: true,
                       def: 'Hakowaty wyrostek skierowany do przodu. Wyczuwalny z przodu, kilka centymetrów pod obojczykiem, w bruździe między mięśniem naramiennym a piersiowym większym. Przyczep piersiowego mniejszego, kruczo-ramiennego i głowy krótkiej dwugłowego. Ucisk bywa bolesny.' },
-    glenoid:        { name: 'Panewka stawowa', latin: 'cavitas glenoidalis', palp: false, pair: true,
+    glenoid:        { name: 'Panewka stawowa', latin: 'cavitas glenoidalis', group: 'doly', palp: false, pair: true,
                       def: 'Płytkie, owalne zagłębienie na kącie bocznym. Z głową kości ramiennej tworzy staw ramienny — najbardziej ruchomy staw ciała. Panewka jest mała w porównaniu z głową kości, dlatego staw łatwo się zwichnąć.' },
-    supraglenoid:   { name: 'Guzek nadpanewkowy', latin: 'tuberculum supraglenoidale', palp: false, pair: true,
+    supraglenoid:   { name: 'Guzek nadpanewkowy', latin: 'tuberculum supraglenoidale', group: 'doly', palp: false, pair: true,
                       def: 'Nad panewką. Przyczep głowy długiej mięśnia dwugłowego ramienia.' },
-    infraglenoid:   { name: 'Guzek podpanewkowy', latin: 'tuberculum infraglenoidale', palp: false, pair: true,
+    infraglenoid:   { name: 'Guzek podpanewkowy', latin: 'tuberculum infraglenoidale', group: 'doly', palp: false, pair: true,
                       def: 'Pod panewką, na początku brzegu bocznego. Przyczep głowy długiej mięśnia trójgłowego ramienia.' },
-    fossa_supra:    { name: 'Dół nadgrzebieniowy', latin: 'fossa supraspinata', palp: true, pair: true,
+    fossa_supra:    { name: 'Dół nadgrzebieniowy', latin: 'fossa supraspinata', group: 'doly', palp: true, pair: true,
                       def: 'Zagłębienie nad grzebieniem. Wypełnia je mięsień nadgrzebieniowy (część stożka rotatorów), przykryty mięśniem czworobocznym.' },
-    fossa_infra:    { name: 'Dół podgrzebieniowy', latin: 'fossa infraspinata', palp: true, pair: true,
+    fossa_infra:    { name: 'Dół podgrzebieniowy', latin: 'fossa infraspinata', group: 'doly', palp: true, pair: true,
                       def: 'Duże zagłębienie pod grzebieniem, wypełnione mięśniem podgrzebieniowym. Przy przeciążeniach barku mięsień bywa tu tkliwy.' },
-    fossa_sub:      { name: 'Dół podłopatkowy', latin: 'fossa subscapularis', palp: false, pair: true,
+    fossa_sub:      { name: 'Dół podłopatkowy', latin: 'fossa subscapularis', group: 'doly', palp: false, pair: true,
                       def: 'Wklęsła powierzchnia żebrowa (przednia) łopatki, zwrócona do żeber. Wypełnia ją mięsień podłopatkowy.' },
   },
   clavicle: {

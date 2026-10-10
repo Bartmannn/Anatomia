@@ -27,6 +27,9 @@ Lista pomysłów do zrobienia „kiedyś”, od największej wartości dla uczni
 - [ ] **Zestawy od nauczyciela przez link**, np. `#quiz/grzbiet?zestaw=trapezius,latissimus,rhomboid`. Nauczyciel wrzuca link przed kolokwium. Bez serwera.
 - [ ] **Quiz po łacinie** (polska nazwa → łacińska i odwrotnie). Nazwy łacińskie już są w plikach z opisami.
 - [ ] Tryb egzaminu: stała liczba pytań, czas, wynik na końcu.
+- [ ] **„Sprawdź się” na kropkach:** podpisy ukryte, kliknięcie kropki pokazuje nazwę — fiszki z tych samych punktów (zestawy podpisów już są).
+- [ ] **Filtr „Wyczuwalne pod palcami”** nakładany na zestaw podpisów (np. „Grzebień i wyrostki, tylko wyczuwalne”).
+- [ ] Zestawy podpisów dla czaszki i kręgów (pole `group` w plikach z opisami) — jeśli okaże się potrzebne.
 - [ ] **Wyszukiwarka** po wszystkich modułach (np. „wyrostek sutkowaty” → od razu kość i punkt).
 
 ## Zakres (kolejność według programu nauczania)
