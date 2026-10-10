@@ -10,6 +10,7 @@
   --s: #2f7d63;
   --nc: #4f67b0;
   --vc: #b0603a;
+  --ob: #7356ad;
   --focus: #2e5bba;
   --facet: #0f7f8a;
   --shadow: 0 1px 0 rgba(27, 31, 30, .06);
@@ -29,10 +30,9 @@
     --th: #e2b04a;
     --l: #e6705c;
     --s: #5fb495;
-  --nc: #8a9ee6;
-  --vc: #e38e66;
     --nc: #8a9ee6;
     --vc: #e38e66;
+    --ob: #ab93e3;
     --focus: #8fb0f0;
     --facet: #4cc4cf;
     --shadow: none;
@@ -49,6 +49,9 @@
   --th: #e2b04a;
   --l: #e6705c;
   --s: #5fb495;
+  --nc: #8a9ee6;
+  --vc: #e38e66;
+  --ob: #ab93e3;
   --focus: #8fb0f0;
   --facet: #4cc4cf;
   --shadow: none;
@@ -548,8 +551,8 @@ body.editing .hint { display: none; }
 .pk-group { display: grid; gap: 8px; }
 .pk-gtitle { margin: 4px 0 0; font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 
-/* Lewa kolumna w module mięśni: nazwy zamiast kodów kręgów */
-body[data-module="grzbiet"] .main, body[data-module="czaszka"] .main { grid-template-columns: 148px minmax(0, 1fr) minmax(300px, 380px); }
+/* Lewa kolumna w modułach mięśni i zestawów kości: nazwy zamiast kodów kręgów */
+body[data-ruler="names"] .main { grid-template-columns: 148px minmax(0, 1fr) minmax(300px, 380px); }
 .ruler.mus .group { gap: 2px; }
 .ruler.mus button { font-family: var(--font-body); font-size: 13px; line-height: 1.25; padding: 4px 6px; white-space: normal; }
 .ruler.mus button::after { display: none; }
@@ -566,9 +569,9 @@ body[data-module="grzbiet"] .main, body[data-module="czaszka"] .main { grid-temp
 .attach-note { margin: 6px 0 0; color: var(--muted); }
 .mpart:focus-visible, .mpart:hover { outline: none; }
 .mpart:hover h4, .mpart:focus h4 { color: var(--muscle); }
-@media (max-width: 1000px) { body[data-module="grzbiet"] .main, body[data-module="czaszka"] .main { grid-template-columns: 120px minmax(0, 1fr); } }
+@media (max-width: 1000px) { body[data-ruler="names"] .main { grid-template-columns: 120px minmax(0, 1fr); } }
 @media (max-width: 640px) {
-  body[data-module="grzbiet"] .main, body[data-module="czaszka"] .main { grid-template-columns: minmax(0, 1fr); }
+  body[data-ruler="names"] .main { grid-template-columns: minmax(0, 1fr); }
   .ruler.mus .mgroup:not(:has(button)) { display: none; }
 }
 .chip { white-space: nowrap; }

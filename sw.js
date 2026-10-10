@@ -13,11 +13,12 @@ const PAMIEC_DANYCH = 'anatomia-dane';        // wspólna z przyciskiem „Zapis
 
 const PLIKI_STRONY = [
   './', 'index.html', 'app.js', 'styles.css', 'manifest.webmanifest',
-  'content.js', 'content-miesnie.js', 'content-czaszka.js', 'landmarks.js', 'landmarks-ribs.js', 'landmarks-czaszka.js', 'landmarks-fix.js',
+  'content.js', 'content-miesnie.js', 'content-czaszka.js', 'content-obrecz.js',
+  'landmarks.js', 'landmarks-ribs.js', 'landmarks-czaszka.js', 'landmarks-obrecz.js', 'landmarks-fix.js',
   'models/pakiety/spis.js',
   'js/stan.js', 'js/widok.js', 'js/malowanie.js', 'js/paczki.js', 'js/punkty.js', 'js/etykiety.js',
   'js/panel.js', 'js/quiz.js', 'js/edytor.js', 'js/celowanie.js', 'js/moduly.js', 'js/petla.js', 'js/miesnie.js',
-  'js/czaszka.js', 'js/szwy.js', 'js/tresci.js',
+  'js/czaszka.js', 'js/obrecz.js', 'js/zestawy.js', 'js/szwy.js', 'js/tresci.js',
 ];
 const PLIKI_STALE = [
   'vendor/three/three.module.min.js', 'vendor/three/addons/controls/OrbitControls.js',

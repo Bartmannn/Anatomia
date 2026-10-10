@@ -1,7 +1,7 @@
-// Treści wszystkich kości w jednym miejscu: kręgosłup (content.js) i czaszka (content-czaszka.js).
+// Treści wszystkich kości w jednym miejscu: kręgosłup (content.js) i zestawy kości (czaszka, obręcz barkowa — zestawy.js).
 import * as C from '../content.js';
-import { SKULL_PARTS, SKULL_REGIONS } from '../content-czaszka.js';
+import * as Z from './zestawy.js';
 
-export const REGIONS = { ...C.REGIONS, ...SKULL_REGIONS };
-export const PARTS = { ...C.PARTS, ...SKULL_PARTS };
+export const REGIONS = { ...C.REGIONS, ...Z.REGIONS };
+export const PARTS = { ...C.PARTS, ...Z.PARTS };
 export const { DISC, PALPATION, PART_LABELS, PART_LABELS_SPECIAL } = C;

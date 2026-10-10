@@ -1,24 +1,29 @@
 // Quiz: rodzaje pytań, odpowiedzi i wynik.
 import * as THREE from 'three';
 import * as MUS from './miesnie.js';
-import * as CZ from './czaszka.js';
+import { HIDDEN_BONES, isSetBone } from './zestawy.js';
 import { PARTS } from './tresci.js';
 import { paint } from './malowanie.js';
 import { boneDir, updateLoader } from './moduly.js';
 import { updateLod } from './paczki.js';
 import { esc, metaBlock } from './panel.js';
 import { lm, partDef } from './punkty.js';
-import { $, ORDER, bigcodeEl, modKeys, muscleMode, panelEl, single, skullMode, state } from './stan.js';
+import { $, MODULES, ORDER, bigcodeEl, boneSetMode, modKeys, muscleMode, panelEl, single, state } from './stan.js';
 import { VIEWS, boxOf, closeFrame, frame, frameWhenReady, neighbors, view } from './widok.js';
 
 /* ---------- Quiz ---------- */
-// Rodzaje pytań zależą od modułu: kości albo mięśnie
+// Rodzaje pytań zależą od modułu: kręgi, zestaw kości albo mięśnie (moduł może je zawęzić polem quiz, np. łopatka i obojczyk
+// to za mało kości na „Która kość?” z czterema odpowiedziami)
 export const QUIZ_TYPES = {
   bones: [['kreg', 'Który kręg?'], ['czesc', 'Która część?']],
-  skull: [['kosc', 'Która kość?'], ['czesc', 'Która część?']],
+  set: [['kosc', 'Która kość?'], ['czesc', 'Która część?']],
   muscles: [['miesien', 'Który mięsień?'], ['przyczepy', 'Czyje przyczepy?']],
 };
-export const quizKind = () => (muscleMode() ? 'muscles' : skullMode() ? 'skull' : 'bones');
+export const quizKind = () => (muscleMode() ? 'muscles' : boneSetMode() ? 'set' : 'bones');
+export const quizTypes = () => {
+  const only = MODULES[state.module]?.quiz;
+  return QUIZ_TYPES[quizKind()].filter(([t]) => !only || only.includes(t));
+};
 const whichBone = (t) => t === 'kreg' || t === 'kosc';
 export const pickRand = (a) => a[Math.floor(Math.random() * a.length)];
 export const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -36,12 +41,12 @@ export function quizPartsOf(k) {
 export const quizType = () => state.quiz?.type;
 export function newQuestion() {
   const q = state.quiz;
-  const types = QUIZ_TYPES[quizKind()];
+  const types = quizTypes();
   if (!types.some(([t]) => t === q.type)) { q.type = types[0][0]; q.good = 0; q.total = 0; }
   let target, opts, part = null, point = null;
   if (whichBone(q.type)) {
     const keys = modKeys();
-    target = pickRand(keys.filter((k) => !CZ.HIDDEN_BONES.has(k)));
+    target = pickRand(keys.filter((k) => !HIDDEN_BONES.has(k)));
     const i = keys.indexOf(target);
     const pool = keys.filter((k) => k !== target && Math.abs(keys.indexOf(k) - i) <= 4);
     opts = [target];
@@ -52,7 +57,7 @@ export function newQuestion() {
     target = pickRand(keys);
     const ps = quizPartsOf(target);
     part = pickRand(ps);
-    point = lm(target)[part].find(Boolean);
+    point = pickRand(lm(target)[part].filter(Boolean));      // część parzysta: raz lewa, raz prawa
     opts = shuffle([part, ...shuffle(ps.filter((p) => p !== part)).slice(0, 3)]);
   } else {
     // mięśnie z włączonych warstw (gdy jest ich za mało — ze wszystkich)
@@ -69,7 +74,7 @@ export function newQuestion() {
   if (q.type === 'czesc') frameWhenReady(target, () => framePoint(target, point));
   else if (q.type === 'miesien') frameWhenReady(target, () => frame([target], VIEWS.back, 1.35));
   else if (q.type === 'przyczepy') { view.pendingFrame = null; frame([...modKeys(), ...ORDER], VIEWS.back, 1.12); }
-  else if (skullMode()) { view.pendingFrame = null; frame(modKeys(), boneDir(target), 1.05); }
+  else if (boneSetMode()) { view.pendingFrame = null; frame(modKeys(), boneDir(target), 1.05); }
   else if (single()) frameWhenReady(target, () => closeFrame(target, VIEWS.three));
   else { view.pendingFrame = null; frame(neighbors(target, 3), VIEWS.three); }
 }
@@ -103,7 +108,7 @@ export function renderQuiz() {
   panelEl.innerHTML = `
     <div>
       <div class="eyebrow"><span>Quiz</span><span>·</span><span class="score">Wynik ${q.good}/${q.total}</span></div>
-      <div class="qtypes" role="group" aria-label="Rodzaj pytań">${QUIZ_TYPES[quizKind()].map(([t, label]) => `<button type="button" data-qt="${t}" aria-pressed="${t === q.type}">${label}</button>`).join('')}</div>
+      <div class="qtypes" role="group" aria-label="Rodzaj pytań">${quizTypes().map(([t, label]) => `<button type="button" data-qt="${t}" aria-pressed="${t === q.type}">${label}</button>`).join('')}</div>
       <p class="quiz-q">${question}</p>
     </div>
     <div class="answers">${q.opts.map((k) => { const [a, b] = quizOption(k); return `<button type="button" data-k="${k}"><span>${esc(a)}</span><span class="code">${esc(b)}</span></button>`; }).join('')}</div>
@@ -136,7 +141,7 @@ export function answer(k) {
   if (whichBone(q.type)) {
     const P = PARTS[q.target];
     text = `To ${esc(P.name.toLowerCase())} (${esc(P.short)}). ${esc(P.massage)}`;
-    bigcodeEl.textContent = CZ.isSkull(q.target) ? '' : P.short === 'S1–S5' ? 'S' : P.short;
+    bigcodeEl.textContent = isSetBone(q.target) ? '' : P.short === 'S1–S5' ? 'S' : P.short;
   } else if (q.type === 'czesc') {
     const d = partDef(q.target, q.part);
     text = `To ${esc(d.name.toLowerCase())}${d.latin ? ` (${esc(d.latin)})` : ''}. ${esc(d.def || '')}`;

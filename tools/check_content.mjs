@@ -45,9 +45,13 @@ async function load(file) {
 const ORDER = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'Th1', 'Th2', 'Th3', 'Th4', 'Th5', 'Th6', 'Th7', 'Th8', 'Th9', 'Th10',
   'Th11', 'Th12', 'L1', 'L2', 'L3', 'L4', 'L5', 'S'];
 const DISCS = ORDER.slice(1, -1).map((k) => 'D_' + k);           // krążek pod kręgiem: D_C2 … D_L5
-const CZ = await load('content-czaszka.js');
-const SKULL = CZ?.SKULL_ORDER || [];
-const KEYS = new Set([...ORDER, ...DISCS, ...SKULL]);
+// zestawy kości: plik z treściami, plik z punktami i przedrostek nazw (SKULL_ORDER, OBRECZ_ORDER…), grupy (NC, VC, OB)
+const SETS = [
+  { content: 'content-czaszka.js', points: 'landmarks-czaszka.js', P: 'SKULL', groups: 'NC albo VC', script: 'tools/czaszka.py' },
+  { content: 'content-obrecz.js', points: 'landmarks-obrecz.js', P: 'OBRECZ', groups: 'OB', script: 'tools/obrecz.py' },
+];
+for (const S of SETS) { S.C = await load(S.content); S.L = await load(S.points); S.order = S.C?.[`${S.P}_ORDER`] || []; }
+const KEYS = new Set([...ORDER, ...DISCS, ...SETS.flatMap((S) => S.order)]);
 const isText = (v) => typeof v === 'string' && v.trim().length > 0;
 const isPoint = (p) => p === null || (Array.isArray(p) && p.length === 3 && p.every((x) => typeof x === 'number' && Number.isFinite(x) && Math.abs(x) < 50));
 
@@ -108,31 +112,30 @@ if (M) {
   }
 }
 
-/* ---------- content-czaszka.js i landmarks-czaszka.js ---------- */
-const CL = await load('landmarks-czaszka.js');
-if (CZ) {
-  const F = 'content-czaszka.js';
-  for (const [g, R] of Object.entries(CZ.SKULL_REGIONS || {})) for (const f of ['name', 'latin', 'count', 'curve', 'text']) if (!isText(R[f])) err(F, `SKULL_REGIONS.${g}: puste pole "${f}"`);
-  for (const k of SKULL) {
-    const P = CZ.SKULL_PARTS?.[k];
-    if (!P) { err(F, `SKULL_PARTS: brak opisu kości "${k}"`); continue; }
-    for (const f of ['name', 'latin', 'short', 'massage', 'muscles']) if (!isText(P[f])) err(F, `SKULL_PARTS.${k}: puste pole "${f}"`);
-    if (!Array.isArray(P.features) || !P.features.length || !P.features.every(isText)) err(F, `SKULL_PARTS.${k}: "features" musi być listą zdań w [ … ]`);
-    if (!CZ.SKULL_REGIONS?.[CZ.SKULL_GROUP?.[k]]) err(F, `SKULL_GROUP.${k}: nieznana grupa (NC albo VC)`);
+/* ---------- zestawy kości: content-czaszka.js, content-obrecz.js i ich punkty ---------- */
+for (const { C: Z, L: ZL, P, order, groups, content: F, points: FL, script } of SETS) {
+  if (!Z) continue;
+  for (const [g, R] of Object.entries(Z[`${P}_REGIONS`] || {})) for (const f of ['name', 'latin', 'count', 'curve', 'text']) if (!isText(R[f])) err(F, `${P}_REGIONS.${g}: puste pole "${f}"`);
+  for (const k of order) {
+    const B = Z[`${P}_PARTS`]?.[k];
+    if (!B) { err(F, `${P}_PARTS: brak opisu kości "${k}"`); continue; }
+    for (const f of ['name', 'latin', 'short', 'massage', 'muscles']) if (!isText(B[f])) err(F, `${P}_PARTS.${k}: puste pole "${f}"`);
+    if (!Array.isArray(B.features) || !B.features.length || !B.features.every(isText)) err(F, `${P}_PARTS.${k}: "features" musi być listą zdań w [ … ]`);
+    if (!Z[`${P}_REGIONS`]?.[Z[`${P}_GROUP`]?.[k]]) err(F, `${P}_GROUP.${k}: nieznana grupa (${groups})`);
   }
-  for (const k of Object.keys(CZ.SKULL_PARTS || {})) if (!SKULL.includes(k)) err(F, `SKULL_PARTS: kość "${k}" nie występuje w SKULL_ORDER`);
-  for (const [k, labels] of Object.entries(CZ.SKULL_LABELS || {})) {
-    if (!SKULL.includes(k)) { err(F, `SKULL_LABELS: nieznana kość "${k}"`); continue; }
+  for (const k of Object.keys(Z[`${P}_PARTS`] || {})) if (!order.includes(k)) err(F, `${P}_PARTS: kość "${k}" nie występuje w ${P}_ORDER`);
+  for (const [k, labels] of Object.entries(Z[`${P}_LABELS`] || {})) {
+    if (!order.includes(k)) { err(F, `${P}_LABELS: nieznana kość "${k}"`); continue; }
     for (const [p, d] of Object.entries(labels)) {
-      if (!isText(d?.name) || !isText(d?.def)) err(F, `SKULL_LABELS.${k}.${p}: każda część musi mieć "name" i "def"`);
-      const pts = CL?.SKULL_LANDMARKS?.[k]?.[p];
-      if (CL && (!Array.isArray(pts) || !pts.every(isPoint))) err('landmarks-czaszka.js', `brak punktu ${k}.${p} — uruchom tools/czaszka.py albo dodaj punkt w trybie „Popraw punkty”`);
-      else if (CL && pts.length !== (d.pair ? 2 : 1)) err(F, `SKULL_LABELS.${k}.${p}: ${d.pair ? 'część parzysta potrzebuje 2 punktów' : 'część nieparzysta potrzebuje 1 punktu'} (jest ${pts.length}) — zmień "pair" albo przelicz punkty`);
-      if (d.line && CL && !Object.keys(CL.SKULL_LINES || {}).some((n) => n === d.line || n.startsWith(d.line + '_'))) err(F, `SKULL_LABELS.${k}.${p}: nieznana linia "${d.line}"`);
+      if (!isText(d?.name) || !isText(d?.def)) err(F, `${P}_LABELS.${k}.${p}: każda część musi mieć "name" i "def"`);
+      const pts = ZL?.[`${P}_LANDMARKS`]?.[k]?.[p];
+      if (ZL && (!Array.isArray(pts) || !pts.every(isPoint))) err(FL, `brak punktu ${k}.${p} — uruchom ${script} albo dodaj punkt w trybie „Popraw punkty”`);
+      else if (ZL && pts.length !== (d.pair ? 2 : 1)) err(F, `${P}_LABELS.${k}.${p}: ${d.pair ? 'część parzysta potrzebuje 2 punktów' : 'część nieparzysta potrzebuje 1 punktu'} (jest ${pts.length}) — zmień "pair" albo przelicz punkty`);
+      if (d.line && ZL && !Object.keys(ZL[`${P}_LINES`] || {}).some((n) => n === d.line || n.startsWith(d.line + '_'))) err(F, `${P}_LABELS.${k}.${p}: nieznana linia "${d.line}"`);
     }
   }
+  for (const [n, line] of Object.entries(ZL?.[`${P}_LINES`] || {})) if (!Array.isArray(line) || line.length < 4 || !line.every((q) => q && isPoint(q))) err(FL, `${P}_LINES.${n}: linia musi mieć postać [[x, y, z], …]`);
 }
-if (CL) for (const [n, line] of Object.entries(CL.SKULL_LINES || {})) if (!Array.isArray(line) || line.length < 4 || !line.every((q) => q && isPoint(q))) err('landmarks-czaszka.js', `SKULL_LINES.${n}: linia musi mieć postać [[x, y, z], …]`);
 
 /* ---------- punkty etykiet ---------- */
 const LM = await load('landmarks.js');
@@ -197,7 +200,8 @@ for (const f of ['fonts/fonts.css', ...[...readFileSync(join(ROOT, 'fonts', 'fon
   else {
     const all = new Set([...strony, ...stale]);
     for (const f of all) if (f !== './' && !existsSync(join(ROOT, f))) err('sw.js', `na liście jest ${f}, ale takiego pliku nie ma`);
-    const wanted = ['app.js', 'index.html', 'styles.css', 'content.js', 'content-miesnie.js', 'content-czaszka.js', 'landmarks.js', 'landmarks-ribs.js', 'landmarks-czaszka.js', 'landmarks-fix.js', 'models/pakiety/spis.js',
+    const wanted = ['app.js', 'index.html', 'styles.css', 'content.js', 'content-miesnie.js', 'landmarks.js', 'landmarks-ribs.js', 'landmarks-fix.js', 'models/pakiety/spis.js',
+      ...SETS.flatMap((S) => [S.content, S.points]),
       ...readdirSync(join(ROOT, 'js')).filter((f) => f.endsWith('.js')).map((f) => 'js/' + f)];
     for (const f of wanted) if (!all.has(f)) err('sw.js', `brak ${f} na liście PLIKI_STRONY — bez tego strona nie zadziała offline`);
   }

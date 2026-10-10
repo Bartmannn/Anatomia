@@ -22,9 +22,9 @@ Podaj, **który kręg** (np. Th7) i **co jest nie tak**. Jeśli to kwestia meryt
 
 ## 2. Popraw tekst opisu (bez instalowania czegokolwiek)
 
-Teksty o kręgosłupie są w pliku [`content.js`](content.js), o czaszce w [`content-czaszka.js`](content-czaszka.js), a o mięśniach w [`content-miesnie.js`](content-miesnie.js).
+Teksty o kręgosłupie są w pliku [`content.js`](content.js), o czaszce w [`content-czaszka.js`](content-czaszka.js), o łopatce i obojczyku w [`content-obrecz.js`](content-obrecz.js), a o mięśniach w [`content-miesnie.js`](content-miesnie.js).
 
-1. Otwórz plik [`content.js`](content.js) (albo `content-czaszka.js`, `content-miesnie.js`) na GitHubie i kliknij ikonę ołówka (*Edit this file*).
+1. Otwórz plik [`content.js`](content.js) (albo `content-czaszka.js`, `content-obrecz.js`, `content-miesnie.js`) na GitHubie i kliknij ikonę ołówka (*Edit this file*).
 2. Znajdź tekst do poprawy, np. przez `Ctrl+F`, i zmień go.
 3. Na dole strony (albo po kliknięciu *Commit changes…*) krótko opisz zmianę i podaj źródło.
 4. Kliknij *Propose changes*, a potem *Create pull request*. Przejrzę zmianę i ją dołączę.
@@ -72,6 +72,7 @@ Porównuj z ryciną z podręcznika lub atlasu. Kilka wskazówek:
 - **dołki żebrowe** (kręgi piersiowe) są zaznaczone kolorem; po włączeniu *Żebra* widać, gdzie opiera się głowa i guzek żebra,
 - **otwór kręgowy** leży w środku, między trzonem a łukiem; punkt można wsunąć do środka klawiszami PgUp/PgDn,
 - **czaszka:** szwy są narysowane na modelu, więc punkt szwu kładź na linii; *Kolory kości* pomagają zobaczyć granice kości; punkty wewnątrz kości (zatoki, siodło tureckie) najłatwiej poprawić z włączonym *Tylko wybrany*,
+- **łopatka:** punkty na powierzchni żebrowej (dół podłopatkowy) i wyrostek kruczy najłatwiej poprawić od przodu z włączonym *Tylko wybrany*; łopatki są dwie, więc przy każdej części wybierz stronę (lewa / prawa — strona ciała),
 - przy wątpliwościach nie zaznaczaj „Sprawdziłem”, tylko opisz problem w zgłoszeniu.
 
 ## 4. Dla osób technicznych
@@ -79,9 +80,9 @@ Porównuj z ryciną z podręcznika lub atlasu. Kilka wskazówek:
 Strona to czysty HTML, CSS i JavaScript (three.js), bez budowania. Uruchomienie lokalne, np. przez `docker compose up`, opisuje [README](README.md#uruchomienie).
 
 - Zmiany proponuj przez fork i pull request.
-- Opisy są w `content.js` i `content-czaszka.js`, punkty automatyczne w `landmarks.js` (generuje je `tools/landmarks.py`) i `landmarks-czaszka.js` (`tools/czaszka.py`), a poprawki ręczne w `landmarks-fix.js`.
+- Opisy są w `content.js`, `content-czaszka.js` i `content-obrecz.js`, punkty automatyczne w `landmarks.js` (generuje je `tools/landmarks.py`), `landmarks-czaszka.js` (`tools/czaszka.py`) i `landmarks-obrecz.js` (`tools/obrecz.py`), a poprawki ręczne w `landmarks-fix.js`.
 - Nie commituj archiwów `.zip` z danymi źródłowymi.
 
 ## Licencja wkładu
 
-Wysyłając poprawkę, zgadzasz się na jej udostępnienie na licencji danego pliku: opisy w `content.js`, `content-czaszka.js` i `content-miesnie.js` na CC BY-SA 4.0, punkty etykiet na CC BY-SA 2.1 JP (jak modele), kod na MIT.
+Wysyłając poprawkę, zgadzasz się na jej udostępnienie na licencji danego pliku: opisy w `content.js`, `content-czaszka.js`, `content-obrecz.js` i `content-miesnie.js` na CC BY-SA 4.0, punkty etykiet na CC BY-SA 2.1 JP (jak modele), kod na MIT.

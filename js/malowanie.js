@@ -1,11 +1,11 @@
 // Kolory z motywu i malowanie siatek (kręgi, krążki, żebra, mięśnie, przyczepy) oraz jakość materiałów.
 import * as THREE from 'three';
 import * as MUS from './miesnie.js';
-import * as CZ from './czaszka.js';
+import { BONE_COLORS, SET_GROUPS, isSetBone } from './zestawy.js';
 import { RIB_LINKS } from '../landmarks-ribs.js';
 import { updateDebug } from './petla.js';
 import { partDef } from './punkty.js';
-import { REGION_KEYS, closeUp, ctxMeshes, currentKey, muscleMeshes, muscleMode, parts, regionOf, ribByName, ribMeshes, single, skullMode, state } from './stan.js';
+import { MODULES, REGION_KEYS, closeUp, contextKeys, ctxMeshes, currentKey, modKeys, muscleMeshes, muscleMode, parts, regionOf, ribByName, ribMeshes, single, state } from './stan.js';
 import { paintLines } from './szwy.js';
 import { ensureEnv, invalidate, newMat, perf, renderer, scene } from './widok.js';
 
@@ -19,8 +19,6 @@ export function readColors() {
     Th: new THREE.Color(cs.getPropertyValue('--th').trim()),
     L: new THREE.Color(cs.getPropertyValue('--l').trim()),
     S: new THREE.Color(cs.getPropertyValue('--s').trim()),
-    NC: new THREE.Color(cs.getPropertyValue('--nc').trim() || '#5b6fb0'),
-    VC: new THREE.Color(cs.getPropertyValue('--vc').trim() || '#b0683f'),
     suture: new THREE.Color(dark ? '#3a332b' : '#5c5144'),
     tline: new THREE.Color(cs.getPropertyValue('--facet').trim() || '#0f7f8a'),
     focus: new THREE.Color(cs.getPropertyValue('--focus').trim()),
@@ -31,20 +29,23 @@ export function readColors() {
     muscle: new THREE.Color(cs.getPropertyValue('--muscle').trim() || '#b8432f'),
     muscleSoft: new THREE.Color(cs.getPropertyValue('--muscle-soft').trim() || '#c98478'),
   });
-  for (const [k, c] of Object.entries(CZ.BONE_COLORS)) BONE_TINT[k] = new THREE.Color(c);
-  for (const r of [...REGION_KEYS, 'NC', 'VC']) document.documentElement.style.setProperty(`--rc-${r}`, cs.getPropertyValue(`--${r.toLowerCase()}`));
+  // grupy zestawów kości (NC, VC, OB…): kolor ze zmiennej CSS o tej samej nazwie
+  for (const g of SET_GROUPS) COLORS[g] = new THREE.Color(cs.getPropertyValue(`--${g.toLowerCase()}`).trim() || '#7a7f8c');
+  for (const [k, c] of Object.entries(BONE_COLORS)) BONE_TINT[k] = new THREE.Color(c);
+  for (const r of [...REGION_KEYS, ...SET_GROUPS]) document.documentElement.style.setProperty(`--rc-${r}`, cs.getPropertyValue(`--${r.toLowerCase()}`));
 }
 
-export const BONE_TINT = {};      // kolory kości czaszki („Kolory kości”)
+export const BONE_TINT = {};      // kolory kości zestawów („Kolory kości”)
 
 /* ---------- Materials ---------- */
 export const tmp = new THREE.Color();
 export const BLACK = new THREE.Color(0);
+// kość należy do modułu (do wyboru) albo jest jego tłem (context); krążek — razem ze swoim kręgiem
+const baseKey = (k) => (k.startsWith('D_') ? k.slice(2) : k);
+export const isContext = (k) => contextKeys().includes(baseKey(k));
 export function moduleVisible(k) {
-  if (CZ.isSkull(k) !== skullMode()) return false;      // czaszka tylko w swoim module, kręgi tylko w swoich
   if (single()) return k === currentKey();
-  if (state.module === 'zebra') return regionOf(k) === 'Th';
-  return true;
+  return modKeys().includes(baseKey(k)) || isContext(k);
 }
 export function setFade(m, faded, op = 0.09) {
   if (m.material.transparent !== faded) m.material.needsUpdate = true;
@@ -69,7 +70,7 @@ export function paintMuscles() {
   };
   for (const [k, m] of Object.entries(parts)) {
     const disc = k.startsWith('D_');
-    m.visible = (!disc || state.showDiscs) && !CZ.isSkull(k);
+    m.visible = (!disc || state.showDiscs) && !isSetBone(k);
     plain(m, !!att?.vertebrae.has(k), disc ? COLORS.disc : COLORS.bone);
   }
   for (const m of ctxMeshes) { m.visible = true; plain(m, !!att?.bones.has(m.userData.bone)); }
@@ -100,15 +101,24 @@ export function paintMuscles() {
 export function paint() {
   if (muscleMode()) { paintMuscles(); paintLines(COLORS, null); return; }
   for (const m of muscleMeshes) m.visible = false;
-  for (const m of ctxMeshes) m.visible = false;
+  // kości tła modułu (np. kość ramienna przy łopatce): zwykły kolor kości, w widoku z bliska przezroczyste
+  const ctxBones = MODULES[state.module]?.ctxBones || [];
+  for (const m of ctxMeshes) {
+    m.visible = ctxBones.includes(m.userData.bone);
+    if (!m.visible) continue;
+    m.material.color.copy(COLORS.bone);
+    if (m.material.emissive) m.material.emissive.copy(BLACK);
+    setFade(m, closeUp());
+  }
   const sel = state.mode === 'quiz' ? state.quiz?.target : state.selected;
   for (const [k, m] of Object.entries(parts)) {
     const isDisc = k.startsWith('D_');
     const reg = regionOf(k);
     const base = isDisc ? COLORS.disc : k === 'teeth' ? COLORS.teeth : COLORS.bone;
-    const own = BONE_TINT[k];          // czaszka: każda kość ma swój kolor
+    const own = BONE_TINT[k];          // zestawy kości: każda kość ma swój kolor
+    const ctx = isContext(k);           // tło modułu: bez kolorów odcinków
     tmp.copy(base);
-    if (state.tint && state.mode === 'atlas') tmp.lerp(own || COLORS[reg], own ? 0.55 : isDisc ? 0.15 : 0.38);
+    if (state.tint && state.mode === 'atlas' && !ctx) tmp.lerp(own || COLORS[reg], own ? 0.55 : isDisc ? 0.15 : 0.38);
     const isSel = k === sel;
     if (isSel) {
       if (state.mode !== 'quiz') tmp.copy(own && state.tint ? own : COLORS[reg]);
@@ -132,7 +142,7 @@ export function paint() {
   // szew lub kresa wskazana w opisie (albo pytanie quizu o nią po odpowiedzi) — podświetlona
   const q = state.mode === 'quiz' ? state.quiz : null;
   const fk = q ? q.target : state.selected, fp = q ? (q.answered ? q.part : null) : state.focusPart;
-  paintLines(COLORS, fp && CZ.isSkull(fk) ? partDef(fk, fp)?.line || null : null);
+  paintLines(COLORS, fp && isSetBone(fk) ? partDef(fk, fp)?.line || null : null);
   invalidate();
 }
 

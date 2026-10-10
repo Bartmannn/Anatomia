@@ -1,11 +1,7 @@
-// Moduł „Czaszka”: dane i logika niezależna od three.js (lista kości, grupy, kolory, kierunki kamery).
-// Siatki, materiały i szwy obsługują malowanie.js i szwy.js.
+// Moduł „Czaszka”: dane i logika niezależna od three.js (kolory, kierunki kamery, szwy).
+// Siatki i materiały obsługuje malowanie.js, szwy — szwy.js; wspólna obsługa zestawów kości — zestawy.js.
 import { SKULL_ORDER, SKULL_GROUP, SKULL_PARTS, SKULL_LABELS, SKULL_REGIONS } from '../content-czaszka.js';
-
-export { SKULL_ORDER, SKULL_GROUP, SKULL_PARTS, SKULL_LABELS, SKULL_REGIONS };
-export const isSkull = (k) => k in SKULL_GROUP;
-export const skullPack = (k) => `czaszka/${k}`;
-export const SKULL_OVERVIEW = 'czaszka-przeglad';
+import { SKULL_LANDMARKS } from '../landmarks-czaszka.js';
 
 // Kolory kości po włączeniu „Kolory kości” (jak w atlasach: każda kość inna)
 export const BONE_COLORS = {
@@ -28,21 +24,16 @@ export const INNER_BONES = new Set(['sphenoid', 'ethmoid', 'vomer', 'palatine', 
 // W quizie „Która kość?” pomijamy kości niewidoczne z zewnątrz (zostają jako odpowiedzi do wyboru)
 export const HIDDEN_BONES = new Set(['vomer', 'palatine', 'concha']);
 
+// Zestaw kości dla zestawy.js
+export const SET = {
+  order: SKULL_ORDER, group: SKULL_GROUP, parts: SKULL_PARTS, labels: SKULL_LABELS, regions: SKULL_REGIONS,
+  landmarks: SKULL_LANDMARKS, overview: 'czaszka-przeglad', dir: 'czaszka',
+  colors: BONE_COLORS, view: BONE_VIEW, small: SMALL_BONES, inner: INNER_BONES, hidden: HIDDEN_BONES,
+};
+
 // Które kości przylegają do linii (szwu) — do pokazywania linii przy widoku „Tylko wybrany”
 export const LINE_BONES = {
   coronal: ['frontal', 'parietal'], sagittal: ['parietal'], lambdoid: ['parietal', 'occipital'],
   squamous: ['parietal', 'temporal'], temporal_line: ['frontal', 'parietal'],
 };
 export const lineGroup = (name) => name.replace(/_[LR]$/, '');
-
-const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
-// Lewa kolumna: mózgoczaszka i twarzoczaszka
-export function navHTML(esc) {
-  return Object.entries(SKULL_REGIONS).map(([g, R]) => {
-    const list = SKULL_ORDER.filter((k) => SKULL_GROUP[k] === g);
-    return `<div class="group sgroup" data-skull="${g}" style="--rc: var(--${g.toLowerCase()})">
-      <span class="glabel">${esc(R.name)}</span>
-      ${list.map((k) => `<button type="button" id="r-${k}" data-key="${k}" title="${esc(SKULL_PARTS[k].latin)}">${esc(cap(SKULL_PARTS[k].name))}</button>`).join('')}
-    </div>`;
-  }).join('');
-}

@@ -2,7 +2,7 @@
 import { PACKS } from '../models/pakiety/spis.js';
 import * as THREE from 'three';
 import * as MUS from './miesnie.js';
-import * as CZ from './czaszka.js';
+import { BONE_VIEW, SETS, SMALL_BONES, isSetBone } from './zestawy.js';
 import { PARTS } from './tresci.js';
 import { nudge, renderEditor } from './edytor.js';
 import { occl } from './etykiety.js';
@@ -11,14 +11,14 @@ import { ensurePack, kB, net, netStatus, packForKey, packUrl, packs, saveData, s
 import { buildRuler, esc, refreshPanel, renderPart, syncRuler } from './panel.js';
 import { updateDebug } from './petla.js';
 import { newQuestion } from './quiz.js';
-import { $, DEBUG, FULL_KEY, MODULES, ORDER, closeUp, currentKey, modKeys, muscleMode, parts, rulerEl, single, skullMode, state, ui } from './stan.js';
+import { $, DEBUG, FULL_KEY, MODULES, ORDER, boneSetMode, closeUp, contextKeys, currentKey, modKeys, muscleMode, parts, rulerEl, single, state, ui } from './stan.js';
 import { VIEWS, closeFrame, frame, frameWhenReady, neighbors, stepTween, view } from './widok.js';
 
-/* ---------- Czaszka: kadr na kość ---------- */
-export const boneDir = (k) => new THREE.Vector3(...(CZ.BONE_VIEW[k] || [0.8, 0.15, 0.6])).normalize();
-// duże kości: cała czaszka z kierunku, z którego widać kość; małe: zbliżenie na samą kość
-export function frameSkull(k) {
-  if (CZ.SMALL_BONES.has(k)) frameWhenReady(k, () => frame([k], boneDir(k), 3.2));
+/* ---------- Zestawy kości (czaszka, obręcz barkowa): kadr na kość ---------- */
+export const boneDir = (k) => new THREE.Vector3(...(BONE_VIEW[k] || [0.8, 0.15, 0.6])).normalize();
+// duże kości: cały zestaw z kierunku, z którego widać kość; małe: zbliżenie na samą kość
+export function frameSetBone(k) {
+  if (SMALL_BONES.has(k)) frameWhenReady(k, () => frame([k], boneDir(k), 3.2));
   else { view.pendingFrame = null; frame(modKeys(), boneDir(k), 1.05); }
 }
 
@@ -61,7 +61,7 @@ export function select(k, doFrame) {
   else if (doFrame || single()) {
     const keys = k.startsWith('D_') ? [k.slice(2)] : [k];
     if (closeUp()) frameWhenReady(k, () => closeFrame(k));
-    else if (skullMode()) frameSkull(k);
+    else if (boneSetMode()) frameSetBone(k);
     else { view.pendingFrame = null; frame(neighbors(keys[0], 3)); }
   }
   writeHash();
@@ -86,7 +86,7 @@ export function setMode(mode) {
   } else {
     select(state.selected, true);
   }
-  if (mode === 'edit') closeFrame(state.selected, skullMode() ? boneDir(state.selected) : VIEWS.side);
+  if (mode === 'edit') closeFrame(state.selected, boneSetMode() ? boneDir(state.selected) : VIEWS.side);
   syncRuler();
 }
 
@@ -96,7 +96,10 @@ document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('clic
   const v = b.dataset.view;
   const k = currentKey();
   if (single()) closeFrame(k, VIEWS[v === 'all' ? 'three' : v]);
-  else if (v === 'all') frame(muscleMode() ? [...modKeys(), ...ORDER] : modKeys(), muscleMode() ? VIEWS.back : VIEWS.side);
+  else if (v === 'all') {
+    const back = muscleMode() || contextKeys().length > 0;      // mięśnie i łopatka: od tyłu, razem z kręgosłupem
+    frame(muscleMode() ? [...modKeys(), ...ORDER] : [...modKeys(), ...contextKeys()], back ? VIEWS.back : VIEWS.side);
+  }
   else if (closeUp()) closeFrame(k, VIEWS[v]);
   else frame(modKeys(), VIEWS[v]);
 }));
@@ -169,7 +172,7 @@ export function syncLayerChips() {
 export const MOD_KEY = 'atlas-module-v1';
 export const pickerEl = $('#picker');
 export const loaderEl = $('#loader');
-export const validKey = (k) => ORDER.includes(k) || CZ.isSkull(k) || (/^D_/.test(k) && ORDER.includes(k.slice(2)) && k !== 'D_S' && k !== 'D_C1');
+export const validKey = (k) => ORDER.includes(k) || isSetBone(k) || (/^D_/.test(k) && ORDER.includes(k.slice(2)) && k !== 'D_S' && k !== 'D_C1');
 export function parseHash() {
   const h = decodeURIComponent(location.hash.slice(1)).replace(/[&?/]?debug\b/i, '');
   const [a, b] = h.split('/');
@@ -190,6 +193,9 @@ export const ICONS = {
   czaszka: '<svg viewBox="0 0 40 56" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 7 C9 7 5 15 5 23 C5 29 8 32 10 34 L11 41 L16 42 L17 46 L23 46 L24 42 L29 41 L30 34 C32 32 35 29 35 23 C35 15 31 7 20 7 Z"/><ellipse cx="14" cy="26" rx="4" ry="3.6" fill="currentColor" fill-opacity=".18"/><ellipse cx="26" cy="26" rx="4" ry="3.6" fill="currentColor" fill-opacity=".18"/><path d="M20 30 L18 35 L22 35 Z M20 7 C21 12 21 15 20 19" stroke-width="1.2"/><path d="M14 46 L14 42 M18 46 L18 42.5 M22 46 L22 42.5 M26 46 L26 42" stroke-width="1"/></g></svg>',
   zebra: '<svg viewBox="0 0 40 56" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6">' +
     Array.from({ length: 5 }, (_, i) => `<rect x="17" y="${6 + i * 9}" width="6" height="4.5" rx=".6"/><path d="M17 ${9 + i * 9} Q5 ${10 + i * 9} 4 ${19 + i * 9} M23 ${9 + i * 9} Q35 ${10 + i * 9} 36 ${19 + i * 9}"/>`).join('') + '</g></svg>',
+  // łopatka od tyłu: trzon, grzebień z wyrostkiem barkowym, nad nią obojczyk
+  obrecz: '<svg viewBox="0 0 40 56" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 10 Q16 6 22 9 Q30 12 36 9" stroke-width="2"/>' +
+    '<path d="M10 16 L33 15 L31 22 L15 47 Z" fill="currentColor" fill-opacity=".18"/><path d="M11 23 L32 15 L36 13" stroke-width="2.2"/><circle cx="33" cy="20" r="2.4"/></g></svg>',
 };
 export function moduleSize(mod) {
   const base = MODULES[mod].base.reduce((a, id) => a + (PACKS[id]?.bajty || 0), 0);
@@ -270,7 +276,7 @@ export function offlineIds(mod) {
   if (mod === 'kregoslup' || mod === 'kregi') { allOf('kregi/').forEach((id) => ids.add(id)); allOf('zebra/').forEach((id) => ids.add(id)); }
   if (mod === 'kregoslup') ids.add('zebra-przeglad');
   if (mod === 'zebra') { M.keys.forEach((k) => ids.add(packForKey(k))); allOf('zebra/').forEach((id) => ids.add(id)); }
-  if (M.kind === 'skull') allOf('czaszka/').forEach((id) => ids.add(id));
+  for (const set of M.sets || []) allOf(SETS[set].dir + '/').forEach((id) => ids.add(id));
   if (M.kind === 'muscles') allOf('miesnie/').forEach((id) => ids.add(id));
   return [...ids].filter((id) => PACKS[id]);
 }
@@ -327,17 +333,19 @@ export function setModule(mod, key = null) {
   const mus = muscleMode();
   if (mus && state.mode === 'edit') { state.mode = 'atlas'; syncModeButtons(); }
   if (!mus && keys.includes(state.lastBone.replace('D_', ''))) state.selected = state.lastBone;
-  const skull = skullMode();
+  const M = MODULES[mod];
+  const sets = boneSetMode();
+  document.body.dataset.ruler = mus || sets ? 'names' : 'codes';      // lewa kolumna: nazwy albo kody kręgów
   if (key && keys.includes(key.replace('D_', ''))) state.selected = key;
   if (!keys.includes(state.selected.replace('D_', ''))) state.selected = mod === 'zebra' ? 'Th7' : keys.includes('C7') ? 'C7' : keys[0];
   if (single() && state.selected.startsWith('D_')) state.selected = state.selected.slice(2);
   state.focusPart = null;
   if (state.isolate) { state.isolate = false; $('#isolate').setAttribute('aria-pressed', 'false'); }
   $('#isolate').hidden = single();
-  $('#discs').hidden = single() || mus || skull;
-  $('#ribs').hidden = skull;
+  $('#discs').hidden = single() || mus || sets;
+  $('#ribs').hidden = sets && !M.ribs;
   $('#tint').hidden = mus;
-  $('#tint .clbl').textContent = skull ? 'Kolory kości' : 'Kolory odcinków';
+  $('#tint .clbl').textContent = sets ? 'Kolory kości' : 'Kolory odcinków';
   $('#attach').hidden = !mus;
   $('#layers').hidden = !mus;
   if (mus) {
@@ -346,13 +354,13 @@ export function setModule(mod, key = null) {
     renderLayerChips();
   }
   buildRuler();
-  $('.brand h1').textContent = mus ? 'Mięśnie' : skull ? 'Czaszka' : 'Kręgosłup';
+  $('.brand h1').textContent = M.title;
   $('.stage .hint').innerHTML = `Przeciągnij, aby obrócić · kółko lub dwa palce, aby przybliżyć<br>${mus ? 'Kliknij mięsień, aby go wybrać' : 'Kliknij kość, aby ją wybrać'} · strzałki ↑ ↓`;
-  $('.brand .sub').textContent = mus ? `Atlas 3D · grzbiet · warstwy 1–${MUS.READY_LAYERS.at(-1)}` : skull ? 'Atlas 3D · 22 kości · szwy' : mod === 'zebra' ? 'Atlas 3D · 12 kręgów · 24 żebra' : mod === 'kregi' ? 'Atlas 3D · jeden kręg naraz' : 'Atlas 3D · 25 kości · 23 krążki';
+  $('.brand .sub').textContent = mus ? `Atlas 3D · grzbiet · warstwy 1–${MUS.READY_LAYERS.at(-1)}` : M.sub;
   for (const id of MODULES[mod].base) {
     ensurePack(id, { keep: true, onProgress: (g) => { baseProgress[id] = g; updateLoader(); } }).catch(() => {});
   }
-  setRibs(mod === 'zebra' || mus, false);   // także updateLod(), paint() i panel
+  setRibs(!!M.ribs || mus, false);   // także updateLod(), paint() i panel
   syncRuler();
   updateLoader();
   const snap = !framedOnce;
@@ -366,7 +374,7 @@ export function setModule(mod, key = null) {
       paint();
       if (mus) frame([...modKeys(), ...ORDER], VIEWS.back, 1.12);
       else if (state.mode === 'edit' || state.isolate) closeFrame(state.selected);
-      else if (skull) frameSkull(state.selected);
+      else if (sets) frameSetBone(state.selected);
       else frame(modKeys(), VIEWS.three);
       done();
     }).catch((e) => { if (e?.name !== 'AbortError') console.warn(e); });

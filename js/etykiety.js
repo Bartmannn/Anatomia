@@ -5,7 +5,7 @@ import { PALPATION } from './tresci.js';
 import { firstProxyHit } from './celowanie.js';
 import { editableParts } from './edytor.js';
 import { SIDE_SHORT, isPaired, lm, partDef, partList, slotChanged } from './punkty.js';
-import { $, closeUp, modKeys, muscleMeshes, muscleMode, parts, skullMode, state, ui } from './stan.js';
+import { $, boneSetMode, closeUp, modKeys, muscleMeshes, muscleMode, parts, state, ui } from './stan.js';
 import { camera, perf, project, projectedRect, renderer } from './widok.js';
 
 /* ---------- Labels (names of bone parts, palpable landmarks) ---------- */
@@ -34,6 +34,7 @@ export function occluded(id, p) {
   return res;
 }
 
+const NARROW_MAX = 7;      // najwięcej podpisanych części kości na telefonie
 export function labelItems() {
   if (muscleMode()) {
     if (!state.labels || state.mode !== 'atlas' || !muscleMeshes.length) return { items: [], ref: null };
@@ -70,8 +71,8 @@ export function labelItems() {
   const rect = projectedRect([k]);
   // histereza: z nazw części na punkty wyczuwalne wracamy dopiero przy wyraźnie mniejszym kręgu
   const thr = (renderer.domElement.clientWidth < 520 ? 70 : 95) * (ui.labelMode === 'parts' ? 0.8 : 1);
-  // czaszka: zawsze części wybranej kości (kości są duże na ekranie albo — małe — i tak warto znać ich części)
-  const big = rect && (closeUp() || skullMode() || (rect.y1 - rect.y0) > thr);
+  // zestawy kości (czaszka, obręcz): zawsze części wybranej kości (kości są duże na ekranie albo — małe — i tak warto znać ich części)
+  const big = rect && (closeUp() || boneSetMode() || (rect.y1 - rect.y0) > thr);
   ui.labelMode = big ? 'parts' : 'palp';
   if (big) {
     const items = [];
@@ -83,6 +84,12 @@ export function labelItems() {
         ? pts.reduce((a, b) => (camera.position.distanceTo(new THREE.Vector3(...a)) <= camera.position.distanceTo(new THREE.Vector3(...b)) ? a : b))
         : pts[0];
       items.push({ id: `${k}:${part}`, p, title: def.name, sub: def.latin, palp: !!def.palp, part });
+    }
+    // wąski ekran i dużo części (np. łopatka): podpisane są pierwsze części wyczuwalne (w kolejności z pliku z opisami)
+    // i część wskazana w opisie; pozostałe to same kropki
+    if (renderer.domElement.clientWidth < 520 && items.length > NARROW_MAX) {
+      const keep = new Set(items.filter((it) => it.palp).slice(0, NARROW_MAX).map((it) => it.part));
+      for (const it of items) it.dotOnly = !keep.has(it.part) && it.part !== state.focusPart;
     }
     return { items, ref: rect, kind: 'parts' };
   }

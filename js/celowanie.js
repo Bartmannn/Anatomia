@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { placePoint } from './edytor.js';
 import { clipPlanes, paint, ribMat } from './malowanie.js';
 import { select } from './moduly.js';
-import { ctxMeshes, muscleMeshes, muscleMode, parts, ribMeshes, state } from './stan.js';
+import { ctxMeshes, muscleMeshes, muscleMode, parts, ribMeshes, selectable, state } from './stan.js';
 import { camera, perf, renderer } from './widok.js';
 
 /* ---------- Uproszczone bryły do celowania (raycast) ---------- */
@@ -60,7 +60,7 @@ export function activeProxies(bonesOnly) {
   for (const m of Object.values(parts)) if (m.visible && m.material.opacity > 0.5 && m.userData.proxy) list.push(m.userData.proxy);
   if (!bonesOnly) for (const m of ribMeshes) if (m.visible && m.userData.proxy) list.push(m.userData.proxy);
   for (const m of muscleMeshes) if (m.visible && m.material.opacity > 0.5 && m.userData.proxy) list.push(m.userData.proxy);
-  for (const m of ctxMeshes) if (m.visible && m.userData.proxy) list.push(m.userData.proxy);
+  for (const m of ctxMeshes) if (m.visible && m.material.opacity > 0.5 && m.userData.proxy) list.push(m.userData.proxy);
   return list;
 }
 // Pierwsze trafienie, z pominięciem części żeber odciętych w widoku „Tylko wybrany”.
@@ -88,9 +88,10 @@ export function pick(ev) {
     const t = firstProxyHit(ray, false)?.object.userData.target;
     return t?.userData.kind === 'muscle' ? t.userData.muscle : null;
   }
+  // kręgi będące tylko tłem modułu (np. przy łopatce) zasłaniają, ale nie dają się wybrać
   const hit = firstProxyHit(ray, true);
   const t = hit?.object.userData.target;
-  return t && parts[t.name] ? t.name : null;
+  return t && parts[t.name] && selectable(t.name) ? t.name : null;
 }
 export function initPicking() {
 renderer.domElement.addEventListener('pointerdown', (e) => { downAt = [e.clientX, e.clientY]; });

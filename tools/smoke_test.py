@@ -61,7 +61,8 @@ def main():
         ctx.close()
 
         for hash_, name in [('#kregoslup/C7', 'Cały kręgosłup'), ('#kregi/L4', 'Pojedyncze kręgi'),
-                            ('#zebra/Th7', 'Kręgi piersiowe i żebra'), ('#czaszka/temporal', 'Czaszka'),
+                            ('#zebra/Th7', 'Kręgi piersiowe i żebra'), ('#obrecz/scapula', 'Obręcz barkowa'),
+                            ('#czaszka/temporal', 'Czaszka'),
                             ('#grzbiet/trapezius', 'Mięśnie grzbietu')]:
             print(name)
             ctx, page, errs, packs = open_page(hash_)
@@ -99,6 +100,29 @@ def main():
         page.wait_for_timeout(1500)
         check(page.locator('.erow').count() >= 6, 'poprawianie punktów czaszki')
         check(not errs, 'brak błędów w konsoli' + (f': {errs[:3]}' if errs else ''))
+        ctx.close()
+
+        print('Obręcz barkowa: kości tła, obojczyk, punkty')
+        ctx, page, errs, _ = open_page('#obrecz/scapula')
+        wait_loaded(page)
+        n = page.evaluate("import('./js/stan.js').then((s) => s.ctxMeshes.filter((m) => m.visible).length)")
+        check(n == 2, f'kości ramienne jako tło ({n})')
+        page.click('#r-clavicle')
+        page.wait_for_timeout(2500)
+        check(page.inner_text('#panel h2').strip() == 'Obojczyk', 'wybór kości z listy')
+        page.click('[data-action=edit]')
+        page.wait_for_timeout(1500)
+        check(page.locator('.erow').count() >= 4, 'poprawianie punktów obojczyka')
+        check(not errs, 'brak błędów w konsoli' + (f': {errs[:3]}' if errs else ''))
+        ctx.close()
+
+        print('Mięśnie po czaszce: kość potyliczna w tle')
+        ctx, page, errs, _ = open_page('#czaszka/occipital')
+        wait_loaded(page)
+        page.goto(base + '#grzbiet/trapezius')
+        wait_loaded(page)
+        n = page.evaluate("import('./js/stan.js').then((s) => s.ctxMeshes.filter((m) => m.visible).length)")
+        check(n == 9, f'wszystkie kości tła mięśni, także potyliczna ({n} z 9)')
         ctx.close()
 
         print('Tryb poprawiania punktów')

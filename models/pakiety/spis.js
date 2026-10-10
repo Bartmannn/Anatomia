@@ -63,4 +63,7 @@ export const PACKS = {
   "miesnie/warstwa-1": {"bajty": 120864, "trojkaty": 24400},
   "miesnie/warstwa-2": {"bajty": 82700, "trojkaty": 17400},
   "miesnie/warstwa-3": {"bajty": 130565, "trojkaty": 28800},
+  "obrecz-przeglad": {"bajty": 63205, "trojkaty": 13800},
+  "obrecz/clavicle": {"bajty": 37716, "trojkaty": 10252},
+  "obrecz/scapula": {"bajty": 192498, "trojkaty": 48000},
 };

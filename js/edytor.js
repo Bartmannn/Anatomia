@@ -1,7 +1,7 @@
 // Tryb „Popraw lub dodaj punkty”: poprawianie, dodawanie i eksport punktów, zgłoszenia.
 import * as THREE from 'three';
 import { REGIONS, PARTS } from './tresci.js';
-import { SKULL_LABELS, SKULL_ORDER, isSkull } from './czaszka.js';
+import { LABELS, SET_ORDER, isSetBone } from './zestawy.js';
 import { ptr, ray } from './celowanie.js';
 import { occl } from './etykiety.js';
 import { paint, ribsOn } from './malowanie.js';
@@ -16,7 +16,7 @@ import { camera, invalidate, renderer } from './widok.js';
 
 export function editableParts(k) { return [...builtinParts(k), ...Object.keys(extrasOf(k))]; }
 export function builtinParts(k) {
-  if (isSkull(k)) return Object.keys(SKULL_LABELS[k] || {});
+  if (isSetBone(k)) return Object.keys(LABELS[k] || {});
   if (k.startsWith('D_')) return ['anulus', 'nucleus'];
   if (k === 'S') return ['promontorium', 'canal', 'art_sup', 'ala', 'auricular', 'crista_mediana', 'apex'];
   if (k === 'C1') return ['arcus_ant', 'fovea_dentis', 'massa_lat', 'arcus_post', 'foramen', 'transverse'];
@@ -105,7 +105,7 @@ export function mergedFixes() {
 export function exportText() {
   const rev = { ...REVIEWED, ...local.reviewed };
   for (const k of Object.keys(rev)) if (!rev[k]) delete rev[k];
-  const all = [...ORDER, ...ORDER.map((x) => 'D_' + x), ...SKULL_ORDER];
+  const all = [...ORDER, ...ORDER.map((x) => 'D_' + x), ...SET_ORDER];
   const order = (o) => Object.fromEntries(Object.entries(o).sort((a, b) => all.indexOf(a[0]) - all.indexOf(b[0])));
   const fx = order(mergedFixes());
   const lines = Object.entries(fx).map(([k, v]) => `  ${JSON.stringify(k)}: ${JSON.stringify(v)},`).join('\n');
@@ -141,8 +141,8 @@ export function renderEditor() {
   const reg = regionOf(k);
   panelEl.style.setProperty('--rc', `var(--${reg.toLowerCase()})`);
   document.documentElement.style.setProperty('--rc', `var(--${reg.toLowerCase()})`);
-  const title = k.startsWith('D_') ? `Krążek ${discLabel(k)}` : isSkull(k) ? PARTS[k].name : `${PARTS[k].name} · ${PARTS[k].short}`;
-  bigcodeEl.textContent = isSkull(k) ? '' : k.startsWith('D_') ? discLabel(k) : (k === 'S' ? 'S' : k);
+  const title = k.startsWith('D_') ? `Krążek ${discLabel(k)}` : isSetBone(k) ? PARTS[k].name : `${PARTS[k].name} · ${PARTS[k].short}`;
+  bigcodeEl.textContent = isSetBone(k) ? '' : k.startsWith('D_') ? discLabel(k) : (k === 'S' ? 'S' : k);
   const L = lm(k);
   const rv = reviewedOf(k);
   const { part: ap, slot: as } = state.edit;
@@ -187,7 +187,7 @@ export function renderEditor() {
       <p class="latin">Zmiany zapisują się w tej przeglądarce. Na koniec pobierz plik i podmień go w repozytorium.</p>
     </div>
     <label class="check"><input type="checkbox" id="full" ${state.fullDetail ? 'checked' : ''}> <span>Dokładne modele wszystkich kości <small>(wybrana kość jest dokładna zawsze; to dotyczy też sąsiednich${!state.fullDetail && fullDetailSize() ? `, pobierze ok. ${kB(fullDetailSize())}` : ''})</small></span></label>
-    <label class="check"><input type="checkbox" id="rev" ${rv ? 'checked' : ''}> <span>Sprawdziłem punkty ${k.startsWith('D_') ? 'tego krążka' : isSkull(k) ? 'tej kości' : 'tego kręgu'}${rv ? ` <small>(${esc(rv)})</small>` : ''}</span></label>
+    <label class="check"><input type="checkbox" id="rev" ${rv ? 'checked' : ''}> <span>Sprawdziłem punkty ${k.startsWith('D_') ? 'tego krążka' : isSetBone(k) ? 'tej kości' : 'tego kręgu'}${rv ? ` <small>(${esc(rv)})</small>` : ''}</span></label>
     <div><h3>Jak poprawić punkt</h3><ol class="steps">
       <li>Wybierz część (przy parzystych — stronę lewą lub prawą, czyli stronę ciała). Na modelu jej etykieta zostanie obwiedziona.</li>
       <li>Obróć model tak, żeby widzieć to miejsce, i kliknij na kości w miejscu, gdzie powinien być punkt.</li>

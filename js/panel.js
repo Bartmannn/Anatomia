@@ -1,25 +1,25 @@
 // Lewa kolumna (kręgi albo mięśnie) i panel z opisem po prawej.
 import * as MUS from './miesnie.js';
-import * as CZ from './czaszka.js';
+import { INNER_BONES, isSetBone, navHTML } from './zestawy.js';
 import { REGIONS, PARTS, DISC } from './tresci.js';
 import { RIB_LINKS } from '../landmarks-ribs.js';
 import { renderEditor, reportUrl } from './edytor.js';
 import { paint, ribsOn } from './malowanie.js';
 import { select, setMode, toggleRibs } from './moduly.js';
 import { partList, reviewedOf } from './punkty.js';
-import { ORDER, REGION_KEYS, bigcodeEl, discLabel, modKeys, muscleMode, panelEl, parts, regionOf, rulerEl, skullMode, state, ui } from './stan.js';
+import { MODULES, ORDER, REGION_KEYS, bigcodeEl, boneSetMode, discLabel, modKeys, muscleMode, panelEl, parts, regionOf, rulerEl, skullMode, state, ui } from './stan.js';
 import { R, invalidate } from './widok.js';
 
 /* ---------- Ruler ---------- */
 export let rulerKind = null;
 export function buildRuler() {
-  const kind = muscleMode() ? 'muscles' : skullMode() ? 'skull' : 'bones';
+  const kind = muscleMode() ? 'muscles' : boneSetMode() ? `set:${state.module}` : 'bones';
   if (kind === rulerKind) return;
   rulerKind = kind;
   rulerEl.classList.toggle('mus', kind !== 'bones');       // lista nazw zamiast skrótów kręgów
-  rulerEl.setAttribute('aria-label', { muscles: 'Mięśnie', skull: 'Kości czaszki', bones: 'Kręgi' }[kind]);
+  rulerEl.setAttribute('aria-label', kind === 'muscles' ? 'Mięśnie' : kind === 'bones' ? 'Kręgi' : `Kości: ${MODULES[state.module].name}`);
   if (kind !== 'bones') {
-    rulerEl.innerHTML = kind === 'muscles' ? MUS.navHTML(esc) : CZ.navHTML(esc);
+    rulerEl.innerHTML = kind === 'muscles' ? MUS.navHTML(esc) : navHTML(MODULES[state.module].sets, esc);
     rulerEl.querySelectorAll('button[data-key]').forEach((b) => b.addEventListener('click', () => select(b.dataset.key, true)));
     return;
   }
@@ -154,19 +154,19 @@ export function renderPart(k) {
     return;
   }
   const P = PARTS[k];
-  bigcodeEl.textContent = CZ.isSkull(k) ? '' : P.short === 'S1–S5' ? 'S' : P.short;
+  bigcodeEl.textContent = isSetBone(k) ? '' : P.short === 'S1–S5' ? 'S' : P.short;
   panelEl.innerHTML = `
     <div>
       <div class="eyebrow"><span>${esc(R.name)}</span><span>·</span><span>${esc(R.curve)}</span></div>
       <h2>${esc(P.name)}</h2>
-      <p class="latin">${esc(P.latin)}${CZ.isSkull(k) ? '' : ` · ${esc(P.short)}`}</p>
+      <p class="latin">${esc(P.latin)}${isSetBone(k) ? '' : ` · ${esc(P.short)}`}</p>
     </div>
     <div><h3>Cechy</h3><ul>${P.features.map((f) => `<li>${esc(f)}</li>`).join('')}</ul></div>
-    ${CZ.INNER_BONES.has(k) ? `<p class="small inner-tip">Ta kość leży w dużej części wewnątrz czaszki. <button type="button" class="linkbtn" data-action="isolate">${state.isolate ? 'Pokaż całą czaszkę' : 'Pokaż tylko tę kość'}</button></p>` : ''}
+    ${INNER_BONES.has(k) ? `<p class="small inner-tip">Ta kość leży w dużej części wewnątrz czaszki. <button type="button" class="linkbtn" data-action="isolate">${state.isolate ? 'Pokaż całą czaszkę' : 'Pokaż tylko tę kość'}</button></p>` : ''}
     ${ribBlock(k)}
     ${partsBlock(k)}
     <div class="note"><h3>Dla masażysty</h3><p>${esc(P.massage)}</p></div>
-    <div><h3>${CZ.isSkull(k) ? 'Przyczepy mięśni' : 'Przyczepy mięśni (wybrane)'}</h3><p>${esc(P.muscles)}</p></div>
+    <div><h3>${isSetBone(k) ? 'Przyczepy mięśni' : 'Przyczepy mięśni (wybrane)'}</h3><p>${esc(P.muscles)}</p></div>
     <div><h3>${esc(R.name)} · ${esc(R.count)}</h3><p class="region-text">${esc(R.text)}</p></div>
     ${metaBlock(fma)}`;
   bindParts();

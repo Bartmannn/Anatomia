@@ -2,25 +2,25 @@
 import * as THREE from 'three';
 import { PACKS } from '../models/pakiety/spis.js';
 import * as MUS from './miesnie.js';
-import * as CZ from './czaszka.js';
+import { OVERVIEWS, SET_DIRS, isSetBone, packOf } from './zestawy.js';
 import { buildProxy, proxyOf } from './celowanie.js';
 import { occl } from './etykiety.js';
 import { facetMat, paint, relatedRibs, ribMat, ribsOn } from './malowanie.js';
 import { updateLoader } from './moduly.js';
 import { refreshPanel } from './panel.js';
 import { quizType } from './quiz.js';
-import { $, MODULES, byName, ctxMeshes, currentKey, hasKey, modKeys, muscleMeshes, muscleMode, parts, ribByName, ribMeshes, single, state, ui } from './stan.js';
+import { $, MODULES, byName, contextKeys, ctxMeshes, currentKey, hasKey, modKeys, muscleMeshes, muscleMode, parts, ribByName, ribMeshes, selectable, single, state, ui } from './stan.js';
 import { invalidate, newMat, projectedBox, renderer, root, view } from './widok.js';
 
 /* ---------- Paczki modeli: pobieranie na żądanie ---------- */
-// Format paczek opisuje tools/build_packs.py. Przegląd (przeglad-*, zebra-przeglad, czaszka-przeglad) to siatki uproszczone,
-// a kregi/<kręg>, zebra/<n> i czaszka/<kość> — pełne, pobierane dopiero, gdy kość jest wybrana albo duża na ekranie.
+// Format paczek opisuje tools/build_packs.py. Przegląd (przeglad-*, zebra-przeglad, czaszka-przeglad, obrecz-przeglad) to siatki
+// uproszczone, a kregi/<kręg>, zebra/<n>, czaszka/<kość> i obrecz/<kość> — pełne, pobierane dopiero, gdy kość jest wybrana albo duża na ekranie.
 export const lowGeo = {}, highGeo = {};
 export const packs = new Map();            // id -> { p, ctrl, done, keep, low }
 export const net = { bytes: 0 };
 export const wantHigh = new Set();
-export const isOverview = (id) => id.startsWith('przeglad') || id === 'zebra-przeglad' || id === CZ.SKULL_OVERVIEW;
-export const packForKey = (k) => (CZ.isSkull(k) ? CZ.skullPack(k) : `kregi/${k.startsWith('D_') ? k.slice(2) : k}`);
+export const isOverview = (id) => id.startsWith('przeglad') || id === 'zebra-przeglad' || OVERVIEWS.has(id);
+export const packForKey = (k) => (isSetBone(k) ? packOf(k) : `kregi/${k.startsWith('D_') ? k.slice(2) : k}`);
 export const saveData = () => { const c = navigator.connection; return !!(c && (c.saveData || /(^|-)2g$/.test(c.effectiveType || ''))); };
 export const kB = (b) => `${b >= 1e6 ? (b / 1e6).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(b / 1000)) + ' kB'}`;
 
@@ -116,15 +116,18 @@ export function ensurePack(id, opts = {}) {
   return st.p;
 }
 export function addGeometry({ name, extras, geometry }, low) {
-  (low ? lowGeo : highGeo)[name] = geometry;
-  let mesh = parts[name] || ribByName[name] || byName[name];
+  // kości tła mają własną przestrzeń nazw: „occipital” z tła mięśni to inna siatka niż kość potyliczna czaszki
+  const ctx = extras.kind === 'ctxbone';
+  const key = ctx ? `ctx:${name}` : name;
+  (low ? lowGeo : highGeo)[key] = geometry;
+  let mesh = ctx ? byName[name] : parts[name] || ribByName[name] || byName[name];
   if (!mesh) {
     const kind = extras.kind;
     const bone = kind === 'bone' || kind === 'disc';
     const own = bone || kind === 'muscle' || kind === 'ctxbone';      // własny materiał (własny kolor)
     mesh = new THREE.Mesh(geometry, own ? newMat(kind === 'ctxbone' ? 'bone' : kind) : kind === 'rib' ? ribMat : facetMat);
     mesh.name = name;
-    mesh.userData = { ...extras };
+    mesh.userData = { ...extras, geoKey: key };
     mesh.visible = false;               // o widoczności decyduje paint()
     if (bone) parts[name] = mesh;
     else if (kind === 'muscle') { muscleMeshes.push(mesh); byName[name] = mesh; mesh.renderOrder = 2; }
@@ -136,7 +139,7 @@ export function addGeometry({ name, extras, geometry }, low) {
 }
 // pełna siatka, gdy jest potrzebna i już pobrana; w przeciwnym razie uproszczona
 export function useGeometry(mesh) {
-  const n = mesh.name, lo = lowGeo[n], hi = highGeo[n];
+  const lo = lowGeo[mesh.userData.geoKey], hi = highGeo[mesh.userData.geoKey], n = mesh.name;
   const g = hi && (!lo || wantHigh.has(n)) ? hi : (lo || hi);
   if (mesh.geometry !== g) { mesh.geometry = g; invalidate(); }
   const kind = mesh.userData.kind;
@@ -177,6 +180,8 @@ export function updateLod() {
   // w quizie na całym kręgosłupie wystarczy podświetlony przegląd; w „Pojedynczych kręgach” trzeba pobrać kręg
   if (allowed.has(sel.replace('D_', '')) && (state.mode !== 'quiz' || single() || quizType() === 'czesc')) need.add(packForKey(sel));
   if (state.ribs && state.mode !== 'quiz' && state.selected.startsWith('Th') && !muscleMode()) for (const n of relatedRibs(state.selected)) need.add(`zebra/${n}`);
+  // kręgi i żebra jako tło (np. w module obręczy barkowej) zostają uproszczone
+  const ownRibs = !contextKeys().length;
   if (!single() && !muscleMode()) {
     const W = renderer.domElement.clientWidth, H = renderer.domElement.clientHeight;
     const big = [];
@@ -189,15 +194,15 @@ export function updateLod() {
     };
     // kryterium: ile pikseli ekranu przypada na 10 cm kości (duże kości, np. krzyżowa, nie wymuszają pobrania wcześniej)
     const density = (m) => (r) => (r.y1 - r.y0) / Math.max(m.geometry.boundingBox.max.y - m.geometry.boundingBox.min.y, 0.05);
-    for (const [k, m] of Object.entries(parts)) if (lowGeo[k]) consider(m, packForKey(k), LOD_DENSITY, density(m));
-    for (const m of ribMeshes) if (m.userData.kind === 'rib' && lowGeo[m.name]) consider(m, `zebra/${m.userData.rib}`, LOD_DENSITY * 0.8, density(m));
+    for (const [k, m] of Object.entries(parts)) if (lowGeo[k] && selectable(k)) consider(m, packForKey(k), LOD_DENSITY, density(m));
+    if (ownRibs) for (const m of ribMeshes) if (m.userData.kind === 'rib' && lowGeo[m.name]) consider(m, `zebra/${m.userData.rib}`, LOD_DENSITY * 0.8, density(m));
     big.sort((a, b) => b[0] - a[0]);
     for (const [, id] of big.slice(0, 8)) need.add(id);
   }
   // „Dokładne modele”: pełne siatki wszystkich widocznych kości i żeber modułu (mięśnie mają tylko jedną wersję)
   if (state.fullDetail && !muscleMode()) {
     for (const k of modKeys()) { const m = parts[k]; if (m?.visible) need.add(packForKey(k)); }
-    for (const m of ribMeshes) if (m.visible && m.userData.kind === 'rib') need.add(`zebra/${m.userData.rib}`);
+    if (ownRibs) for (const m of ribMeshes) if (m.visible && m.userData.kind === 'rib') need.add(`zebra/${m.userData.rib}`);
   }
   const pre = new Set();
   // sąsiedzi dopiero, gdy potrzebne paczki są już pobrane (żeby nie zabierały im łącza)
@@ -210,7 +215,7 @@ export function updateLod() {
   wantHigh.clear();
   for (const id of need) {
     if (id.startsWith('kregi/')) { const k = id.slice(6); wantHigh.add(k); wantHigh.add('D_' + k); }
-    else if (id.startsWith('czaszka/')) wantHigh.add(id.slice(8));
+    else if (SET_DIRS.some((d) => id.startsWith(d + '/'))) wantHigh.add(id.slice(id.indexOf('/') + 1));
     else if (id.startsWith('zebra/')) { const n = id.slice(6); wantHigh.add(`rib_L${n}`); wantHigh.add(`rib_R${n}`); }
   }
   for (const m of Object.values(parts)) useGeometry(m);
