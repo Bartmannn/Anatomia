@@ -8,7 +8,7 @@ import { paint, ribsOn } from './malowanie.js';
 import { fullDetailSize, setFullDetail, setMode } from './moduly.js';
 import { kB } from './paczki.js';
 import { esc, syncRuler } from './panel.js';
-import { EXTRA, FIXES, REVIEWED, SIDE_NAMES, autoLm, extraDef, extrasOf, fixedIn, isPaired, lm, local, partDef, resetLocal, reviewedOf, saveLocal, slotChanged } from './punkty.js';
+import { EXTRA, FIXES, REVIEWED, SIDE_NAMES, autoLm, extraDef, extrasOf, fixedIn, groupSpec, isPaired, lm, local, partDef, resetLocal, reviewedOf, saveLocal, slotChanged } from './punkty.js';
 import { $, ORDER, bigcodeEl, discLabel, panelEl, parts, regionOf, ribMeshes, state, ui } from './stan.js';
 import { camera, invalidate, renderer } from './widok.js';
 
@@ -44,7 +44,7 @@ export function slugify(t) {
 }
 export function saveExtra(k, id, fields) {
   const d = { ...(extraDef(k, id) || { pts: [] }), ...fields };
-  for (const f of ['latin', 'def']) if (!d[f]) delete d[f];
+  for (const f of ['latin', 'def', 'group']) if (!d[f]) delete d[f];
   for (const f of ['pair', 'palp']) if (!d[f]) delete d[f];
   (local.extra[k] ||= {})[id] = d;
   saveLocal();
@@ -116,7 +116,7 @@ export function exportText() {
 // Współrzędne w układzie modeli (1 jednostka = 10 cm). null = punkt usunięty.
 // REVIEWED: data sprawdzenia punktów danego kręgu albo kości.
 // EXTRA: punkty dodane ręcznie (części, których brakowało). name — nazwa (można ją tu poprawić), latin, def — opis,
-//        pair — parzysty ([lewa, prawa]), palp — wyczuwalny pod palcami, pts — współrzędne.
+//        pair — parzysty ([lewa, prawa]), palp — wyczuwalny pod palcami, group — zestaw podpisów, pts — współrzędne.
 export const FIXES = {${lines ? '\n' + lines + '\n' : ''}};
 export const REVIEWED = ${JSON.stringify(order(rev), null, 2)};
 export const EXTRA = {${exLines ? '\n' + exLines + '\n' : ''}};
@@ -124,13 +124,15 @@ export const EXTRA = {${exLines ? '\n' + exLines + '\n' : ''}};
 }
 export const localCount = () => new Set([...Object.keys(local.fixes), ...Object.keys(local.reviewed), ...Object.keys(local.extra)]).size;
 
-export function extraForm(d, id, submit) {
+// groups: zestawy podpisów kości ({ id, name }) — wybór, do którego zestawu trafi punkt
+export function extraForm(d, id, submit, groups = []) {
   return `<form class="exform" id="${id}">
     <label>Nazwa <input name="name" required maxlength="60" value="${esc(d.name || '')}" placeholder="np. Wyrostek dodatkowy"></label>
     <label>Nazwa łacińska <small>(opcjonalnie)</small> <input name="latin" maxlength="80" value="${esc(d.latin || '')}" placeholder="np. processus accessorius"></label>
     <label>Opis <small>(opcjonalnie)</small> <textarea name="def" rows="2" maxlength="400">${esc(d.def || '')}</textarea></label>
     <label class="check"><input type="checkbox" name="pair" ${d.pair ? 'checked' : ''}> <span>Parzysty (osobno lewa i prawa strona)</span></label>
     <label class="check"><input type="checkbox" name="palp" ${d.palp ? 'checked' : ''}> <span>Wyczuwalny pod palcami</span></label>
+    ${groups.length ? `<label>Zestaw podpisów <select name="group"><option value="">Pozostałe</option>${groups.map((g) => `<option value="${esc(g.id)}"${d.group === g.id ? ' selected' : ''}>${esc(g.name)}</option>`).join('')}</select></label>` : ''}
     <button type="submit" class="btn">${submit}</button>
   </form>`;
 }
@@ -163,7 +165,7 @@ export function renderEditor() {
         ${fixedIn(k, ap) ? '<button type="button" class="linkbtn" id="reset">Przywróć automatyczny</button>' : ''}
         <button type="button" class="linkbtn" id="stop">Gotowe</button>
       </div>
-      ${apExtra ? `<details class="exedit"><summary>Nazwa i opis tego punktu</summary>${extraForm(apExtra, 'exform', 'Zapisz')}
+      ${apExtra ? `<details class="exedit"><summary>Nazwa i opis tego punktu</summary>${extraForm(apExtra, 'exform', 'Zapisz', groupSpec(k)?.list || [])}
         <div class="erow-actions"><button type="button" class="linkbtn" id="exdel">Usuń ten punkt z listy</button>
         <a class="linkbtn" href="${esc(reportUrl(k, ap))}" target="_blank" rel="noopener">Zgłoś ten punkt na GitHubie</a></div></details>` : ''}
     </div>` : '';
@@ -197,7 +199,7 @@ export function renderEditor() {
     <div class="addpt">
       <h3>Brakuje punktu?</h3>
       <p class="small">Dodaj część, o której zapomnieliśmy — pojawi się w opisie i na modelu z dopiskiem „dodany”. Nie masz dostępu do repozytorium? <a href="${esc(reportUrl(k))}" target="_blank" rel="noopener">Zgłoś to na GitHubie</a>.</p>
-      ${extraForm({}, 'addform', 'Dodaj i wskaż na modelu')}
+      ${extraForm({}, 'addform', 'Dodaj i wskaż na modelu', groupSpec(k)?.list || [])}
     </div>
     <div class="export">
       <h3>Zapis do projektu</h3>
@@ -238,7 +240,8 @@ export function renderEditor() {
     saveLocal(); renderEditor();
   });
   $('#stop')?.addEventListener('click', () => { state.edit.part = null; renderEditor(); });
-  const formFields = (f) => ({ name: f.name.value.trim(), latin: f.latin.value.trim(), def: f.def.value.trim(), pair: f.pair.checked, palp: f.palp.checked });
+  const formFields = (f) => ({ name: f.name.value.trim(), latin: f.latin.value.trim(), def: f.def.value.trim(), pair: f.pair.checked, palp: f.palp.checked,
+    group: f.group?.value || '' });
   $('#addform').addEventListener('submit', (e) => {
     e.preventDefault();
     const fields = formFields(e.target);

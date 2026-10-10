@@ -133,6 +133,17 @@ def main():
         check(not errs, 'brak błędów w konsoli' + (f': {errs[:3]}' if errs else ''))
         ctx.close()
 
+        print('Zestawy podpisów kręgów')
+        ctx, page, errs, _ = open_page('#kregi/S')
+        wait_loaded(page)
+        check(page.locator('#lgroups [data-lg]').count() == 4, 'kość krzyżowa: 3 zestawy i „Wszystkie”')
+        check(page.locator('.pgroup').count() == 3, 'zestawy jako nagłówki w opisie')
+        page.goto(base + '#kregi/C5')
+        page.wait_for_timeout(2500)
+        check(page.locator('#lgroups').is_hidden(), 'kręg z kilkoma częściami: bez zestawów, wszystkie podpisy')
+        check(not errs, 'brak błędów w konsoli' + (f': {errs[:3]}' if errs else ''))
+        ctx.close()
+
         print('Mięśnie po czaszce: kość potyliczna w tle')
         ctx, page, errs, _ = open_page('#czaszka/occipital')
         wait_loaded(page)

@@ -1,11 +1,11 @@
 // Punkty etykiet: automatyczne, poprawione, dodane ręcznie (landmarks-fix.js + przeglądarka) i nazwy części.
 import * as FIX from '../landmarks-fix.js';
 import { LANDMARKS } from '../landmarks.js';
-import { PART_LABELS, PART_LABELS_SPECIAL } from '../content.js';
+import { PART_LABELS, PART_LABELS_SPECIAL, VERTEBRA_LABEL_GROUPS } from '../content.js';
 import { RIB_LANDMARKS, RIB_LINKS } from '../landmarks-ribs.js';
 import { LABELS, LANDMARKS as SET_LANDMARKS, isSetBone, labelGroupNames } from './zestawy.js';
 import { ribsOn } from './malowanie.js';
-import { regionOf, ui } from './stan.js';
+import { ORDER, regionOf, ui } from './stan.js';
 
 /* ---------- Landmarks: automatic points + fixes from file + local edits ---------- */
 // landmarks-fix.js: FIXES (poprawione punkty), REVIEWED (sprawdzone kręgi), EXTRA (punkty dodane ręcznie)
@@ -88,7 +88,7 @@ export function partList(k, forLabels = false) {
   const L = lm(k);
   const withRibs = ribsOn(k);
   return Object.keys(L)
-    .filter((p) => !forLabels || (withRibs ? RIB_VIEW_PARTS.has(p) : !p.startsWith('rib_')))
+    .filter((p) => !forLabels || (withRibs ? RIB_VIEW_PARTS.has(p) || p.startsWith('x_') : !p.startsWith('rib_')))
     .filter((p) => forLabels || !p.startsWith('rib_') || withRibs)
     .sort((a, b) => partRank(a, k) - partRank(b, k))
     .map((p) => ({ part: p, def: partDef(k, p) })).filter((x) => x.def?.name);
@@ -101,18 +101,36 @@ export const SIDE_NAMES = ['lewa', 'prawa'];
 export const SIDE_SHORT = ['L', 'P'];
 
 /* ---------- Zestawy podpisów ---------- */
-// Części kości podzielone na zestawy (pole group w pliku z opisami), w kolejności z pliku. Części bez zestawu
-// (np. punkty dodane ręcznie) trafiają do zestawu „Pozostałe”. Kość bez zestawów: pusta lista.
+// Zestawy kości k: lista { id, name } w kolejności z pliku z opisami i funkcja część -> id zestawu.
+// Zestawy kości (np. łopatka): pole group przy części w content-<zestaw>.js; kręgi: VERTEBRA_LABEL_GROUPS w content.js.
+// Punkt dodany ręcznie może mieć własne pole group. Kość bez zestawów (np. krążek): null.
+export function groupSpec(k) {
+  let list, of;
+  if (isSetBone(k)) {
+    if (!Object.values(LABELS[k] || {}).some((d) => d.group)) return null;
+    list = Object.entries(labelGroupNames(k)).map(([id, name]) => ({ id, name }));
+    of = (p) => LABELS[k]?.[p]?.group;
+  } else if (ORDER.includes(k)) {
+    const groups = VERTEBRA_LABEL_GROUPS[k] || VERTEBRA_LABEL_GROUPS.typowy;
+    if (!groups) return null;
+    list = groups.map((g) => ({ id: g.name, name: g.name }));
+    of = (p) => groups.find((g) => g.parts.includes(p))?.name;
+  } else return null;
+  return { list, of: (p) => extraDef(k, p)?.group || of(p) };
+}
+// Zestawy z częściami kości k (bez pustych), w kolejności z pliku; części bez zestawu — „Pozostałe” na końcu.
+// Kość z kilkoma częściami (do GROUPS_FROM - 1) albo jednym zestawem: pusta lista — wszystkie części podpisane naraz.
+export const GROUPS_FROM = 9;
 export function groupsOf(k) {
-  if (!isSetBone(k) || !Object.values(LABELS[k] || {}).some((d) => d.group)) return [];
-  const names = labelGroupNames(k);
-  const out = new Map();
-  for (const { part } of partList(k)) {
-    const id = LABELS[k]?.[part]?.group || 'inne';
-    if (!out.has(id)) out.set(id, { id, name: names[id] || 'Pozostałe', parts: [] });
-    out.get(id).parts.push(part);
-  }
-  const list = [...out.values()];
+  const spec = groupSpec(k);
+  if (!spec) return [];
+  const all = partList(k);
+  if (all.length < GROUPS_FROM) return [];
+  const out = new Map(spec.list.map((g) => [g.id, { ...g, parts: [] }]));
+  out.set('inne', { id: 'inne', name: 'Pozostałe', parts: [] });
+  for (const { part } of all) (out.get(spec.of(part)) || out.get('inne')).parts.push(part);
+  const list = [...out.values()].filter((g) => g.parts.length);
+  if (list.length < 2) return [];
   list.forEach((g, i) => { g.color = `var(--lg${(i % 4) + 1})`; });
   return list;
 }

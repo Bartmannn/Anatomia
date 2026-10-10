@@ -334,6 +334,42 @@ export const PART_LABELS_SPECIAL = {
   },
 };
 
+// Zestawy podpisów: części kręgu podzielone na zestawy. Na modelu podpisany jest jeden zestaw naraz,
+// pozostałe części to kropki w kolorze swojego zestawu (wybór nad modelem albo w opisie kręgu).
+// typowy — kręgi C3–C7, Th1–Th12, L1–L5 (zestaw bez żadnej części w danym kręgu się nie pokazuje),
+// C1, C2, S — kręgi o nietypowej budowie. parts: klucze części z PART_LABELS / PART_LABELS_SPECIAL
+// oraz punktów dodanych ręcznie (x_… w landmarks-fix.js). Część spoza listy trafia do zestawu „Pozostałe”;
+// punkt dodany ręcznie może też mieć własne pole group (nazwa zestawu) — ustawia je formularz „Brakuje punktu?”.
+export const VERTEBRA_LABEL_GROUPS = {
+  typowy: [
+    { name: 'Trzon i łuk', parts: ['body', 'pedicle', 'lamina', 'foramen', 'x_luk_kregu', 'x_wciecie_miedzykregowe_gorne', 'x_wciecie_miedzykregowe_dolne'] },
+    { name: 'Wyrostki', parts: ['spinous', 'transverse', 'art_sup', 'art_inf', 'x_wyrostek_dodatkowy', 'x_wyrostek_suteczkowaty'] },
+    { name: 'Połączenia z żebrami', parts: ['fov_sup', 'fov_inf', 'fov_tp', 'x_poldolek_zebrowy_gorny', 'x_poldolek_zebrowy_dolny',
+      'rib_head', 'rib_neck', 'rib_tub', 'rib_head_next'] },
+  ],
+  C1: [
+    { name: 'Łuki i otwór', parts: ['arcus_ant', 'x_guzek_przedni', 'fovea_dentis', 'x_powierzchnia_stawowa_dla_zeba_kr', 'arcus_post', 'x_guzek_tylny',
+      'x_bruzda_tetnicy_kregowej', 'foramen'] },
+    { name: 'Części boczne', parts: ['massa_lat', 'x_czesc_boczna', 'x_powierzchnia_stawowa_opis', 'x_powierzchnia_stawowa_dolna_opis',
+      'x_guzek_wiezadla_poprzecznego_kreg'] },
+    { name: 'Wyrostki poprzeczne', parts: ['transverse', 'x_otwor_wyrostka_poprzecznego'] },
+  ],
+  C2: [
+    { name: 'Ząb', parts: ['dens', 'x_powierzchnia_stawowa_przednia', 'x_powierzchnia_stawowa_tylna', 'x_nasada'] },
+    { name: 'Trzon i łuk', parts: ['body', 'pedicle', 'lamina', 'foramen', 'x_czesc_miedzystawowa', 'x_czesc_miedzystawowa_2'] },
+    { name: 'Wyrostki i powierzchnie stawowe', parts: ['spinous', 'transverse', 'art_sup', 'art_inf', 'x_powierzchnia_stawowa_gorna_opis',
+      'x_powierzchnia_stawowa_dolna_opis'] },
+  ],
+  S: [
+    { name: 'Podstawa i części boczne', parts: ['promontorium', 'x_podstawa_kosci_krzyzowej', 'art_sup', 'canal', 'x_kanal_krzyzowy', 'ala',
+      'x_skrzydlo_kosci_krzyzowej', 'auricular', 'x_powierzchnia_uchowata', 'x_guzowatosc_kosci_krzyzowej'] },
+    { name: 'Grzebienie i otwory', parts: ['crista_mediana', 'x_grzebien_krzyzowy_boczny', 'x_otwory_krzyzowe_przednie', 'x_otwory_krzyzowe_przednie_2',
+      'x_kresy_poprzeczne'] },
+    { name: 'Wierzchołek i kość guziczna', parts: ['apex', 'x_wierzcholek_kosci_krzyzowej', 'x_rozwor_krzyzowy', 'x_rozki_krzyzowe', 'x_rozki_guziczne',
+      'x_staw_krzyzowo_guziczny', 'x_kosc_guziczna'] },
+  ],
+};
+
 // Punkty orientacyjne pokazywane na całym kręgosłupie (widok z daleka)
 export const PALPATION = [
   { key: 'C2',  part: 'spinous', label: 'C2',  note: 'pierwszy wyczuwalny wyrostek pod potylicą' },

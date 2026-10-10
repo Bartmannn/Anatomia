@@ -86,6 +86,19 @@ if (C) {
     if (!['L', 'S', 'D', ...ORDER].includes(g)) err(F, `PART_LABELS_SPECIAL: nieznana grupa "${g}"`);
     checkLabels(labels, `PART_LABELS_SPECIAL.${g}`);
   }
+  // zestawy podpisów kręgów
+  for (const [g, groups] of Object.entries(C.VERTEBRA_LABEL_GROUPS || {})) {
+    if (g !== 'typowy' && !ORDER.includes(g)) { err(F, `VERTEBRA_LABEL_GROUPS: nieznany kręg "${g}" (dozwolone: typowy, C1…L5, S)`); continue; }
+    if (!Array.isArray(groups)) { err(F, `VERTEBRA_LABEL_GROUPS.${g}: oczekiwano listy [ { name: …, parts: [ … ] }, … ]`); continue; }
+    const seen = new Map();
+    for (const z of groups) {
+      if (!isText(z?.name) || !Array.isArray(z?.parts)) { err(F, `VERTEBRA_LABEL_GROUPS.${g}: każdy zestaw musi mieć "name" i listę "parts"`); continue; }
+      for (const p of z.parts) {
+        if (seen.has(p)) err(F, `VERTEBRA_LABEL_GROUPS.${g}: część "${p}" jest w dwóch zestawach („${seen.get(p)}” i „${z.name}”)`);
+        seen.set(p, z.name);
+      }
+    }
+  }
   for (const [i, l] of (C.PALPATION || []).entries()) {
     if (!ORDER.includes(l.key)) err(F, `PALPATION[${i}]: nieznany kręg "${l.key}"`);
     if (!isText(l.part) || !isText(l.label)) err(F, `PALPATION[${i}]: brak "part" albo "label"`);
@@ -166,6 +179,11 @@ if (FX) {
       if (d === null) continue;
       if (!id.startsWith('x_')) err(F, `EXTRA.${k}: klucz "${id}" musi zaczynać się od x_`);
       if (!isText(d.name)) err(F, `EXTRA.${k}.${id}: brak nazwy (name)`);
+      if (d.group) {
+        const set = SETS.find((S) => S.order.includes(k));
+        const names = set ? Object.keys(set.C?.[`${set.P}_LABEL_GROUPS`] || {}) : (C?.VERTEBRA_LABEL_GROUPS?.[k] || C?.VERTEBRA_LABEL_GROUPS?.typowy || []).map((z) => z.name);
+        if (!names.includes(d.group)) err(F, `EXTRA.${k}.${id}: nieznany zestaw podpisów "${d.group}" (dostępne: ${names.join(', ') || 'brak'})`);
+      }
       if (!Array.isArray(d.pts) || !d.pts.every(isPoint)) err(F, `EXTRA.${k}.${id}: "pts" musi mieć postać [[x, y, z], …]`);
       else if (!d.pts.some(Boolean)) warn(F, `EXTRA.${k}.${id}: punkt bez położenia — nie pojawi się na stronie`);
     }

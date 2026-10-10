@@ -104,7 +104,7 @@ export function partsBlock(k) {
   const groups = groupsOf(k);
   const byPart = new Map(list.map((x) => [x.part, x]));
   const body = groups.length
-    ? groups.map((g) => `<button type="button" class="pgroup" data-lg="${g.id}" style="--g: ${g.color}" aria-pressed="false"><i class="sw" aria-hidden="true"></i>${esc(g.name)}<small>${g.parts.length}</small></button>
+    ? groups.map((g) => `<button type="button" class="pgroup" data-lg="${esc(g.id)}" style="--g: ${g.color}" aria-pressed="false"><i class="sw" aria-hidden="true"></i>${esc(g.name)}<small>${g.parts.length}</small></button>
       <dl class="parts">${g.parts.map((p) => row(byPart.get(p), g)).join('')}</dl>`).join('')
     : `<dl class="parts">${list.map((x) => row(x)).join('')}</dl>`;
   const head = groups.length ? 'Części · kliknij zestaw, aby go podpisać na modelu' : 'Części · najedź, aby wskazać na modelu';
@@ -124,7 +124,7 @@ export function syncGroups(k = state.selected) {
 export function renderGroupBar(k) {
   const bar = document.getElementById('lgroups');
   const groups = groupsOf(k);
-  bar.innerHTML = groups.length ? groups.map((g) => `<button type="button" data-lg="${g.id}" style="--g: ${g.color}"><i class="sw" aria-hidden="true"></i>${esc(g.name)}</button>`).join('') +
+  bar.innerHTML = groups.length ? groups.map((g) => `<button type="button" data-lg="${esc(g.id)}" style="--g: ${g.color}"><i class="sw" aria-hidden="true"></i>${esc(g.name)}</button>`).join('') +
     '<button type="button" data-lg="all">Wszystkie</button>' : '';
   bar.querySelectorAll('[data-lg]').forEach((b) => b.addEventListener('click', () => setLabelGroup(k, b.dataset.lg)));
   syncGroups(k);
