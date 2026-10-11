@@ -118,16 +118,28 @@ export function labelItems() {
         it.dotOnly = it.peekable && !shownNow(it);
       }
     }
+    // łopatka, obojczyk (SET.hideBack): podpisy części po niewidocznej stronie kości chowają się (kropka zostaje). Trzon łopatki
+    // jest cienki, więc poza zasłanianiem liczy się też kierunek powierzchni w punkcie (normalna od kamery = druga strona kości)
+    const hideBehind = hidesBack(k);
+    if (hideBehind) for (const it of items) it.n = normalAt(parts[k], it.p);
+    // „Sprawdź się”: części wybranego zestawu to kropki bez podpisów, dotknięcie kropki odkrywa nazwę (ui.test.shown);
+    // części pozostałych zestawów znikają, żeby nie było wiadomo, o które kropki chodzi
+    if (ui.test.on) {
+      const ask = items.filter((it) => !it.peekable);
+      for (const it of ask) {
+        it.ask = true; it.peekable = true;
+        it.keep = ui.test.shown.has(it.id);
+        it.dotOnly = !it.keep && it.part !== state.focusPart;
+      }
+      ui.test.count = [ask.filter((it) => it.keep).length, ask.length];
+      return { items: ask, ref: rect, kind: 'parts', hideBehind };
+    }
     // wąski ekran i nadal dużo podpisów: pierwsze części wyczuwalne (w kolejności z pliku z opisami), reszta to kropki
     const labeled = items.filter((it) => !it.dotOnly);
     if (renderer.domElement.clientWidth < 520 && labeled.length > NARROW_MAX) {
       const keep = new Set(labeled.filter((it) => it.palp).slice(0, NARROW_MAX).map((it) => it.part));
       for (const it of labeled) { it.peekable = !keep.has(it.part); it.dotOnly = it.peekable && !shownNow(it); }
     }
-    // łopatka, obojczyk (SET.hideBack): podpisy części po niewidocznej stronie kości chowają się (kropka zostaje). Trzon łopatki
-    // jest cienki, więc poza zasłanianiem liczy się też kierunek powierzchni w punkcie (normalna od kamery = druga strona kości)
-    const hideBehind = hidesBack(k);
-    if (hideBehind) for (const it of items) it.n = normalAt(parts[k], it.p);
     return { items, ref: rect, kind: 'parts', hideBehind };
   }
   if (closeUp()) return { items: [], ref: null };
@@ -164,7 +176,7 @@ export function layoutLabels() {
       const c = camera.position, dx = c.x - it.p[0], dy = c.y - it.p[1], dz = c.z - it.p[2];
       if ((dx * it.n[0] + dy * it.n[1] + dz * it.n[2]) / Math.hypot(dx, dy, dz) < -0.3) it.hidden = true;
     }
-    const keepLabel = it.part && (it.part === state.focusPart || it.part === ui.peek);
+    const keepLabel = it.keep || (it.part && (it.part === state.focusPart || it.part === ui.peek));
     if (it.dotOnly || (hideBehind && it.hidden && !keepLabel)) { dots.push(it); continue; }
     (q.x >= ref.cx ? cols.right : cols.left).push(it);
   }
@@ -249,7 +261,7 @@ export function layoutLabels() {
     }
     n.el.hidden = true; n.line.style.display = 'none'; n.dot.style.display = '';
     n.dot.setAttribute('cx', it.q.x); n.dot.setAttribute('cy', it.q.y);
-    n.dot.setAttribute('class', `ld mini${it.g ? ' grouped' : ''}${it.hidden ? ' behind' : ''}`);
+    n.dot.setAttribute('class', `ld ${it.ask ? 'ask' : 'mini'}${it.g ? ' grouped' : ''}${it.hidden ? ' behind' : ''}`);
     n.dot.style.setProperty('--g', it.g || '');
   }
   // kropki do podejrzenia nazwy: bez podpisu albo z podpisem tylko chwilowo (żeby podpis nie migał przy kursorze)
@@ -260,10 +272,16 @@ export function layoutLabels() {
     if (!used.has(id)) { n.el.hidden = true; n.line.style.display = 'none'; n.dot.style.display = 'none'; }
   }
   if (performance.now() - occlAt >= 120) occlAt = performance.now();
-  // pasek zestawów podpisów nad modelem: gdy podpisane są części kości, która ma zestawy
+  // pasek nad modelem (zestawy podpisów, „Sprawdź się”): gdy podpisane są części kości
   const bar = $('#lgroups');
-  const showBar = kind === 'parts' && state.mode === 'atlas' && groupsOf(state.selected).length > 0;
+  const showBar = kind === 'parts' && state.mode === 'atlas' && !muscleMode();
   if (bar.hidden === showBar) bar.hidden = !showBar;
+  if (showBar && ui.test.on) {
+    const [open, all] = ui.test.count;
+    const t = all ? `Odkryte: ${open} z ${all}${open === all ? ' ✓' : ''}` : 'Brak punktów';
+    const tc = $('#tcount');
+    if (tc.textContent !== t) tc.textContent = t;
+  }
   const hint = $('#zoomhint');
   if (hint) hint.hidden = !(state.labels && state.mode === 'atlas' && kind === 'palp');
 }

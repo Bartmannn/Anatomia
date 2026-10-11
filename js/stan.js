@@ -124,4 +124,6 @@ export const ui = {
   labelMode: 'palp',    // etykiety: punkty wyczuwalne (palp) albo części kręgu (parts)
   labelGroup: {},       // kość -> wybrany zestaw podpisów (id albo 'all'); bez wpisu — pierwszy zestaw
   peek: null,           // część, której podpis widać chwilowo (kursor albo palec na kropce innego zestawu)
+  // „Sprawdź się”: podpisy zakryte, dotknięcie kropki odkrywa nazwę; shown — odkryte punkty (`kość:część`), count — [odkryte, wszystkie]
+  test: { on: false, shown: new Set(), count: [0, 0] },
 };

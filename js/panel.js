@@ -121,8 +121,21 @@ export function syncGroups(k = state.selected) {
   const act = activeGroup(k);
   document.querySelectorAll('[data-lg]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lg === act)));
 }
+// „Sprawdź się”: podpisy zakryte, kropki do odkrywania; „Zakryj” chowa odkryte nazwy wybranej kości
+export function setSelfTest(on) {
+  ui.test.on = on;
+  ui.peek = null;
+  document.getElementById('selftest').setAttribute('aria-pressed', String(on));
+  document.getElementById('tcount').hidden = !on;
+  document.getElementById('tcover').hidden = !on;
+  invalidate();
+}
+export function coverAll(k = state.selected) {
+  for (const id of [...ui.test.shown]) if (id.startsWith(`${k}:`)) ui.test.shown.delete(id);
+  invalidate();
+}
 export function renderGroupBar(k) {
-  const bar = document.getElementById('lgroups');
+  const bar = document.getElementById('lgset');
   const groups = groupsOf(k);
   bar.innerHTML = groups.length ? groups.map((g) => `<button type="button" data-lg="${esc(g.id)}" style="--g: ${g.color}"><i class="sw" aria-hidden="true"></i>${esc(g.name)}</button>`).join('') +
     '<button type="button" data-lg="all">Wszystkie</button>' : '';

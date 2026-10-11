@@ -8,7 +8,7 @@ import { nudge, renderEditor } from './edytor.js';
 import { occl } from './etykiety.js';
 import { paint } from './malowanie.js';
 import { ensurePack, kB, net, netStatus, packForKey, packUrl, packs, saveData, scheduleLod, updateLod } from './paczki.js';
-import { buildRuler, esc, refreshPanel, renderPart, syncRuler } from './panel.js';
+import { buildRuler, coverAll, esc, refreshPanel, renderPart, setSelfTest, syncRuler } from './panel.js';
 import { updateDebug } from './petla.js';
 import { newQuestion } from './quiz.js';
 import { $, DEBUG, FULL_KEY, MODULES, ORDER, boneSetMode, closeUp, contextKeys, currentKey, modKeys, muscleMode, parts, rulerEl, single, soloMode, state, ui } from './stan.js';
@@ -134,6 +134,8 @@ toggle('#rib10', 'rib10free');
 toggle('#isolate', 'isolate');
 toggle('#names', 'labels');
 $('#ribs').addEventListener('click', toggleRibs);
+$('#selftest').addEventListener('click', () => setSelfTest(!ui.test.on));
+$('#tcover').addEventListener('click', () => coverAll());
 document.querySelectorAll('#sidepick [data-side]').forEach((b) => b.addEventListener('click', () => setSide(+b.dataset.side)));
 document.querySelectorAll('.modes button').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
 

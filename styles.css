@@ -638,4 +638,13 @@ body[data-ruler="names"] .main { grid-template-columns: 148px minmax(0, 1fr) min
 .prow .pd.grouped.palp { background: var(--g); }
 body.editing .lgroups { display: none; }
 @media (max-width: 640px) { .lgroups button { padding: 4px 7px; font-size: 12px; } }
-.stage:has(.lgroups:not([hidden])) .hint { display: none; }
+.stage:has(.lgroups:not([hidden]) [data-lg]) .hint, .stage:has(.selftest[aria-pressed="true"]) .hint { display: none; }
+/* „Sprawdź się”: kropki do odkrycia nazwy */
+.lgset { display: contents; }
+.lgroups .selftest { font-weight: 600; }
+.lgroups .selftest[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); box-shadow: var(--shadow); }
+.lgset:not(:empty) + .selftest { margin-left: 8px; }
+.tcount { align-self: center; padding: 0 4px; font-family: var(--font-mono); font-size: 12px; color: var(--muted); background: var(--surface); }
+.ld.ask { r: 6.5; fill: var(--g, var(--ink)); stroke: var(--surface); stroke-width: 2; opacity: 1; cursor: pointer; }
+.ld.ask.behind { opacity: .4; }
+@media (max-width: 640px) { .lgset:not(:empty) + .selftest { margin-left: 0; } .ld.ask { r: 7.5; } }
