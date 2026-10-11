@@ -5,7 +5,8 @@ import { PALPATION } from './tresci.js';
 import { firstProxyHit } from './celowanie.js';
 import { editableParts } from './edytor.js';
 import { SIDE_SHORT, activeGroup, groupsOf, isPaired, lm, partDef, partList, slotChanged } from './punkty.js';
-import { $, MODULES, boneSetMode, closeUp, modKeys, muscleMeshes, muscleMode, parts, state, ui } from './stan.js';
+import { hidesBack } from './zestawy.js';
+import { $, boneSetMode, closeUp, modKeys, muscleMeshes, muscleMode, parts, state, ui } from './stan.js';
 import { camera, perf, project, projectedRect, renderer } from './widok.js';
 
 /* ---------- Labels (names of bone parts, palpable landmarks) ---------- */
@@ -94,7 +95,7 @@ export function labelItems() {
   if (big) {
     const items = [];
     const L = lm(k);
-    const side = parts[k]?.userData.side;        // „Sama kość”: widać tylko lewą (0) albo prawą (1) kość z pary
+    const side = parts[k]?.userData.clipSide;    // „Sama kość”: widać tylko lewą (0) albo prawą (1) kość z pary
     for (const { part, def } of partList(k, true)) {
       if (side != null && L[part].length > 1 && !L[part][side]) continue;
       const pts = side != null && L[part].length > 1 ? [L[part][side]] : L[part].filter(Boolean);
@@ -123,9 +124,9 @@ export function labelItems() {
       const keep = new Set(labeled.filter((it) => it.palp).slice(0, NARROW_MAX).map((it) => it.part));
       for (const it of labeled) { it.peekable = !keep.has(it.part); it.dotOnly = it.peekable && !shownNow(it); }
     }
-    // obręcz barkowa: podpisy części po niewidocznej stronie kości chowają się (kropka zostaje). Trzon łopatki jest cienki,
-    // więc poza zasłanianiem liczy się też kierunek powierzchni w punkcie (normalna od kamery = druga strona kości)
-    const hideBehind = !!MODULES[state.module]?.solo;
+    // łopatka, obojczyk (SET.hideBack): podpisy części po niewidocznej stronie kości chowają się (kropka zostaje). Trzon łopatki
+    // jest cienki, więc poza zasłanianiem liczy się też kierunek powierzchni w punkcie (normalna od kamery = druga strona kości)
+    const hideBehind = hidesBack(k);
     if (hideBehind) for (const it of items) it.n = normalAt(parts[k], it.p);
     return { items, ref: rect, kind: 'parts', hideBehind };
   }

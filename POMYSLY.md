@@ -29,14 +29,15 @@ Lista pomysłów do zrobienia „kiedyś”, od największej wartości dla uczni
 - [ ] Tryb egzaminu: stała liczba pytań, czas, wynik na końcu.
 - [ ] **„Sprawdź się” na kropkach:** podpisy ukryte, kliknięcie kropki pokazuje nazwę — fiszki z tych samych punktów (zestawy podpisów już są).
 - [ ] **Filtr „Wyczuwalne pod palcami”** nakładany na zestaw podpisów (np. „Grzebień i wyrostki, tylko wyczuwalne”).
-- [ ] Zestawy podpisów dla czaszki i kręgów (pole `group` w plikach z opisami) — jeśli okaże się potrzebne.
+- [x] Zestawy podpisów dla kręgów (C1, C2, typowe, kość krzyżowa).
+- [ ] Zestawy podpisów dla czaszki — jeśli okaże się potrzebne.
 - [ ] **Wyszukiwarka** po wszystkich modułach (np. „wyrostek sutkowaty” → od razu kość i punkt).
 
 ## Zakres (kolejność według programu nauczania)
 
 - [ ] Mięśnie poprzeczno-kolcowe (wielodzielny, skręcacze, półkolcowy).
 - [x] Obręcz barkowa: łopatka i obojczyk (moduł „Obręcz barkowa”, opisy do weryfikacji i uzupełnienia notatkami z zajęć).
-- [ ] Klatka piersiowa: mostek, chrząstki żebrowe (1–7 osobno, łuk żebrowy 8–10), podział żeber na prawdziwe, rzekome i wolne, odmiana „wolne żebro 10.” (costa decima fluctuans). Modele pobrane (anatomia-klatka-zrodla.zip). Mostek pokazać też w obręczy barkowej (staw mostkowo-obojczykowy).
+- [x] Klatka piersiowa: mostek, chrząstki żebrowe, podział żeber, odmiana „wolne żebro X”, mostek w tle obręczy barkowej (opisy do weryfikacji i uzupełnienia notatkami z zajęć).
 - [ ] Kończyna górna: kość ramienna (dziś tylko tło w obręczy barkowej), przedramię, ręka.
 - [ ] Mięśnie pośladkowe i kończyna dolna.
 - [ ] Przód szyi.

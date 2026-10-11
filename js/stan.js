@@ -43,15 +43,19 @@ export const state = {
   module: null,           // klucz z MODULES (null = jeszcze nie wybrano)
   fullDetail: false,      // pełne siatki wszystkich widocznych kości (do poprawiania punktów), zapamiętywane w przeglądarce
   side: 1,                // „Sama kość”: która z kości parzystych (0 — lewa, 1 — prawa strona ciała)
+  rib10free: false,       // klatka piersiowa: odmiana z wolnym żebrem X (bez łącznika chrząstki z łukiem żebrowym)
 };
 
 /* ---------- Moduły: co oglądamy i co trzeba pobrać ---------- */
 export const TH_KEYS = ORDER.filter((k) => k.startsWith('Th'));
 export const C_KEYS = ORDER.filter((k) => k.startsWith('C'));
+export const RIB_KEYS = SETS.klatka.order.filter((k) => k.startsWith('rib'));   // żebra modułu klatki (rib1…rib12)
 // kind: bones (kręgi), set (zestaw kości z zestawy.js), muscles. keys — co można wybrać; title, sub — nagłówek strony.
 // context — kręgi widoczne jako tło (nie do wybrania), ctxBones — kości tła z paczek (np. kość ramienna),
 // ribs — żebra włączone na start, quiz — dozwolone rodzaje pytań (domyślnie wszystkie dla danego kind),
-// solo — „Tylko wybrany” działa jako „Sama kość”: jedna kość (z pary: lewa albo prawa), bez tła.
+// solo — „Tylko wybrany” działa jako „Sama kość”: jedna kość (z pary: lewa albo prawa), bez tła,
+// ribsFrom: 'klatka' — tłem są żebra, chrząstki i mostek z modułu klatki (przycisk „Żebra” je chowa),
+// tint — „Kolory kości” od razu włączone i z inną nazwą (np. „Podział żeber”), rib10 — przycisk „Żebro X wolne”.
 export const MODULES = {
   kregoslup: { group: 'Kości', kind: 'bones', name: 'Cały kręgosłup', desc: 'Wszystkie kręgi i krążki. Szczegóły kręgu pobierają się po wybraniu go albo przybliżeniu.',
     title: 'Kręgosłup', sub: 'Atlas 3D · 25 kości · 23 krążki',
@@ -62,11 +66,16 @@ export const MODULES = {
   zebra: { group: 'Kości', kind: 'bones', name: 'Kręgi piersiowe i żebra', desc: 'Th1–Th12 z żebrami, dołki żebrowe i stawy żebrowo-kręgowe.',
     title: 'Kręgosłup', sub: 'Atlas 3D · 12 kręgów · 24 żebra',
     base: ['przeglad-Th', 'zebra-przeglad'], keys: TH_KEYS, ribs: true },
+  klatka: { group: 'Kości', kind: 'set', sets: ['klatka'], name: 'Klatka piersiowa',
+    desc: 'Mostek i 12 par żeber z chrząstkami żebrowymi, podział na żebra prawdziwe, rzekome i wolne. Pełna szczegółowość pobiera się po wybraniu kości.',
+    title: 'Klatka piersiowa', sub: 'Atlas 3D · mostek · 12 par żeber',
+    base: ['przeglad-Th', SETS.klatka.overview], keys: SETS.klatka.order, context: TH_KEYS,
+    solo: true, tint: 'Podział żeber', rib10: true },
   obrecz: { group: 'Kości', kind: 'set', sets: ['obrecz'], name: 'Obręcz barkowa',
-    desc: 'Łopatka i obojczyk na tle żeber i kręgosłupa — widać, na wysokości których kręgów leży łopatka. Pełna szczegółowość kości pobiera się po jej wybraniu.',
+    desc: 'Łopatka i obojczyk na tle klatki piersiowej i kręgosłupa — widać, na wysokości których kręgów leży łopatka. Pełna szczegółowość kości pobiera się po jej wybraniu.',
     title: 'Obręcz barkowa', sub: 'Atlas 3D · łopatka i obojczyk',
-    base: ['przeglad-C', 'przeglad-Th', 'zebra-przeglad', SETS.obrecz.overview], keys: SETS.obrecz.order,
-    context: [...C_KEYS, ...TH_KEYS], ctxBones: ['humerus'], ribs: true, quiz: ['czesc'], solo: true },
+    base: ['przeglad-C', 'przeglad-Th', SETS.klatka.overview, SETS.obrecz.overview], keys: SETS.obrecz.order,
+    context: [...C_KEYS, ...TH_KEYS, 'sternum', ...RIB_KEYS], ctxBones: ['humerus'], ribs: true, ribsFrom: 'klatka', quiz: ['czesc'], solo: true },
   czaszka: { group: 'Kości', kind: 'set', sets: ['czaszka'], name: 'Czaszka',
     desc: 'Kości mózgo- i twarzoczaszki, szwy i kresa skroniowa. Pełna szczegółowość kości pobiera się po jej wybraniu.',
     title: 'Czaszka', sub: 'Atlas 3D · 22 kości · szwy',
@@ -96,7 +105,8 @@ export const muscleMeshes = [];   // części mięśni (obie strony)
 export const ctxMeshes = [];      // kości tła: łopatka, obojczyk, kość ramienna, biodrowa, potyliczna (moduł mięśni), kość ramienna (obręcz)
 export const lineMeshes = [];     // szwy czaszki i kresa skroniowa (szwy.js)
 export const byName = {};         // nazwa siatki -> mesh (mięśnie i kości tła)
-export const objectsOf = (k) => (parts[k] ? [parts[k]] : muscleMeshes.filter((m) => m.userData.muscle === k));
+export const cartMeshes = [];     // chrząstki żebrowe (moduł klatki); userData.key — żebro, do którego należą
+export const objectsOf = (k) => (parts[k] ? [parts[k], ...cartMeshes.filter((m) => m.userData.key === k)] : muscleMeshes.filter((m) => m.userData.muscle === k));
 export const hasKey = (k) => objectsOf(k).length > 0;
 
 export const ribMeshes = [];      // żebra (rib), dołki na kręgach (facet) i powierzchnie stawowe żeber (ribfacet)

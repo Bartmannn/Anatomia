@@ -49,6 +49,7 @@ const DISCS = ORDER.slice(1, -1).map((k) => 'D_' + k);           // krążek pod
 const SETS = [
   { content: 'content-czaszka.js', points: 'landmarks-czaszka.js', P: 'SKULL', groups: 'NC albo VC', script: 'tools/czaszka.py' },
   { content: 'content-obrecz.js', points: 'landmarks-obrecz.js', P: 'OBRECZ', groups: 'OB', script: 'tools/obrecz.py' },
+  { content: 'content-klatka.js', points: 'landmarks-klatka.js', P: 'KLATKA', groups: 'MO, ZP, ZR albo ZW', script: 'tools/klatka.py' },
 ];
 for (const S of SETS) { S.C = await load(S.content); S.L = await load(S.points); S.order = S.C?.[`${S.P}_ORDER`] || []; }
 const KEYS = new Set([...ORDER, ...DISCS, ...SETS.flatMap((S) => S.order)]);

@@ -130,6 +130,7 @@ document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('clic
 toggle('#attach', 'attach');
 toggle('#discs', 'showDiscs');
 toggle('#tint', 'tint');
+toggle('#rib10', 'rib10free');
 toggle('#isolate', 'isolate');
 toggle('#names', 'labels');
 $('#ribs').addEventListener('click', toggleRibs);
@@ -220,6 +221,9 @@ export const ICONS = {
   czaszka: '<svg viewBox="0 0 40 56" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 7 C9 7 5 15 5 23 C5 29 8 32 10 34 L11 41 L16 42 L17 46 L23 46 L24 42 L29 41 L30 34 C32 32 35 29 35 23 C35 15 31 7 20 7 Z"/><ellipse cx="14" cy="26" rx="4" ry="3.6" fill="currentColor" fill-opacity=".18"/><ellipse cx="26" cy="26" rx="4" ry="3.6" fill="currentColor" fill-opacity=".18"/><path d="M20 30 L18 35 L22 35 Z M20 7 C21 12 21 15 20 19" stroke-width="1.2"/><path d="M14 46 L14 42 M18 46 L18 42.5 M22 46 L22 42.5 M26 46 L26 42" stroke-width="1"/></g></svg>',
   zebra: '<svg viewBox="0 0 40 56" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6">' +
     Array.from({ length: 5 }, (_, i) => `<rect x="17" y="${6 + i * 9}" width="6" height="4.5" rx=".6"/><path d="M17 ${9 + i * 9} Q5 ${10 + i * 9} 4 ${19 + i * 9} M23 ${9 + i * 9} Q35 ${10 + i * 9} 36 ${19 + i * 9}"/>`).join('') + '</g></svg>',
+  // mostek i łuki żeber
+  klatka: '<svg viewBox="0 0 40 56" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6"><path d="M17 8 L23 8 L22 15 L22.5 34 L20 39 L17.5 34 L18 15 Z" fill="currentColor" fill-opacity=".18"/>' +
+    Array.from({ length: 6 }, (_, i) => `<path d="M17 ${11 + i * 4.4} Q${7 - i * 0.4} ${12 + i * 4.6} ${6 - i * 0.3} ${20 + i * 5} M23 ${11 + i * 4.4} Q${33 + i * 0.4} ${12 + i * 4.6} ${34 + i * 0.3} ${20 + i * 5}"/>`).join('') + '</g></svg>',
   // łopatka od tyłu: trzon, grzebień z wyrostkiem barkowym, nad nią obojczyk
   obrecz: '<svg viewBox="0 0 40 56" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 10 Q16 6 22 9 Q30 12 36 9" stroke-width="2"/>' +
     '<path d="M10 16 L33 15 L31 22 L15 47 Z" fill="currentColor" fill-opacity=".18"/><path d="M11 23 L32 15 L36 13" stroke-width="2.2"/><circle cx="33" cy="20" r="2.4"/></g></svg>',
@@ -376,7 +380,12 @@ export function setModule(mod, key = null, side = null) {
   $('#discs').hidden = single() || mus || sets;
   $('#ribs').hidden = sets && !M.ribs;
   $('#tint').hidden = mus;
-  $('#tint .clbl').textContent = sets ? 'Kolory kości' : 'Kolory odcinków';
+  $('#tint .clbl').textContent = M.tint || (sets ? 'Kolory kości' : 'Kolory odcinków');
+  state.tint = !!M.tint;                 // moduł z własną nazwą kolorów (np. „Podział żeber”) zaczyna z kolorami
+  $('#tint').setAttribute('aria-pressed', String(state.tint));
+  $('#rib10').hidden = !M.rib10;
+  if (!M.rib10) state.rib10free = false;     // odmiana żebra X tylko w module klatki
+  $('#rib10').setAttribute('aria-pressed', String(state.rib10free));
   $('#attach').hidden = !mus;
   $('#layers').hidden = !mus;
   if (mus) {

@@ -1,11 +1,12 @@
-// Zestawy kości oglądanych jako osobne kości z nazwanymi częściami: czaszka i obręcz barkowa.
+// Zestawy kości oglądanych jako osobne kości z nazwanymi częściami: czaszka, obręcz barkowa i klatka piersiowa.
 // Każdy zestaw ma treści (content-<zestaw>.js), punkty (landmarks-<zestaw>.js), paczki modeli (<dir>-przeglad, <dir>/<kość>)
 // i ustawienia widoku (js/<zestaw>.js → SET). Ten plik łączy je w jedno, żeby reszta strony nie musiała ich rozróżniać.
 // Nowy zestaw: plik js/<zestaw>.js z SET, wpis w SETS poniżej i moduł w MODULES (stan.js).
 import * as CZ from './czaszka.js';
 import * as OB from './obrecz.js';
+import * as KL from './klatka.js';
 
-export const SETS = { czaszka: CZ.SET, obrecz: OB.SET };
+export const SETS = { czaszka: CZ.SET, obrecz: OB.SET, klatka: KL.SET };
 
 const all = Object.values(SETS);
 const merged = (field) => Object.assign({}, ...all.map((S) => S[field] || {}));
@@ -16,7 +17,7 @@ export const SET_OF = Object.fromEntries(Object.entries(SETS).flatMap(([id, S]) 
 export const isSetBone = (k) => k in SET_OF;
 export const SET_ORDER = all.flatMap((S) => S.order);
 
-export const GROUP = merged('group');           // kość -> grupa (NC, VC, OB); kolor grupy to zmienna CSS --nc, --vc, --ob
+export const GROUP = merged('group');           // kość -> grupa (NC, VC, OB, MO, ZP…); kolor grupy to zmienna CSS --nc, --vc, --ob…
 export const PARTS = merged('parts');
 export const LABELS = merged('labels');
 export const REGIONS = merged('regions');
@@ -36,6 +37,8 @@ export const SET_DIRS = all.map((S) => S.dir);
 export const packOf = (k) => `${SETS[SET_OF[k]].dir}/${k}`;
 // nazwy zestawów podpisów (pole group przy części kości) dla kości k
 export const labelGroupNames = (k) => SETS[SET_OF[k]]?.labelGroups || {};
+// zestaw chowa podpisy części po niewidocznej stronie kości (SET.hideBack)
+export const hidesBack = (k) => !!SETS[SET_OF[k]]?.hideBack;
 
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 // Lewa kolumna: kości zestawów pogrupowane (np. mózgoczaszka i twarzoczaszka)

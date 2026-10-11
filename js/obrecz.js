@@ -13,4 +13,6 @@ export const SET = {
   view: { scapula: [0.35, 0.25, -1], clavicle: [0.3, 0.6, 1] },
   // siatki z obiema kośćmi pary (lewą i prawą) — w widoku „Sama kość” widać jedną z nich
   paired: new Set(['scapula', 'clavicle']),
+  // podpisy części po niewidocznej stronie kości chowają się (łopatka jest płaska — widać jedną powierzchnię naraz)
+  hideBack: true,
 };

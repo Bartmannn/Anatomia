@@ -1,6 +1,6 @@
 # Anatomia — atlas 3D dla techników masażystów
 
-Interaktywny, trójwymiarowy atlas kręgosłupa, obręczy barkowej, czaszki i mięśni grzbietu, który działa w przeglądarce. Model można obracać, przybliżać i klikać. Każdy kręg, łopatka, obojczyk i każda kość czaszki ma nazwy swoich części, opis budowy i uwagi „dla masażysty”, a każdy mięsień — przyczepy (zaznaczone na kościach), działanie i unerwienie.
+Interaktywny, trójwymiarowy atlas kręgosłupa, klatki piersiowej, obręczy barkowej, czaszki i mięśni grzbietu, który działa w przeglądarce. Model można obracać, przybliżać i klikać. Każdy kręg, łopatka, obojczyk i każda kość czaszki ma nazwy swoich części, opis budowy i uwagi „dla masażysty”, a każdy mięsień — przyczepy (zaznaczone na kościach), działanie i unerwienie.
 
 **Strona:** https://bartmannn.github.io/Anatomia/
 
@@ -14,7 +14,8 @@ Atlas mogą swobodnie wykorzystywać uczniowie i nauczyciele. Uwagi i poprawki s
 
 ## Co potrafi
 
-- **Moduły do wyboru.** Kości: *Cały kręgosłup*, *Pojedyncze kręgi* (jeden kręg naraz, w pełnej szczegółowości), *Kręgi piersiowe i żebra*, *Obręcz barkowa* i *Czaszka*. Mięśnie: *Mięśnie grzbietu*. Strona pobiera tylko wybrany moduł.
+- **Moduły do wyboru.** Kości: *Cały kręgosłup*, *Pojedyncze kręgi* (jeden kręg naraz, w pełnej szczegółowości), *Kręgi piersiowe i żebra*, *Klatka piersiowa*, *Obręcz barkowa* i *Czaszka*. Mięśnie: *Mięśnie grzbietu*. Strona pobiera tylko wybrany moduł.
+- **Klatka piersiowa:** mostek (rękojeść, trzon, wyrostek mieczykowaty, wcięcia szyjne, obojczykowe i żebrowe, kąt mostka) i każda para żeber osobno (głowa, szyjka, guzek, kąt, trzon, bruzda, koniec przedni, chrząstka; żebro I — guzek mięśnia pochyłego przedniego) na tle kręgów piersiowych. Chrząstki żebrowe mają osobny kolor; chrząstki 8–10 tworzą łuk żebrowy (w BodyParts3D to jedna bryła — `tools/klatka.py` dzieli ją na chrząstki poszczególnych żeber). Przycisk *Podział żeber* (włączony na start) koloruje mostek, żebra prawdziwe (I–VII), rzekome (VIII–X) i wolne (XI–XII), a *Żebro X wolne* pokazuje odmianę, w której chrząstka żebra X nie dochodzi do łuku żebrowego.
 - **Obręcz barkowa:** łopatka (kąty, brzegi, grzebień z trójkątem grzebienia, wyrostki barkowy i kruczy, kąt barkowy, panewka z guzkami nad- i podpanewkowym, doły nad- i podgrzebieniowy oraz podłopatkowy, wcięcie łopatki) i obojczyk (końce mostkowy i barkowy, trzon, guzek stożkowaty) na tle kręgosłupa, żeber i kości ramiennych — widać, że kąt górny łopatki leży na wysokości Th2, przyśrodkowy koniec grzebienia Th3, a kąt dolny Th7. Części łopatki są podzielone na **zestawy podpisów** (*Kąty i brzegi*, *Grzebień i wyrostki*, *Panewka i doły*, przyciski nad modelem albo nagłówki w opisie): kropki wszystkich części zostają na modelu w kolorach zestawów, a podpisany jest tylko wybrany zestaw (albo *Wszystkie*). Najechanie kursorem albo dotknięcie kropki pokazuje jej nazwę. Podpisy części leżących po niewidocznej stronie kości chowają się przy obracaniu. Podział jest w `content-obrecz.js` (pole `group`, nazwy w `OBRECZ_LABEL_GROUPS`). Przycisk *Sama kość* pokazuje tylko jedną łopatkę albo jeden obojczyk (przełącznik *Lewa / Prawa*), bez tła, w pełnej szczegółowości — link do tego widoku to np. `…/Anatomia/#obrecz/scapula/prawa`. Na telefonie przy łopatce podpisane są najważniejsze części wyczuwalne, a pozostałe są kropkami (nazwa pojawia się po wskazaniu części w opisie).
 - **Czaszka:** kości mózgoczaszki (czołowa, ciemieniowe, potyliczna, skroniowe, klinowa, sitowa) i twarzoczaszki (nosowe, łzowe, jarzmowe, szczęki, żuchwa, lemiesz, podniebienne, małżowiny nosowe dolne) oraz 28 zębów. Na modelu są szwy (wieńcowy, strzałkowy, węgłowy, łuskowe) i kresa skroniowa (linia przerywana); po najechaniu na szew w opisie świeci on na modelu. Przycisk *Kolory kości* koloruje każdą kość inaczej, jak w atlasie. Kości leżące głęboko (np. sitową, lemiesz) najlepiej oglądać z włączonym *Tylko wybrany*.
 - **Mięśnie grzbietu warstwami.** Warstwa powierzchowna: mięsień czworoboczny (części zstępująca, poprzeczna i wstępująca) i najszerszy grzbietu. Warstwa pośrednia: mięśnie równoległoboczne (większy i mniejszy), dźwigacz łopatki i mięśnie zębate tylne (górny i dolny). Warstwa głęboka: prostownik grzbietu — mięśnie biodrowo-żebrowy, najdłuższy i kolcowy (z częściami lędźwiową, piersiową, szyjną i głowową) — oraz mięśnie płatowate głowy i szyi. Po wybraniu mięśnia z głębszej warstwy warstwy nad nim stają się przezroczyste. Po wybraniu mięśnia jego przyczepy podświetlają się na kościach (kręgi, łopatka, obojczyk, kość ramienna, potyliczna, biodrowa, żebra), a po najechaniu na część w opisie — tylko przyczepy tej części. Najgłębszych mięśni (poprzeczno-kolcowych, np. wielodzielnego) jeszcze nie ma.
@@ -85,7 +86,8 @@ Aktualna przeglądarka z obsługą WebGL: Chrome, Edge, Firefox lub Safari (iOS 
 | Cały kręgosłup | ok. 260 kB | 22–150 kB za każdy wybrany lub mocno przybliżony kręg |
 | Pojedyncze kręgi | 22–150 kB | tyle samo za każdy kolejny kręg |
 | Kręgi piersiowe i żebra | ok. 220 kB | szczegóły kręgu i 2 par żeber przy nim |
-| Obręcz barkowa | ok. 330 kB | ok. 40 kB (obojczyki) i 190 kB (łopatki) po wybraniu kości |
+| Klatka piersiowa | ok. 230 kB | 23–100 kB za każdą wybraną kość (para żeber z chrząstkami albo mostek) |
+| Obręcz barkowa | ok. 340 kB | ok. 40 kB (obojczyki) i 190 kB (łopatki) po wybraniu kości |
 | Czaszka | ok. 290 kB | 7–190 kB za każdą wybraną lub mocno przybliżoną kość |
 | Mięśnie grzbietu | ok. 590 kB | ok. 85 kB za warstwę pośrednią i 130 kB za głęboką (po włączeniu) |
 
@@ -171,6 +173,7 @@ Poprawki zapisują się w przeglądarce do czasu pobrania pliku. `landmarks.js` 
 | Zestawy podpisów kręgów (które części są w którym zestawie, także punkty dodane ręcznie) | `content.js` → `VERTEBRA_LABEL_GROUPS` |
 | Opisy kręgów (nazwa kręgu, cechy, uwagi dla masażysty) | `content.js` → `PARTS` |
 | Kości czaszki: opisy, nazwy części i szwów, które części są parzyste (`pair`) i wyczuwalne (`palp`) | `content-czaszka.js` → `SKULL_PARTS`, `SKULL_LABELS` |
+| Mostek i żebra: opisy (opisy żeber składane są z reguł w funkcjach `ribFeatures`, `ribMassage`, `ribMuscles`, `ribLabels`), grupy w lewej kolumnie | `content-klatka.js` |
 | Łopatka i obojczyk: opisy, nazwy części, które są parzyste (`pair`) i wyczuwalne (`palp`), zestawy podpisów (`group`) | `content-obrecz.js` → `OBRECZ_PARTS`, `OBRECZ_LABELS`, `OBRECZ_LABEL_GROUPS` |
 | Mięśnie, ich części i przyczepy | `content-miesnie.js` |
 | Punkty dodane ręcznie | `landmarks-fix.js` → `EXTRA` (pole `name`) albo w trybie „Popraw lub dodaj punkty” → *Nazwa i opis tego punktu* |
@@ -192,9 +195,11 @@ Wszystkie teksty o kręgosłupie, czyli nazwy kręgów, cechy, uwagi dla masaży
 | `content-miesnie.js` | Opisy mięśni i ich przyczepów |
 | `content-czaszka.js` | Opisy kości czaszki, ich części i szwów |
 | `content-obrecz.js` | Opisy łopatki i obojczyka oraz ich części |
+| `content-klatka.js` | Opisy mostka i żeber oraz ich części |
 | `landmarks.js` | Położenie etykiet wyznaczone automatycznie |
 | `landmarks-czaszka.js` | Punkty etykiet czaszki i przebieg szwów oraz kresy skroniowej (wyznaczone automatycznie) |
 | `landmarks-obrecz.js` | Punkty etykiet łopatki i obojczyka (wyznaczone automatycznie) |
+| `landmarks-klatka.js` | Punkty etykiet mostka i żeber (wyznaczone automatycznie) |
 | `landmarks-fix.js` | Ręczne poprawki etykiet i lista sprawdzonych kręgów (tworzy go tryb „Popraw punkty”) |
 | `models/pakiety/` | Model podzielony na małe paczki, które strona pobiera na żądanie: przegląd odcinków, pełne kręgi, pary żeber, czaszka i obręcz barkowa (przegląd i pojedyncze kości), mięśnie (`spis.js` — lista z rozmiarami) |
 | `models/kregoslup.glb` | Pełny model kręgosłupa w standardowym formacie glTF (~5,4 MB); źródło paczek, strona go nie pobiera |
@@ -209,6 +214,7 @@ Wszystkie teksty o kręgosłupie, czyli nazwy kręgów, cechy, uwagi dla masaży
 | `tools/build_packs.py` | Dzieli oba modele na paczki w `models/pakiety/` i przygotowuje wersje uproszczone |
 | `tools/muscles.py` | Buduje paczki mięśni (`models/pakiety/miesnie/`) i kości tła (`kosci-tla.pak`) |
 | `tools/czaszka.py` | Buduje paczki czaszki (`czaszka-przeglad.pak`, `czaszka/`) i wyznacza punkty, szwy i kresę skroniową do `landmarks-czaszka.js` |
+| `tools/klatka.py` | Buduje paczki klatki piersiowej (`klatka-przeglad.pak`, `klatka/`: mostek, pary żeber z `models/zebra.glb`, chrząstki żebrowe; łuk żebrowy dzielony na chrząstki 8–10, chrząstka żebra 10 z osobnym łącznikiem) i punkty do `landmarks-klatka.js` |
 | `tools/obrecz.py` | Buduje paczki obręczy barkowej (`obrecz-przeglad.pak` z kośćmi ramiennymi jako tłem, `obrecz/`) i wyznacza punkty do `landmarks-obrecz.js` (w płaszczyźnie trzonu łopatki, bo łopatka leży skośnie na żebrach) |
 | `Dockerfile`, `compose.yaml`, `docker/` | Uruchomienie strony w kontenerze (nginx) |
 | `CONTRIBUTING.md` | Jak zgłaszać i wprowadzać poprawki |
@@ -233,6 +239,7 @@ Wszystkie teksty o kręgosłupie, czyli nazwy kręgów, cechy, uwagi dla masaży
 | `zestawy.js` | Zestawy kości oglądanych osobno, z nazwanymi częściami (czaszka, obręcz barkowa): wspólne treści, punkty, paczki, kolory, kierunki kamery i lista po lewej. Nowy zestaw to plik `js/<zestaw>.js` z `SET`, wpis w `SETS` i moduł w `MODULES` (`stan.js`) |
 | `czaszka.js` | Ustawienia czaszki (kolory kości, kierunki kamery, kości małe i głęboko położone) i kości przy szwach |
 | `obrecz.js` | Ustawienia obręczy barkowej (kolory kości, kierunki kamery) |
+| `klatka.js` | Ustawienia klatki piersiowej (kolory „Podziału żeber”, kierunki kamery); chrząstki żebrowe to osobne siatki przypisane do żeber |
 | `szwy.js` | Szwy czaszki i kresa skroniowa na modelu |
 | `tresci.js` | Wspólny dostęp do opisów kręgosłupa i zestawów kości |
 
@@ -251,7 +258,10 @@ python tools/build_packs.py
 python tools/muscles.py <folder_z_plikami_stl>
 python tools/czaszka.py <folder_z_plikami_stl>
 python tools/obrecz.py <folder_z_plikami_stl>
+python tools/klatka.py <folder_z_plikami_stl>
 ```
+
+Wszystkie pliki STL BodyParts3D (934 modele) z miniaturkami i spisem po polsku (`spis-modeli.csv`) są w archiwum `anatomia-bodyparts3d-komplet.zip` obok repozytorium — nie trzeba ich pobierać.
 
 `tools/czaszka.py <folder> --punkty` przelicza tylko punkty i szwy (kilka sekund), bez przebudowy paczek; tak samo `tools/obrecz.py <folder> --punkty`.
 
@@ -261,7 +271,7 @@ Ostatni krok (ok. minuty) trzeba powtórzyć po każdej zmianie `models/kregoslu
 
 **Modele 3D** — BodyParts3D, © The Database Center for Life Science (DBCLS), licencja [CC BY-SA 2.1 JP](https://creativecommons.org/licenses/by-sa/2.1/jp/deed.en).
 Dane pobrane z repozytorium [Kevin-Mattheus-Moerman/BodyParts3D](https://github.com/Kevin-Mattheus-Moerman/BodyParts3D) (wersja 3.0 / 20110915, pliki STL przekonwertowane z oryginalnych OBJ).
-Wprowadzone zmiany: wybór kręgów, krążków, żeber, mięśni grzbietu, kości czaszki i zębów oraz kości obręczy barkowej, kości ramiennej, biodrowej i potylicznej, uproszczenie siatek żeber, zmiana układu osi i skali, scalenie wierzchołków, obliczenie normalnych, kwantyzacja i zapis do formatu glTF (GLB), podział na paczki z wersjami uproszczonymi i kompresja. Pliki `models/kregoslup.glb`, `models/zebra.glb`, `models/pakiety/`, `landmarks.js`, `landmarks-ribs.js`, `landmarks-czaszka.js`, `landmarks-obrecz.js` i `landmarks-fix.js` (współrzędne na tych samych modelach) są udostępniane na tej samej licencji CC BY-SA 2.1 JP.
+Wprowadzone zmiany: wybór kręgów, krążków, żeber, mięśni grzbietu, kości czaszki i zębów oraz kości obręczy barkowej, kości ramiennej, biodrowej i potylicznej, uproszczenie siatek żeber, zmiana układu osi i skali, scalenie wierzchołków, obliczenie normalnych, kwantyzacja i zapis do formatu glTF (GLB), podział na paczki z wersjami uproszczonymi i kompresja. Pliki `models/kregoslup.glb`, `models/zebra.glb`, `models/pakiety/`, `landmarks.js`, `landmarks-ribs.js`, `landmarks-czaszka.js`, `landmarks-obrecz.js`, `landmarks-klatka.js` i `landmarks-fix.js` (współrzędne na tych samych modelach) są udostępniane na tej samej licencji CC BY-SA 2.1 JP.
 
 Publikacja źródłowa:
 > Mitsuhashi N, Fujieda K, Tamura T, Kawamoto S, Takagi T, Okubo K. *BodyParts3D: 3D structure database for anatomical concepts.* Nucleic Acids Res. 2009;37(Database issue):D782–5. https://doi.org/10.1093/nar/gkn613
@@ -273,7 +283,7 @@ Publikacja źródłowa:
 
 **Kod strony i skrypty** (`index.html`, `styles.css`, `app.js`, `js/`, `sw.js`, `tools/`) — licencja MIT (`LICENSE`).
 
-**Opisy** (`content.js`, `content-miesnie.js`, `content-czaszka.js`, `content-obrecz.js`) — licencja CC BY-SA 4.0.
+**Opisy** (`content.js`, `content-miesnie.js`, `content-czaszka.js`, `content-obrecz.js`, `content-klatka.js`) — licencja CC BY-SA 4.0.
 
 **Obrazek podglądu** (`og.jpg`) zawiera render modeli BodyParts3D, więc jest na licencji CC BY-SA 2.1 JP. Ikony (`icons/`) — MIT, jak kod.
 

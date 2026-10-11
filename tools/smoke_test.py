@@ -61,7 +61,8 @@ def main():
         ctx.close()
 
         for hash_, name in [('#kregoslup/C7', 'Cały kręgosłup'), ('#kregi/L4', 'Pojedyncze kręgi'),
-                            ('#zebra/Th7', 'Kręgi piersiowe i żebra'), ('#obrecz/scapula', 'Obręcz barkowa'),
+                            ('#zebra/Th7', 'Kręgi piersiowe i żebra'), ('#klatka/rib2', 'Klatka piersiowa'),
+                            ('#obrecz/scapula', 'Obręcz barkowa'),
                             ('#czaszka/temporal', 'Czaszka'),
                             ('#grzbiet/trapezius', 'Mięśnie grzbietu')]:
             print(name)
@@ -130,6 +131,21 @@ def main():
         page.click('[data-action=edit]')
         page.wait_for_timeout(1500)
         check(page.locator('.erow').count() >= 4, 'poprawianie punktów obojczyka')
+        check(not errs, 'brak błędów w konsoli' + (f': {errs[:3]}' if errs else ''))
+        ctx.close()
+
+        print('Klatka piersiowa: chrząstki, żebro X wolne, mostek')
+        ctx, page, errs, _ = open_page('#klatka/rib10')
+        wait_loaded(page)
+        carts = "import('./js/stan.js').then((s) => s.cartMeshes.filter((m) => m.visible).length)"
+        n = page.evaluate(carts)
+        check(n == 22, f'chrząstki żebrowe żeber I–X na modelu ({n} z 22 siatek)')
+        page.click('#rib10')
+        page.wait_for_timeout(600)
+        check(page.evaluate(carts) == 20, '„Żebro X wolne”: bez łącznika chrząstki żebra X z łukiem żebrowym')
+        page.click('#r-sternum')
+        page.wait_for_timeout(2500)
+        check(page.inner_text('#panel h2').strip() == 'Mostek', 'wybór mostka z listy')
         check(not errs, 'brak błędów w konsoli' + (f': {errs[:3]}' if errs else ''))
         ctx.close()
 

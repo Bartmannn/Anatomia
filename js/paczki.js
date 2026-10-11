@@ -9,7 +9,7 @@ import { facetMat, paint, relatedRibs, ribMat, ribsOn } from './malowanie.js';
 import { updateLoader } from './moduly.js';
 import { refreshPanel } from './panel.js';
 import { quizType } from './quiz.js';
-import { $, MODULES, byName, contextKeys, ctxMeshes, currentKey, hasKey, modKeys, muscleMeshes, muscleMode, parts, ribByName, ribMeshes, selectable, single, state, ui } from './stan.js';
+import { $, MODULES, byName, cartMeshes, contextKeys, ctxMeshes, currentKey, hasKey, modKeys, muscleMeshes, muscleMode, parts, ribByName, ribMeshes, selectable, single, state, ui } from './stan.js';
 import { invalidate, newMat, projectedBox, renderer, root, view } from './widok.js';
 
 /* ---------- Paczki modeli: pobieranie na żądanie ---------- */
@@ -124,14 +124,16 @@ export function addGeometry({ name, extras, geometry }, low) {
   if (!mesh) {
     const kind = extras.kind;
     const bone = kind === 'bone' || kind === 'disc';
-    const own = bone || kind === 'muscle' || kind === 'ctxbone';      // własny materiał (własny kolor)
-    mesh = new THREE.Mesh(geometry, own ? newMat(kind === 'ctxbone' ? 'bone' : kind) : kind === 'rib' ? ribMat : facetMat);
+    const own = bone || kind === 'muscle' || kind === 'ctxbone' || kind === 'cart';      // własny materiał (własny kolor)
+    // chrząstka żebrowa: materiał dwustronny jak żebra (łącznik chrząstki żebra X da się ukryć, a koniec zostaje otwarty)
+    mesh = new THREE.Mesh(geometry, own ? newMat(kind === 'ctxbone' ? 'bone' : kind === 'cart' ? 'rib' : kind) : kind === 'rib' ? ribMat : facetMat);
     mesh.name = name;
     mesh.userData = { ...extras, geoKey: key };
     mesh.visible = false;               // o widoczności decyduje paint()
     if (bone) parts[name] = mesh;
     else if (kind === 'muscle') { muscleMeshes.push(mesh); byName[name] = mesh; mesh.renderOrder = 2; }
     else if (kind === 'ctxbone') { ctxMeshes.push(mesh); byName[name] = mesh; }
+    else if (kind === 'cart') { cartMeshes.push(mesh); byName[name] = mesh; }
     else { mesh.renderOrder = kind === 'rib' ? 0 : 1; ribMeshes.push(mesh); ribByName[name] = mesh; }
     root.add(mesh);
   }
@@ -140,7 +142,7 @@ export function addGeometry({ name, extras, geometry }, low) {
 // pełna siatka, gdy jest potrzebna i już pobrana; w przeciwnym razie uproszczona
 export function useGeometry(mesh) {
   const lo = lowGeo[mesh.userData.geoKey], hi = highGeo[mesh.userData.geoKey], n = mesh.name;
-  const g = hi && (!lo || wantHigh.has(n)) ? hi : (lo || hi);
+  const g = hi && (!lo || wantHigh.has(n) || wantHigh.has(mesh.userData.key)) ? hi : (lo || hi);     // chrząstka: razem ze swoim żebrem
   if (mesh.geometry !== g) { mesh.geometry = g; invalidate(); }
   const kind = mesh.userData.kind;
   if (kind === 'facet' || kind === 'ribfacet') return;
@@ -169,7 +171,7 @@ export function scheduleLod(ms = 120) { clearTimeout(lodTimer); lodTimer = setTi
 export function updateLod() {
   if (!state.module) return;
   const need = new Set(MODULES[state.module].base);
-  if (state.ribs && !single()) need.add('zebra-przeglad');
+  if (state.ribs && !single() && MODULES[state.module].ribsFrom !== 'klatka') need.add('zebra-przeglad');
   if (muscleMode()) {
     // warstwa pobiera się dopiero, gdy jest włączona albo wybrano mięsień z tej warstwy
     const selLayer = MUS.MUSCLES[currentKey()]?.layer;
@@ -220,6 +222,7 @@ export function updateLod() {
   }
   for (const m of Object.values(parts)) useGeometry(m);
   for (const m of ribMeshes) useGeometry(m);
+  for (const m of cartMeshes) useGeometry(m);
   for (const id of need) ensurePack(id, { keep: isOverview(id) }).catch(() => {});
   for (const id of pre) if (!need.has(id)) ensurePack(id, { low: true }).catch(() => {});
   for (const [id, st] of packs) {

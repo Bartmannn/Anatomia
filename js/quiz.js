@@ -25,6 +25,8 @@ export const quizTypes = () => {
   return QUIZ_TYPES[quizKind()].filter(([t]) => !only || only.includes(t));
 };
 const whichBone = (t) => t === 'kreg' || t === 'kosc';
+// nazwa w środku zdania: mała pierwsza litera, reszta bez zmian (cyfry rzymskie: „żebro VIII”)
+const lc = (s) => s.charAt(0).toLowerCase() + s.slice(1);
 export const pickRand = (a) => a[Math.floor(Math.random() * a.length)];
 export const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 // części kręgu z punktem i nazwą (bez części żeber), do pytań „Która część?”
@@ -101,7 +103,7 @@ export function renderQuiz() {
   const question = {
     kreg: single() ? 'Który to kręg? Rozpoznaj go po kształcie.' : 'Który to kręg? Jest podświetlony na modelu.',
     kosc: 'Która to kość? Jest podświetlona na modelu.',
-    czesc: `Jak nazywa się zaznaczona część? To ${q.target ? esc(PARTS[q.target]?.name.toLowerCase() || '') : ''} (${esc(PARTS[q.target]?.short || '')}).`,
+    czesc: `Jak nazywa się zaznaczona część? To ${q.target ? esc(lc(PARTS[q.target]?.name || '')) : ''} (${esc(PARTS[q.target]?.short || '')}).`,
     miesien: 'Który mięsień jest podświetlony?',
     przyczepy: 'Na kościach świecą przyczepy jednego mięśnia. Który to mięsień?',
   }[q.type];
@@ -140,11 +142,11 @@ export function answer(k) {
   let text;
   if (whichBone(q.type)) {
     const P = PARTS[q.target];
-    text = `To ${esc(P.name.toLowerCase())} (${esc(P.short)}). ${esc(P.massage)}`;
+    text = `To ${esc(lc(P.name))} (${esc(P.short)}). ${esc(P.massage)}`;
     bigcodeEl.textContent = isSetBone(q.target) ? '' : P.short === 'S1–S5' ? 'S' : P.short;
   } else if (q.type === 'czesc') {
     const d = partDef(q.target, q.part);
-    text = `To ${esc(d.name.toLowerCase())}${d.latin ? ` (${esc(d.latin)})` : ''}. ${esc(d.def || '')}`;
+    text = `To ${esc(lc(d.name))}${d.latin ? ` (${esc(d.latin)})` : ''}. ${esc(d.def || '')}`;
   } else {
     const M = MUS.MUSCLES[q.target];
     const att = MUS.attachSet(q.target);

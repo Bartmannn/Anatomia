@@ -107,7 +107,12 @@ export const view = { tween: null, zoomTarget: null, pendingFrame: null };
 export function boxOf(keys) {
   const box = new THREE.Box3();
   // ukryte części (inny moduł, wyłączone krążki) nie wpływają na kadr; z kości parzystej w „Sama kość” — tylko widoczna strona
-  for (const k of keys) for (const o of objectsOf(k)) if (o.visible || keys.length === 1) box.union(o.userData.side != null ? halfBox(o, o.userData.side) : o.geometry.boundingBox);
+  // (kadr jednej kości: także jej ukryta jeszcze siatka główna, ale nie ukryte chrząstki drugiej strony)
+  for (const k of keys) {
+    objectsOf(k).forEach((o, i) => {
+      if (o.visible || (keys.length === 1 && i === 0)) box.union(o.userData.clipSide != null ? halfBox(o, o.userData.clipSide) : o.geometry.boundingBox);
+    });
+  }
   return box;
 }
 // Pudełko jednej strony siatki, w której są obie kości z pary (0 — lewa strona ciała, x > 0; 1 — prawa)

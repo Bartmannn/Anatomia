@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { placePoint } from './edytor.js';
 import { paint } from './malowanie.js';
 import { select } from './moduly.js';
-import { ctxMeshes, muscleMeshes, muscleMode, parts, ribMeshes, selectable, state, ui } from './stan.js';
+import { cartMeshes, ctxMeshes, muscleMeshes, muscleMode, parts, ribMeshes, selectable, state, ui } from './stan.js';
 import { dotNear } from './etykiety.js';
 import { camera, invalidate, perf, renderer } from './widok.js';
 
@@ -59,6 +59,7 @@ export function proxyOf(geo, mesh) {
 export function activeProxies(bonesOnly) {
   const list = [];
   for (const m of Object.values(parts)) if (m.visible && m.material.opacity > 0.5 && m.userData.proxy) list.push(m.userData.proxy);
+  for (const m of cartMeshes) if (m.visible && m.material.opacity > 0.5 && m.userData.proxy) list.push(m.userData.proxy);
   if (!bonesOnly) for (const m of ribMeshes) if (m.visible && m.userData.proxy) list.push(m.userData.proxy);
   for (const m of muscleMeshes) if (m.visible && m.material.opacity > 0.5 && m.userData.proxy) list.push(m.userData.proxy);
   for (const m of ctxMeshes) if (m.visible && m.material.opacity > 0.5 && m.userData.proxy) list.push(m.userData.proxy);
@@ -92,7 +93,8 @@ export function pick(ev) {
   // kręgi będące tylko tłem modułu (np. przy łopatce) zasłaniają, ale nie dają się wybrać
   const hit = firstProxyHit(ray, true);
   const t = hit?.object.userData.target;
-  return t && parts[t.name] && selectable(t.name) ? t.name : null;
+  const k = t?.userData.kind === 'cart' ? t.userData.key : t?.name;      // chrząstka wybiera swoje żebro
+  return k && parts[k] && selectable(k) ? k : null;
 }
 export function initPicking() {
 renderer.domElement.addEventListener('pointerdown', (e) => { downAt = [e.clientX, e.clientY]; });
