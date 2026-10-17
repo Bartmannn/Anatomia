@@ -55,7 +55,8 @@ export const RIB_KEYS = SETS.klatka.order.filter((k) => k.startsWith('rib'));   
 // ribs — żebra włączone na start, quiz — dozwolone rodzaje pytań (domyślnie wszystkie dla danego kind),
 // solo — „Tylko wybrany” działa jako „Sama kość”: jedna kość (z pary: lewa albo prawa), bez tła,
 // ribsFrom: 'klatka' — tłem są żebra, chrząstki i mostek z modułu klatki (przycisk „Żebra” je chowa),
-// tint — „Kolory kości” od razu włączone i z inną nazwą (np. „Podział żeber”), rib10 — przycisk „Żebro X wolne”.
+// tint — „Kolory kości” od razu włączone i z inną nazwą (np. „Podział żeber”), rib10 — przycisk „Żebro X wolne”,
+// soloStart — moduł zaczyna od widoku „Sama kość” (kość z bliska, z dala od tła).
 export const MODULES = {
   kregoslup: { group: 'Kości', kind: 'bones', name: 'Cały kręgosłup', desc: 'Wszystkie kręgi i krążki. Szczegóły kręgu pobierają się po wybraniu go albo przybliżeniu.',
     title: 'Kręgosłup', sub: 'Atlas 3D · 25 kości · 23 krążki',
@@ -76,6 +77,12 @@ export const MODULES = {
     title: 'Obręcz barkowa', sub: 'Atlas 3D · łopatka i obojczyk',
     base: ['przeglad-C', 'przeglad-Th', SETS.klatka.overview, SETS.obrecz.overview], keys: SETS.obrecz.order,
     context: [...C_KEYS, ...TH_KEYS, 'sternum', ...RIB_KEYS], ctxBones: ['humerus'], ribs: true, ribsFrom: 'klatka', quiz: ['czesc'], solo: true },
+  konczyna: { group: 'Kości', kind: 'set', sets: ['konczyna'], name: 'Kończyna górna',
+    desc: 'Kość ramienna: części ogólne, górna i dolna, na tle łopatki, obojczyka i klatki piersiowej. Przedramię i ręka — wkrótce.',
+    title: 'Kończyna górna', sub: 'Atlas 3D · kość ramienna',
+    base: ['przeglad-C', 'przeglad-Th', SETS.klatka.overview, SETS.obrecz.overview, SETS.konczyna.overview], keys: SETS.konczyna.order,
+    context: [...C_KEYS, ...TH_KEYS, 'sternum', ...RIB_KEYS, ...SETS.obrecz.order], ribs: true, ribsFrom: 'klatka', quiz: ['czesc'],
+    solo: true, soloStart: true },
   czaszka: { group: 'Kości', kind: 'set', sets: ['czaszka'], name: 'Czaszka',
     desc: 'Kości mózgo- i twarzoczaszki, szwy i kresa skroniowa. Pełna szczegółowość kości pobiera się po jej wybraniu.',
     title: 'Czaszka', sub: 'Atlas 3D · 22 kości · szwy',

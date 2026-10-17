@@ -38,6 +38,7 @@ Lista pomysłów do zrobienia „kiedyś”, od największej wartości dla uczni
 - [ ] Mięśnie poprzeczno-kolcowe (wielodzielny, skręcacze, półkolcowy).
 - [x] Obręcz barkowa: łopatka i obojczyk (moduł „Obręcz barkowa”, opisy do weryfikacji i uzupełnienia notatkami z zajęć).
 - [x] Klatka piersiowa: mostek, chrząstki żebrowe, podział żeber, odmiana „wolne żebro X”, mostek w tle obręczy barkowej (opisy do weryfikacji i uzupełnienia notatkami z zajęć).
-- [ ] Kończyna górna: kość ramienna (dziś tylko tło w obręczy barkowej), przedramię, ręka.
+- [x] Kończyna górna: kość ramienna (moduł „Kończyna górna”, nazwy części z zajęć, opisy do weryfikacji).
+- [ ] Kończyna górna: przedramię (kość łokciowa i promieniowa), ręka. W obręczy barkowej kość ramienna jest nadal tylko tłem.
 - [ ] Mięśnie pośladkowe i kończyna dolna.
 - [ ] Przód szyi.

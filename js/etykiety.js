@@ -134,10 +134,10 @@ export function labelItems() {
       ui.test.count = [ask.filter((it) => it.keep).length, ask.length];
       return { items: ask, ref: rect, kind: 'parts', hideBehind };
     }
-    // wąski ekran i nadal dużo podpisów: pierwsze części wyczuwalne (w kolejności z pliku z opisami), reszta to kropki
+    // wąski ekran i nadal dużo podpisów: najpierw części wyczuwalne, potem pozostałe (w kolejności z pliku z opisami), reszta to kropki
     const labeled = items.filter((it) => !it.dotOnly);
     if (renderer.domElement.clientWidth < 520 && labeled.length > NARROW_MAX) {
-      const keep = new Set(labeled.filter((it) => it.palp).slice(0, NARROW_MAX).map((it) => it.part));
+      const keep = new Set([...labeled.filter((it) => it.palp), ...labeled.filter((it) => !it.palp)].slice(0, NARROW_MAX).map((it) => it.part));
       for (const it of labeled) { it.peekable = !keep.has(it.part); it.dotOnly = it.peekable && !shownNow(it); }
     }
     return { items, ref: rect, kind: 'parts', hideBehind };

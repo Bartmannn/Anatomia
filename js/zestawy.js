@@ -1,12 +1,13 @@
-// Zestawy kości oglądanych jako osobne kości z nazwanymi częściami: czaszka, obręcz barkowa i klatka piersiowa.
+// Zestawy kości oglądanych jako osobne kości z nazwanymi częściami: czaszka, obręcz barkowa, klatka piersiowa, kończyna górna.
 // Każdy zestaw ma treści (content-<zestaw>.js), punkty (landmarks-<zestaw>.js), paczki modeli (<dir>-przeglad, <dir>/<kość>)
 // i ustawienia widoku (js/<zestaw>.js → SET). Ten plik łączy je w jedno, żeby reszta strony nie musiała ich rozróżniać.
 // Nowy zestaw: plik js/<zestaw>.js z SET, wpis w SETS poniżej i moduł w MODULES (stan.js).
 import * as CZ from './czaszka.js';
 import * as OB from './obrecz.js';
 import * as KL from './klatka.js';
+import * as KG from './konczyna.js';
 
-export const SETS = { czaszka: CZ.SET, obrecz: OB.SET, klatka: KL.SET };
+export const SETS = { czaszka: CZ.SET, obrecz: OB.SET, klatka: KL.SET, konczyna: KG.SET };
 
 const all = Object.values(SETS);
 const merged = (field) => Object.assign({}, ...all.map((S) => S[field] || {}));
@@ -37,6 +38,8 @@ export const SET_DIRS = all.map((S) => S.dir);
 export const packOf = (k) => `${SETS[SET_OF[k]].dir}/${k}`;
 // nazwy zestawów podpisów (pole group przy części kości) dla kości k
 export const labelGroupNames = (k) => SETS[SET_OF[k]]?.labelGroups || {};
+// „Sama kość”: kamera przybliża część kości z wybranym zestawem podpisów (SET.frameGroups, np. końce kości ramiennej)
+export const framesGroups = (k) => !!SETS[SET_OF[k]]?.frameGroups;
 // zestaw chowa podpisy części po niewidocznej stronie kości (SET.hideBack)
 export const hidesBack = (k) => !!SETS[SET_OF[k]]?.hideBack;
 

@@ -2,7 +2,7 @@
 import { PACKS } from '../models/pakiety/spis.js';
 import * as THREE from 'three';
 import * as MUS from './miesnie.js';
-import { BONE_VIEW, PAIRED_BONES, SETS, SMALL_BONES, isSetBone } from './zestawy.js';
+import { BONE_VIEW, PAIRED_BONES, SETS, SMALL_BONES, framesGroups, isSetBone } from './zestawy.js';
 import { PARTS } from './tresci.js';
 import { nudge, renderEditor } from './edytor.js';
 import { occl } from './etykiety.js';
@@ -12,7 +12,8 @@ import { buildRuler, coverAll, esc, refreshPanel, renderPart, setSelfTest, syncR
 import { updateDebug } from './petla.js';
 import { newQuestion } from './quiz.js';
 import { $, DEBUG, FULL_KEY, MODULES, ORDER, boneSetMode, closeUp, contextKeys, currentKey, modKeys, muscleMode, parts, rulerEl, single, soloMode, state, ui } from './stan.js';
-import { VIEWS, closeFrame, frame, frameWhenReady, neighbors, stepTween, view } from './widok.js';
+import { activeGroup, groupsOf, lm } from './punkty.js';
+import { VIEWS, boxOf, closeFrame, frame, frameBox, frameWhenReady, isoPad, neighbors, stepTween, view } from './widok.js';
 
 /* ---------- Zestawy kości (czaszka, obręcz barkowa): kadr na kość ---------- */
 export const boneDir = (k) => new THREE.Vector3(...(BONE_VIEW[k] || [0.8, 0.15, 0.6])).normalize();
@@ -36,8 +37,22 @@ export function setSide(side) {
   occl.clear();
   syncSidePick();
   paint();
-  frameWhenReady(state.selected, () => closeFrame(state.selected, soloDir(state.selected)));
+  frameWhenReady(state.selected, () => soloFrame(state.selected, soloDir(state.selected)));
   writeHash();
+}
+// Kadr „Sama kość”. Kość długa (SET.frameGroups): zestaw podpisów skupiony na jednym końcu kości (np. „Część dolna”)
+// — kadr na ten koniec; zestaw rozciągnięty na całą kość (np. „Ogólne”) i „Wszystkie” — cała kość.
+export function soloFrame(k, dir = null) {
+  const g = framesGroups(k) && soloMode() ? groupsOf(k).find((x) => x.id === activeGroup(k)) : null;
+  const L = lm(k);
+  const pts = g ? g.parts.map((p) => (L[p]?.length > 1 ? L[p][state.side] : L[p]?.[0])).filter(Boolean) : [];
+  const bone = boxOf([k]);
+  const box = new THREE.Box3().setFromPoints(pts.map((p) => new THREE.Vector3(...p)));
+  if (!framesGroups(k)) { closeFrame(k, dir); return; }
+  // cała kość długa: ciaśniejszy kadr (kość jest wąska, podpisy mieszczą się po bokach)
+  if (!pts.length || bone.isEmpty() || box.getSize(new THREE.Vector3()).y > 0.6 * bone.getSize(new THREE.Vector3()).y) { frame([k], dir, isoPad() * 0.75); return; }
+  box.expandByScalar(0.15);            // 1,5 cm wokół punktów — żeby było widać kość wokół nich
+  frameBox(box, dir, isoPad());
 }
 export function frameSetBone(k) {
   if (SMALL_BONES.has(k)) frameWhenReady(k, () => frame([k], boneDir(k), 3.2));
@@ -83,7 +98,7 @@ export function select(k, doFrame) {
   if (muscleMode()) { if (doFrame) frameWhenReady(k, () => frame([k], null, state.isolate ? 1.4 : 1.15)); }
   else if (doFrame || single()) {
     const keys = k.startsWith('D_') ? [k.slice(2)] : [k];
-    if (closeUp()) frameWhenReady(k, () => closeFrame(k, soloMode() ? soloDir(k) : null));
+    if (closeUp()) frameWhenReady(k, () => (soloMode() ? soloFrame(k, soloDir(k)) : closeFrame(k)));
     else if (boneSetMode()) frameSetBone(k);
     else { view.pendingFrame = null; frame(neighbors(keys[0], 3)); }
   }
@@ -124,7 +139,7 @@ document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('clic
     const back = muscleMode() || contextKeys().length > 0;      // mięśnie i łopatka: od tyłu, razem z kręgosłupem
     frame(muscleMode() ? [...modKeys(), ...ORDER] : [...modKeys(), ...contextKeys()], back ? VIEWS.back : VIEWS.side);
   }
-  else if (closeUp()) closeFrame(k, VIEWS[v]);
+  else if (closeUp()) soloFrame(k, VIEWS[v]);
   else frame(modKeys(), VIEWS[v]);
 }));
 toggle('#attach', 'attach');
@@ -226,6 +241,9 @@ export const ICONS = {
   // mostek i łuki żeber
   klatka: '<svg viewBox="0 0 40 56" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6"><path d="M17 8 L23 8 L22 15 L22.5 34 L20 39 L17.5 34 L18 15 Z" fill="currentColor" fill-opacity=".18"/>' +
     Array.from({ length: 6 }, (_, i) => `<path d="M17 ${11 + i * 4.4} Q${7 - i * 0.4} ${12 + i * 4.6} ${6 - i * 0.3} ${20 + i * 5} M23 ${11 + i * 4.4} Q${33 + i * 0.4} ${12 + i * 4.6} ${34 + i * 0.3} ${20 + i * 5}"/>`).join('') + '</g></svg>',
+  // kość ramienna: głowa i guzki, trzon, nasada dalsza z nadkłykciami
+  konczyna: '<svg viewBox="0 0 40 56" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="17" cy="9" r="5" fill="currentColor" fill-opacity=".18"/>' +
+    '<path d="M21 6 Q26 6 26 11 L23.5 16 L23 40 Q30 44 29 49 L25 47 Q22 50 20 49 Q17 50 15 47 L11 49 Q10 44 17 40 L17.5 16 L14 13"/></g></svg>',
   // łopatka od tyłu: trzon, grzebień z wyrostkiem barkowym, nad nią obojczyk
   obrecz: '<svg viewBox="0 0 40 56" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 10 Q16 6 22 9 Q30 12 36 9" stroke-width="2"/>' +
     '<path d="M10 16 L33 15 L31 22 L15 47 Z" fill="currentColor" fill-opacity=".18"/><path d="M11 23 L32 15 L36 13" stroke-width="2.2"/><circle cx="33" cy="20" r="2.4"/></g></svg>',
@@ -374,8 +392,8 @@ export function setModule(mod, key = null, side = null) {
   if (!keys.includes(state.selected.replace('D_', ''))) state.selected = mod === 'zebra' ? 'Th7' : keys.includes('C7') ? 'C7' : keys[0];
   if (single() && state.selected.startsWith('D_')) state.selected = state.selected.slice(2);
   state.focusPart = null;
-  state.isolate = side != null && !!M.solo;
-  if (state.isolate) state.side = side;
+  state.isolate = (side != null || !!M.soloStart) && !!M.solo;
+  if (side != null && state.isolate) state.side = side;
   $('#isolate').setAttribute('aria-pressed', String(state.isolate));
   $('#isolate').hidden = single();
   $('#isolate .ilbl').textContent = M.solo ? 'Sama kość' : 'Tylko wybrany';
@@ -416,7 +434,7 @@ export function setModule(mod, key = null, side = null) {
       if (state.module !== mod) return;
       paint();
       if (mus) frame([...modKeys(), ...ORDER], VIEWS.back, 1.12);
-      else if (state.mode === 'edit' || state.isolate) closeFrame(state.selected, soloMode() ? soloDir(state.selected) : null);
+      else if (state.mode === 'edit' || state.isolate) (soloMode() ? soloFrame(state.selected, soloDir(state.selected)) : closeFrame(state.selected));
       else if (sets) frameSetBone(state.selected);
       else frame(modKeys(), VIEWS.three);
       done();

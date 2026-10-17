@@ -16,6 +16,7 @@ Paczki `pakiety/*.pak` (skrypt `tools/build_packs.py`): podział na kręgi i par
 kwantyzacja do 0,02 mm i kompresja (format opisany w skrypcie). Mięśnie i kości tła: `tools/muscles.py` (uproszczenie siatek, punkty etykiet).
 Czaszka: `tools/czaszka.py`. Obręcz barkowa (łopatki, obojczyki, kości ramienne jako tło): `tools/obrecz.py` (uproszczenie siatek, punkty etykiet).
 Klatka piersiowa (mostek, żebra, chrząstki żebrowe): `tools/klatka.py` (uproszczenie siatek, podział łuku żebrowego na chrząstki żeber 8–10, punkty etykiet).
+Kończyna górna (kości ramienne): `tools/konczyna.py` (uproszczenie siatek, punkty etykiet).
 
 Te pliki są udostępniane na tej samej licencji: CC BY-SA 2.1 JP.
 

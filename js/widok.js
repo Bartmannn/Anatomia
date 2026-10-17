@@ -135,10 +135,14 @@ export function frameWhenReady(key, fn) {
   if (hasKey(key)) fn(); else view.pendingFrame = { key, fn };
 }
 export function frame(keys, dir, pad = 1.1) {
-  view.zoomTarget = null;
   const box = boxOf(keys);
   // moduł żeber: przegląd obejmuje całą klatkę
   if (state.module === 'zebra' && keys.length > 1) for (const m of ribMeshes) if (m.visible && m.userData.kind === 'rib') box.union(m.geometry.boundingBox);
+  frameBox(box, dir, pad);
+}
+// kadr na pudełko (np. część kości z punktami jednego zestawu podpisów)
+export function frameBox(box, dir, pad = 1.1) {
+  view.zoomTarget = null;
   if (box.isEmpty()) return;
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());

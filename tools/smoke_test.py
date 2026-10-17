@@ -62,7 +62,7 @@ def main():
 
         for hash_, name in [('#kregoslup/C7', 'Cały kręgosłup'), ('#kregi/L4', 'Pojedyncze kręgi'),
                             ('#zebra/Th7', 'Kręgi piersiowe i żebra'), ('#klatka/rib2', 'Klatka piersiowa'),
-                            ('#obrecz/scapula', 'Obręcz barkowa'),
+                            ('#obrecz/scapula', 'Obręcz barkowa'), ('#konczyna/humerus', 'Kończyna górna'),
                             ('#czaszka/temporal', 'Czaszka'),
                             ('#grzbiet/trapezius', 'Mięśnie grzbietu')]:
             print(name)
@@ -146,6 +146,25 @@ def main():
         page.click('[data-action=edit]')
         page.wait_for_timeout(1500)
         check(page.locator('.erow').count() >= 4, 'poprawianie punktów obojczyka')
+        check(not errs, 'brak błędów w konsoli' + (f': {errs[:3]}' if errs else ''))
+        ctx.close()
+
+        print('Kończyna górna: kość ramienna, zestawy, przybliżenie końca kości')
+        ctx, page, errs, _ = open_page('#konczyna/humerus')
+        wait_loaded(page)
+        check(page.get_attribute('#isolate', 'aria-pressed') == 'true', 'moduł zaczyna od „Sama kość”')
+        check(page.locator('#lgroups [data-lg]').count() == 4, 'zestawy podpisów kości ramiennej (3 i „Wszystkie”)')
+        cam = "import('./js/widok.js').then((w) => w.camera.position.distanceTo(w.controls.target))"
+        far = page.evaluate(cam)
+        page.click('#lgroups [data-lg=dol]')
+        page.wait_for_timeout(1500)
+        near = page.evaluate(cam)
+        check(near < far * 0.7, f'„Część dolna” przybliża koniec dalszy ({far:.2f} → {near:.2f})')
+        check(page.locator('.lbl:not([hidden])').count() >= 5, 'podpisy części dolnej')
+        page.click('#isolate')
+        page.wait_for_timeout(1500)
+        vis = page.evaluate("import('./js/stan.js').then((s) => ['scapula', 'clavicle', 'sternum'].filter((k) => s.parts[k]?.visible))")
+        check(vis == ['scapula', 'clavicle', 'sternum'], f'tło: łopatki, obojczyki, mostek ({vis})')
         check(not errs, 'brak błędów w konsoli' + (f': {errs[:3]}' if errs else ''))
         ctx.close()
 

@@ -1,13 +1,13 @@
 // Lewa kolumna (kręgi albo mięśnie) i panel z opisem po prawej.
 import * as MUS from './miesnie.js';
-import { INNER_BONES, isSetBone, navHTML } from './zestawy.js';
+import { INNER_BONES, framesGroups, isSetBone, navHTML } from './zestawy.js';
 import { REGIONS, PARTS, DISC } from './tresci.js';
 import { RIB_LINKS } from '../landmarks-ribs.js';
 import { renderEditor, reportUrl } from './edytor.js';
 import { paint, ribsOn } from './malowanie.js';
-import { select, setMode, toggleRibs } from './moduly.js';
+import { select, setMode, soloFrame, toggleRibs } from './moduly.js';
 import { activeGroup, groupsOf, partList, reviewedOf } from './punkty.js';
-import { MODULES, ORDER, REGION_KEYS, bigcodeEl, boneSetMode, discLabel, modKeys, muscleMode, panelEl, parts, regionOf, rulerEl, skullMode, state, ui } from './stan.js';
+import { MODULES, ORDER, REGION_KEYS, bigcodeEl, boneSetMode, discLabel, modKeys, muscleMode, panelEl, parts, regionOf, rulerEl, skullMode, soloMode, state, ui } from './stan.js';
 import { R, invalidate } from './widok.js';
 
 /* ---------- Ruler ---------- */
@@ -115,6 +115,7 @@ export function setLabelGroup(k, id) {
   ui.labelGroup[k] = id;
   ui.peek = null;
   syncGroups(k);
+  if (framesGroups(k) && soloMode()) soloFrame(k);      // kość długa: przybliżenie końca kości z tym zestawem
   invalidate();
 }
 export function syncGroups(k = state.selected) {

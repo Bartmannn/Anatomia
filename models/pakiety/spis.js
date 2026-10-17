@@ -73,6 +73,8 @@ export const PACKS = {
   "klatka/rib8": {"bajty": 83517, "trojkaty": 21540},
   "klatka/rib9": {"bajty": 80689, "trojkaty": 20619},
   "klatka/sternum": {"bajty": 58310, "trojkaty": 15000},
+  "konczyna-przeglad": {"bajty": 21076, "trojkaty": 4800},
+  "konczyna/humerus": {"bajty": 102168, "trojkaty": 28000},
   "kosci-tla": {"bajty": 94744, "trojkaty": 20800},
   "miesnie/warstwa-1": {"bajty": 120864, "trojkaty": 24400},
   "miesnie/warstwa-2": {"bajty": 82700, "trojkaty": 17400},
